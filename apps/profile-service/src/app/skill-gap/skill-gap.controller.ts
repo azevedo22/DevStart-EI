@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CatalogService } from '../catalog/catalog.service';
-import { CurrentUserId, RequireUserGuard } from '../common/current-user';
+import { CurrentUserId, RequireUserGuard } from '@devstart/backend-common';
 import { ProfileService } from '../profile/profile.service';
 import { ProjectsService } from '../projects/projects.service';
 

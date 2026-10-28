@@ -56,3 +56,8 @@ body {
   --bs-btn-active-bg: var(--bs-primary);
   --bs-btn-active-border-color: var(--bs-primary);
 }
+
+/* Painel lateral de detalhe da candidatura: mais largo em ecrãs grandes. */
+.offcanvas.detail-panel {
+  --bs-offcanvas-width: min(32rem, 100vw);
+}

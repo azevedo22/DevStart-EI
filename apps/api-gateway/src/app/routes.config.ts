@@ -27,7 +27,7 @@ export function buildRoutes(
     {
       service: 'tracker-service',
       target: env['TRACKER_SERVICE_URL'] ?? 'http://localhost:3003',
-      prefixes: ['applications', 'interviews', 'jobs'],
+      prefixes: ['applications', 'interviews'],
     },
   ];
 }

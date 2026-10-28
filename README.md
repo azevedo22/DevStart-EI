@@ -7,8 +7,8 @@ Ajuda a responder a três perguntas:
 2. **Como provo o que sei sem experiência comercial?** Cada competência liga-se a projetos (_Proof of Work_).
 3. **Em que ponto estão as minhas candidaturas?** Quadro Kanban do envio do CV até à proposta.
 
-> Estado: em desenvolvimento. Autenticação, perfil com projetos e diagnóstico de skill gap funcionam
-> de ponta a ponta; o quadro de candidaturas é o próximo passo.
+> Estado: os três módulos funcionam de ponta a ponta (autenticação, perfil com projetos, diagnóstico de
+> skill gap e quadro de candidaturas). Próximos passos: Dockerfiles por serviço e deploy.
 
 ## Arquitetura
 
@@ -21,9 +21,9 @@ Ajuda a responder a três perguntas:
              ┌──────────▼┐ ┌──────▼─────┐ ┌▼──────────────────┐
              │ auth      │ │ profile    │ │ tracker           │
              │ :3001     │ │ :3002      │ │ :3003             │
-             └─────┬─────┘ └─────┬──────┘ └───────────────────┘
-                   │             │
-               PostgreSQL    PostgreSQL     (uma base de dados por serviço)
+             └─────┬─────┘ └─────┬──────┘ └─────────┬─────────┘
+                   │             │                  │
+               PostgreSQL    PostgreSQL         PostgreSQL     (uma base de dados por serviço)
                         ╲        │        ╱
                     libs/shared-types (contratos + lógica de gap)
 ```
@@ -34,8 +34,9 @@ Ajuda a responder a três perguntas:
 | `apps/api-gateway`     | Ponto de entrada único. Valida o JWT e encaminha `/api/v1/<recurso>` para o serviço dono do recurso   |
 | `apps/auth-service`    | Registo, login, JWT e refresh tokens com rotação (PostgreSQL + TypeORM + migrações)                   |
 | `apps/profile-service` | Perfil, competências declaradas, projetos, stacks alvo e cálculo do skill gap (PostgreSQL)            |
-| `apps/tracker-service` | Candidaturas, Kanban e feedback de entrevistas                                                        |
-| `libs/shared-types`    | Tipos partilhados entre frontend e backend e a função pura `calculateSkillGap`                        |
+| `apps/tracker-service` | Candidaturas, Kanban com histórico de estados, entrevistas e estatísticas (PostgreSQL)                |
+| `libs/shared-types`    | Contratos partilhados e lógica de domínio pura: `calculateSkillGap`, `analyzeJobPosting`              |
+| `libs/backend-common`  | Código comum dos serviços NestJS: identidade via gateway, transformações, validação de config         |
 
 ### Decisões de arquitetura
 
@@ -52,6 +53,18 @@ Ajuda a responder a três perguntas:
   uma lista fechada de cinco valores, ficam num array.
 - **Isolamento entre utilizadores.** Todas as consultas filtram por dono. Um projeto de outra pessoa
   responde 404, não 403, para não revelar que o id existe. Testado com dois utilizadores nos e2e.
+- **Análise de vagas explicável.** `analyzeJobPosting` lê o texto de um anúncio e extrai competências, anos
+  de experiência e senioridade, e classifica a vaga como _acessível_, _vale a pena tentar_ ou _pouco
+  realista_ para quem tem zero anos. Deteta vagas "júnior" que pedem 3+ anos. É uma heurística por
+  palavras-chave, não IA: previsível, testável e cada conclusão vem com o motivo. Termos ambíguos ("REST",
+  "SOLID", "Spring") só contam escritos como termo técnico, para "the rest of the team" não ser uma
+  competência. Os testes correm contra o catálogo real.
+- **Kanban com posições consistentes.** Cada coluna mantém posições contínuas (0, 1, 2…). Mover, criar e
+  apagar acontecem numa transação com um bloqueio por utilizador (`pg_advisory_xact_lock`). Um teste e2e
+  faz 20 movimentos em simultâneo e verifica que nenhuma posição fica repetida nem com buracos. No
+  frontend, o movimento é otimista e volta atrás se o servidor recusar.
+- **A acessibilidade é sempre calculada no servidor**, a partir dos anos e da senioridade, com a mesma
+  função que o formulário usa para a pré-visualização. O cliente não a pode definir.
 - **Catálogo com ids estáveis.** 47 competências em 8 categorias, cada uma com `aliases` para reconhecer
   termos em texto livre (ex.: "Jest" → `unit-testing`). Os seeds têm testes que impedem ids duplicados e
   referências partidas.
@@ -153,7 +166,7 @@ apps/web/src/app/
     ├── auth/          # login e registo
     ├── skill-gap/     # Módulo 1: diagnóstico (com o perfil guardado ou em simulação)
     ├── profile/       # Módulo 2: perfil, competências e projetos
-    └── applications/  # Módulo 3
+    └── applications/  # Módulo 3: Kanban com drag & drop (Angular CDK), análise de vagas e entrevistas
 ```
 
 ## Roadmap
@@ -167,8 +180,10 @@ apps/web/src/app/
 - [ ] Dockerfiles por serviço e `docker compose up` da aplicação inteira
 - [x] Perfil: competências declaradas e projetos (Proof of Work)
 - [x] Diagnóstico com os dados guardados e ranking das stacks mais próximas
-- [ ] Kanban de candidaturas com drag & drop
-- [ ] Filtro de vagas acessíveis a quem tem 0 anos de experiência
+- [x] Kanban de candidaturas com drag & drop, histórico de estados e entrevistas com feedback
+- [x] Análise de anúncios e filtro de vagas acessíveis a quem tem 0 anos de experiência
+- [ ] Conta de demonstração com dados de exemplo
+- [ ] Evento `user.deleted` para limpar dados nos outros serviços
 
 ## Autor
 

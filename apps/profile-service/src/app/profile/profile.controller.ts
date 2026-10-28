@@ -10,7 +10,7 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentUserId, RequireUserGuard } from '../common/current-user';
+import { CurrentUserId, RequireUserGuard } from '@devstart/backend-common';
 import { DeclareCompetencyDto, UpdateProfileDto } from './dto/profile.dto';
 import { ProfileService } from './profile.service';
 

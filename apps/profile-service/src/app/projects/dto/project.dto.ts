@@ -18,7 +18,7 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import { Trim, TrimToNull } from '../../common/transforms';
+import { Trim, TrimToNull } from '@devstart/backend-common';
 
 /**
  * Só http(s) e com protocolo: estes links são mostrados como <a href>,

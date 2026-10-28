@@ -15,7 +15,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
-import { TrimToNull } from '../../common/transforms';
+import { TrimToNull } from '@devstart/backend-common';
 
 const maxGraduationYear = () =>
   new Date().getFullYear() + PROFILE_LIMITS.maxGraduationYearAhead;

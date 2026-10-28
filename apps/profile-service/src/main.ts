@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import { Env } from './app/config/env';
-import { configureApp } from './app/configure-app';
+import { configureApp } from '@devstart/backend-common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

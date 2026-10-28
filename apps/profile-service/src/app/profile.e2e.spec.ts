@@ -35,7 +35,7 @@ describeDb('Profile & Skill Service (e2e)', () => {
       PROFILE_DATABASE_URL: TEST_DATABASE_URL,
     });
     const { AppModule } = await import('./app.module');
-    const { configureApp } = await import('./configure-app');
+    const { configureApp } = await import('@devstart/backend-common');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
