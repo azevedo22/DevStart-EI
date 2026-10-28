@@ -4,6 +4,8 @@ import { catchError, throwError } from 'rxjs';
 export interface ApiError {
   status: number;
   message: string;
+  /** Mensagens de validação por campo, quando o backend as devolve em lista. */
+  details: string[];
 }
 
 /**
@@ -12,14 +14,32 @@ export interface ApiError {
  */
 export const errorInterceptor: HttpInterceptorFn = (req, next) =>
   next(req).pipe(
-    catchError((err: HttpErrorResponse) => {
-      const apiError: ApiError = {
-        status: err.status,
-        message:
-          err.status === 0
-            ? 'Não foi possível contactar o servidor. Confirma que o API Gateway está a correr.'
-            : (err.error?.message ?? err.message),
-      };
-      return throwError(() => apiError);
-    }),
+    catchError((err: HttpErrorResponse) => throwError(() => toApiError(err))),
   );
+
+export function toApiError(err: HttpErrorResponse): ApiError {
+  const raw = err.error?.message;
+  const details = Array.isArray(raw) ? raw.map(String) : [];
+
+  let message: string;
+  if (err.status === 0) {
+    message =
+      'Não foi possível contactar o servidor. Confirma que o API Gateway está a correr.';
+  } else if (err.status === 429) {
+    message = 'Demasiadas tentativas. Espera um minuto e tenta de novo.';
+  } else if (details.length) {
+    message = details[0];
+  } else {
+    message = typeof raw === 'string' ? raw : err.message;
+  }
+  return { status: err.status, message, details };
+}
+
+export function isApiError(value: unknown): value is ApiError {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'status' in value &&
+    'message' in value
+  );
+}

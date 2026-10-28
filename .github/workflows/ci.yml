@@ -11,6 +11,26 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+
+    # PostgreSQL para os testes e2e do auth-service.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: devstart
+          POSTGRES_PASSWORD: devstart
+          POSTGRES_DB: devstart_auth_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U devstart"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgres://devstart:devstart@localhost:5432/devstart_auth_test
+
     steps:
       - uses: actions/checkout@v5
         with:
@@ -26,7 +46,7 @@ jobs:
       # Em PRs só corre o que foi afetado pela alteração; no main corre tudo.
       - uses: nrwl/nx-set-shas@v4
 
-      - name: Testes
+      - name: Testes (unitários + e2e)
         run: npx nx affected -t test --base=$NX_BASE --head=$NX_HEAD
 
       - name: Build

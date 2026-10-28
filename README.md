@@ -7,20 +7,23 @@ Ajuda a responder a três perguntas:
 2. **Como provo o que sei sem experiência comercial?** Cada competência liga-se a projetos (_Proof of Work_).
 3. **Em que ponto estão as minhas candidaturas?** Quadro Kanban do envio do CV até à proposta.
 
-> Estado: em desenvolvimento. O diagnóstico de skill gap já funciona de ponta a ponta; perfil, projetos,
-> autenticação e candidaturas são os próximos passos.
+> Estado: em desenvolvimento. Autenticação e diagnóstico de skill gap funcionam de ponta a ponta;
+> perfil, projetos e candidaturas são os próximos passos.
 
 ## Arquitetura
 
 ```
                      ┌──────────────────────┐
   Angular (web) ───▶ │  API Gateway :3000   │  /api/v1/*  → encaminha por recurso
+                     │  valida o JWT        │
                      └──┬─────────┬───────┬─┘
                         │         │       │
              ┌──────────▼┐ ┌──────▼─────┐ ┌▼──────────────────┐
              │ auth      │ │ profile    │ │ tracker           │
              │ :3001     │ │ :3002      │ │ :3003             │
-             └───────────┘ └────────────┘ └───────────────────┘
+             └─────┬─────┘ └────────────┘ └───────────────────┘
+                   │
+               PostgreSQL
                         ╲        │        ╱
                     libs/shared-types (contratos + lógica de gap)
 ```
@@ -28,8 +31,8 @@ Ajuda a responder a três perguntas:
 | Projeto                | Responsabilidade                                                                                      |
 | ---------------------- | ----------------------------------------------------------------------------------------------------- |
 | `apps/web`             | SPA em Angular 22 (Standalone Components, Signals, Reactive Forms, RxJS) + Bootstrap 5 / ng-bootstrap |
-| `apps/api-gateway`     | Ponto de entrada único. Encaminha `/api/v1/<recurso>` para o serviço dono do recurso                  |
-| `apps/auth-service`    | Registo, login e emissão de JWT                                                                       |
+| `apps/api-gateway`     | Ponto de entrada único. Valida o JWT e encaminha `/api/v1/<recurso>` para o serviço dono do recurso   |
+| `apps/auth-service`    | Registo, login, JWT e refresh tokens com rotação (PostgreSQL + TypeORM + migrações)                   |
 | `apps/profile-service` | Competências, projetos, stacks alvo e cálculo do skill gap                                            |
 | `apps/tracker-service` | Candidaturas, Kanban e feedback de entrevistas                                                        |
 | `libs/shared-types`    | Tipos partilhados entre frontend e backend e a função pura `calculateSkillGap`                        |
@@ -48,14 +51,48 @@ Ajuda a responder a três perguntas:
   termos em texto livre (ex.: "Jest" → `unit-testing`). Os seeds têm testes que impedem ids duplicados e
   referências partidas.
 
+### Autenticação
+
+```
+ browser                    gateway                    auth-service
+   │ POST /auth/login          │                            │
+   │──────────────────────────▶│───────────────────────────▶│ bcrypt.compare
+   │◀── access token (JSON) ───│◀── + cookie httpOnly ──────│ guarda hash do refresh
+   │    (fica em memória)      │                            │
+   │                           │                            │
+   │ GET /profile + Bearer ───▶│ valida JWT                 │
+   │                           │ x-user-id: <id> ──────────▶ profile-service
+   │                           │                            │
+   │ 401 (token expirou)       │                            │
+   │ POST /auth/refresh ──────▶│───────────────────────────▶│ roda o token:
+   │◀── novo access token ─────│◀── novo cookie ────────────│ revoga o antigo
+```
+
+- **Access token em memória, refresh token em cookie `httpOnly`.** Um script injetado não consegue ler
+  nenhum dos dois. O cookie é `SameSite=Strict` e só viaja para `/api/v1/auth`.
+- **Rotação com deteção de roubo.** Cada refresh revoga o token usado. Se um token já usado voltar a
+  aparecer, a sessão inteira é revogada. No frontend, pedidos em paralelo partilham um único refresh,
+  para o próprio utilizador não ser confundido com um atacante.
+- **Gateway como fronteira.** Valida o JWT antes de encaminhar e passa a identidade em `x-user-id`. Apaga
+  sempre esse cabeçalho do pedido original, por isso um cliente não o pode forjar. Uma rota só é pública
+  se estiver explicitamente na lista: esquecer uma entrada fecha, nunca abre.
+- **Proteção de credenciais.** Passwords com bcrypt, resposta igual para email inexistente e password
+  errada (também no tempo de resposta), e limite de 10 tentativas por minuto no login e registo.
+- **Regras partilhadas.** As regras de password vêm de `libs/shared-types` e são validadas no formulário
+  e no servidor com o mesmo critério.
+
 ## Como correr
 
-Requisitos: Node.js 22+.
+Requisitos: Node.js 22+ e Docker (para o PostgreSQL).
 
 ```bash
 npm install
-npm start              # web + gateway + 3 serviços
+cp .env.example .env
+docker compose up -d db   # PostgreSQL com as bases de dados de cada serviço
+npm start                 # web + gateway + 3 serviços
 ```
+
+As migrações correm automaticamente quando o `auth-service` arranca.
 
 - Aplicação: http://localhost:4200
 - API Gateway: http://localhost:3000/api/v1
@@ -65,6 +102,8 @@ Outros comandos:
 ```bash
 npm run start:backend  # só os serviços
 npm test               # testes de todos os projetos
+TEST_DATABASE_URL=postgres://devstart:devstart@localhost:5432/devstart_auth_test npm test
+                       # inclui os testes e2e do auth-service (ignorados sem esta variável)
 npm run build          # build de todos os projetos
 npm run graph          # grafo de dependências do monorepo
 ```
@@ -75,6 +114,11 @@ As variáveis de ambiente estão documentadas em `.env.example`.
 
 | Método | Endpoint                            | Descrição                                             |
 | ------ | ----------------------------------- | ----------------------------------------------------- |
+| `POST` | `/api/v1/auth/register`             | Cria conta, devolve access token e define o cookie    |
+| `POST` | `/api/v1/auth/login`                | Inicia sessão                                         |
+| `POST` | `/api/v1/auth/refresh`              | Novo access token a partir do cookie (com rotação)    |
+| `POST` | `/api/v1/auth/logout`               | Revoga a sessão e limpa o cookie                      |
+| `GET`  | `/api/v1/auth/me`                   | Utilizador autenticado 🔒                             |
 | `GET`  | `/api/v1/competencies?category=&q=` | Catálogo de competências (pesquisa em nome e aliases) |
 | `GET`  | `/api/v1/competencies/:id`          | Detalhe de uma competência                            |
 | `GET`  | `/api/v1/stacks`                    | Stacks alvo                                           |
@@ -82,14 +126,17 @@ As variáveis de ambiente estão documentadas em `.env.example`.
 | `POST` | `/api/v1/skill-gap/preview`         | Calcula o gap sem perfil guardado                     |
 | `GET`  | `/api/health`                       | Estado de cada serviço (em cada porta)                |
 
+🔒 exige `Authorization: Bearer <token>`. Tudo o que não está nesta tabela também é protegido por omissão.
+
 ## Estrutura do frontend
 
 ```
 apps/web/src/app/
-├── core/        # singletons: configuração da API, interceptors, layout
+├── core/        # singletons: sessão (auth), interceptors, guards, layout
 ├── shared/      # componentes reutilizáveis sem lógica de negócio
 └── features/    # uma pasta por domínio, carregada sob demanda
     ├── home/
+    ├── auth/          # login e registo
     ├── skill-gap/     # Módulo 1
     ├── profile/       # Módulo 2
     └── applications/  # Módulo 3
@@ -100,9 +147,10 @@ apps/web/src/app/
 - [x] Monorepo, gateway, serviços e biblioteca de tipos partilhados
 - [x] Catálogo de competências e stacks alvo
 - [x] Diagnóstico de skill gap (API + interface)
-- [x] CI com GitHub Actions
-- [ ] Auth Service: registo, login, JWT e guard no gateway
-- [ ] Persistência com PostgreSQL e Docker Compose
+- [x] CI com GitHub Actions (com PostgreSQL para os testes e2e)
+- [x] Auth Service: registo, login, JWT, refresh com rotação e validação no gateway
+- [x] PostgreSQL com migrações e Docker Compose
+- [ ] Dockerfiles por serviço e `docker compose up` da aplicação inteira
 - [ ] Perfil: competências declaradas e projetos
 - [ ] Kanban de candidaturas com drag & drop
 - [ ] Filtro de vagas acessíveis a quem tem 0 anos de experiência

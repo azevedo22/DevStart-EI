@@ -17,7 +17,7 @@ export function buildRoutes(
     {
       service: 'auth-service',
       target: env['AUTH_SERVICE_URL'] ?? 'http://localhost:3001',
-      prefixes: ['auth', 'users'],
+      prefixes: ['auth'],
     },
     {
       service: 'profile-service',

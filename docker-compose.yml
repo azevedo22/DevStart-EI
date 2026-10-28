@@ -1,0 +1,25 @@
+# Infraestrutura local para desenvolvimento.
+#   docker compose up -d db     → arranca o PostgreSQL
+#   docker compose down         → pára (os dados ficam no volume)
+#   docker compose down -v      → pára e apaga os dados
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: devstart-db
+    environment:
+      POSTGRES_USER: devstart
+      POSTGRES_PASSWORD: devstart
+      POSTGRES_DB: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - devstart-db-data:/var/lib/postgresql/data
+      - ./tools/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U devstart']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  devstart-db-data:
