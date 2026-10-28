@@ -1,27 +1,115 @@
 <div class="container py-4">
-  <header class="mb-4">
-    <h1 class="h3 mb-1">Diagnóstico de Skill Gap</h1>
-    <p class="text-body-secondary mb-0">
-      Escolhe a stack que procuras e indica o que já dominas. O resultado
-      atualiza à medida que preenches.
-    </p>
+  <header
+    class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"
+  >
+    <div>
+      <h1 class="h3 mb-1">Diagnóstico de Skill Gap</h1>
+      <p class="text-body-secondary mb-0">
+        @if (mode() === 'profile') { Calculado com as competências e os projetos
+        do teu perfil. } @else { Escolhe a stack que procuras e indica o que já
+        dominas. O resultado atualiza à medida que preenches. }
+      </p>
+    </div>
+
+    @if (auth.isAuthenticated()) {
+    <div class="btn-group" role="group" aria-label="Fonte dos dados">
+      <button
+        type="button"
+        class="btn btn-sm"
+        [class.btn-primary]="mode() === 'profile'"
+        [class.btn-outline-primary]="mode() !== 'profile'"
+        (click)="setMode('profile')"
+      >
+        <i class="bi bi-person-check me-1"></i>O meu perfil
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm"
+        [class.btn-primary]="mode() === 'simulation'"
+        [class.btn-outline-primary]="mode() !== 'simulation'"
+        (click)="setMode('simulation')"
+      >
+        <i class="bi bi-sliders me-1"></i>Simular
+      </button>
+    </div>
+    }
   </header>
 
-  @if (loadError) {
+  @if (catalog.loadError(); as e) {
   <div class="alert alert-warning d-flex gap-2" role="alert">
-    <i class="bi bi-exclamation-triangle"></i>
-    <span>{{ loadError }}</span>
+    <i class="bi bi-exclamation-triangle"></i><span>{{ e }}</span>
   </div>
-  }
-
+  } @if (mode() === 'profile' && profileIsEmpty()) {
+  <div class="card border-0 shadow-sm">
+    <ds-empty-state
+      icon="bi-person-plus"
+      title="O teu perfil ainda não tem competências"
+      message="Declara o que dominas e associa os teus projetos: o diagnóstico passa a ser feito com os teus dados."
+    />
+    <div class="text-center pb-4">
+      <a routerLink="/profile" class="btn btn-primary">Completar o perfil</a>
+      <button
+        type="button"
+        class="btn btn-link"
+        (click)="setMode('simulation')"
+      >
+        ou simular sem guardar
+      </button>
+    </div>
+  </div>
+  } @else if (mode() === 'profile' && !store.loaded()) {
+  <div class="text-center py-5 text-body-secondary">
+    <span
+      class="spinner-border spinner-border-sm me-2"
+      aria-hidden="true"
+    ></span
+    >A carregar o teu perfil…
+  </div>
+  } @else {
   <div class="row g-4">
-    <div class="col-lg-6">
+    <div class="col-lg-5">
+      @if (mode() === 'profile') {
+      <section class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Stacks mais próximas do teu perfil</h2>
+          <div class="list-group">
+            @for (s of ranking(); track s.stackId) {
+            <button
+              type="button"
+              class="list-group-item list-group-item-action"
+              [class.active]="s.stackId === form.controls.stackId.value"
+              (click)="selectStack(s.stackId)"
+              [attr.aria-pressed]="s.stackId === form.controls.stackId.value"
+            >
+              <div
+                class="d-flex justify-content-between align-items-center gap-2"
+              >
+                <span class="small">{{ s.title }}</span>
+                <span class="fw-semibold">{{ s.matchPercentage }}%</span>
+              </div>
+              <div class="small opacity-75">
+                {{ s.missingCount ? s.missingCount + ' por desenvolver' : 'Todos
+                os requisitos cumpridos' }}
+              </div>
+            </button>
+            }
+          </div>
+          <p class="small text-body-secondary mt-3 mb-0">
+            {{ store.competencies().length }} {{ store.competencies().length ===
+            1 ? 'competência declarada' : 'competências declaradas' }} · {{
+            store.projects().length }} {{ store.projects().length === 1 ?
+            'projeto' : 'projetos' }}.
+            <a routerLink="/profile">Editar perfil</a>
+          </p>
+        </div>
+      </section>
+      } @else {
       <form [formGroup]="form" class="card border-0 shadow-sm">
         <div class="card-body">
           <label for="stack" class="form-label fw-semibold">Stack alvo</label>
           <select id="stack" class="form-select mb-2" formControlName="stackId">
             <option value="" disabled>Escolhe uma stack…</option>
-            @for (stack of stacks(); track stack.id) {
+            @for (stack of catalog.stacks(); track stack.id) {
             <option [value]="stack.id">{{ stack.title }}</option>
             }
           </select>
@@ -52,7 +140,7 @@
                   aria-label="Competência"
                 >
                   <option value="">Competência…</option>
-                  @for (c of competencies(); track c.id) {
+                  @for (c of catalog.competencies(); track c.id) {
                   <option [value]="c.id">{{ c.name }}</option>
                   }
                 </select>
@@ -95,13 +183,25 @@
             </div>
             }
           </div>
+
+          @if (!auth.isAuthenticated()) {
+          <p class="small text-body-secondary mt-3 mb-0">
+            <a routerLink="/register">Cria uma conta</a> para guardares o perfil
+            e os projetos.
+          </p>
+          }
         </div>
       </form>
+      }
     </div>
 
-    <div class="col-lg-6">
-      @if (result(); as r) {
-      <ds-gap-result [result]="r" [competencies]="competencies()" />
+    <div class="col-lg-7">
+      @if (result(); as r) { @if (selectedStack(); as stack) {
+      <p class="small text-body-secondary mb-2">
+        {{ stack.title }} — {{ stack.description }}
+      </p>
+      }
+      <ds-gap-result [result]="r" [linkToProfile]="mode() === 'profile'" />
       } @else {
       <div class="card border-0 shadow-sm">
         <ds-empty-state
@@ -113,4 +213,5 @@
       }
     </div>
   </div>
+  }
 </div>

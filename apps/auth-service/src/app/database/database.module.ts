@@ -19,6 +19,8 @@ export const MIGRATIONS = [CreateAuthTables1730140000000];
         url: config.get('AUTH_DATABASE_URL', { infer: true }),
         entities: ENTITIES,
         migrations: MIGRATIONS,
+        // Nome próprio: nos testes, vários serviços podem partilhar a mesma base de dados.
+        migrationsTableName: 'auth_migrations',
         migrationsRun: true,
         synchronize: false,
         logging: ['error'],

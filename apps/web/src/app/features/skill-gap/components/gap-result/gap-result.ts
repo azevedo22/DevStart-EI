@@ -1,11 +1,8 @@
-import { Component, computed, input } from '@angular/core';
-import {
-  Competency,
-  GapItem,
-  Level,
-  SkillGapResult,
-} from '@devstart/shared-types';
+import { Component, computed, inject, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { GapItem, LEVEL_LABELS, SkillGapResult } from '@devstart/shared-types';
 import { NgbProgressbar } from '@ng-bootstrap/ng-bootstrap';
+import { CatalogApiService } from '../../../../core/catalog/catalog-api.service';
 
 interface GapGroup {
   key: keyof Pick<
@@ -18,15 +15,9 @@ interface GapGroup {
   tone: string;
 }
 
-const LEVEL_LABEL: Record<Level, string> = {
-  BASIC: 'Básico',
-  INTERMEDIATE: 'Intermédio',
-  ADVANCED: 'Avançado',
-};
-
 @Component({
   selector: 'ds-gap-result',
-  imports: [NgbProgressbar],
+  imports: [NgbProgressbar, RouterLink],
   template: `
     @let r = result();
     <div class="card border-0 shadow-sm">
@@ -55,13 +46,18 @@ const LEVEL_LABEL: Record<Level, string> = {
               r[group.key].length
             }}</span>
           </h3>
-          <p class="small text-body-secondary mb-2">{{ group.hint }}</p>
+          <p class="small text-body-secondary mb-2">
+            {{ group.hint }}
+            @if (linkToProfile() && group.key === 'coveredWithoutProjects') {
+              <a routerLink="/profile">Associar a um projeto</a>
+            }
+          </p>
           <ul class="list-group">
             @for (item of r[group.key]; track item.competencyId) {
               <li
                 class="list-group-item d-flex justify-content-between align-items-center"
               >
-                <span>{{ nameOf(item.competencyId) }}</span>
+                <span>{{ catalog.nameOf(item.competencyId) }}</span>
                 <span class="small text-body-secondary">{{
                   levelText(item)
                 }}</span>
@@ -74,8 +70,11 @@ const LEVEL_LABEL: Record<Level, string> = {
   `,
 })
 export class GapResult {
+  protected readonly catalog = inject(CatalogApiService);
+
   readonly result = input.required<SkillGapResult>();
-  readonly competencies = input<Competency[]>([]);
+  /** Com perfil guardado, as recomendações levam à página de perfil. */
+  readonly linkToProfile = input(false);
 
   protected readonly groups: GapGroup[] = [
     {
@@ -113,18 +112,10 @@ export class GapResult {
     return p >= 75 ? 'success' : p >= 40 ? 'warning' : 'danger';
   });
 
-  private readonly names = computed(
-    () => new Map(this.competencies().map((c) => [c.id, c.name])),
-  );
-
-  protected nameOf(id: string): string {
-    return this.names().get(id) ?? id;
-  }
-
   protected levelText(item: GapItem): string {
-    const required = LEVEL_LABEL[item.requiredLevel];
+    const required = LEVEL_LABELS[item.requiredLevel];
     return item.currentLevel
-      ? `${LEVEL_LABEL[item.currentLevel]} / pede ${required}`
+      ? `${LEVEL_LABELS[item.currentLevel]} / pede ${required}`
       : `pede ${required}`;
   }
 }

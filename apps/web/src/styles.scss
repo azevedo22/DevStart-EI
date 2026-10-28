@@ -45,3 +45,14 @@ body {
   border-color: rgba(var(--bs-primary-rgb), 0.5);
   box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.2);
 }
+
+.list-group {
+  --bs-list-group-active-bg: var(--bs-primary);
+  --bs-list-group-active-border-color: var(--bs-primary);
+}
+
+.nav-link.active,
+.btn-check:checked + .btn-outline-primary {
+  --bs-btn-active-bg: var(--bs-primary);
+  --bs-btn-active-border-color: var(--bs-primary);
+}

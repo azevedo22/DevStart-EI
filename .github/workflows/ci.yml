@@ -12,14 +12,14 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    # PostgreSQL para os testes e2e do auth-service.
+    # PostgreSQL para os testes e2e (partilhado pelos serviços).
     services:
       postgres:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: devstart
           POSTGRES_PASSWORD: devstart
-          POSTGRES_DB: devstart_auth_test
+          POSTGRES_DB: devstart_test
         ports:
           - 5432:5432
         options: >-
@@ -29,7 +29,7 @@ jobs:
           --health-retries 10
 
     env:
-      TEST_DATABASE_URL: postgres://devstart:devstart@localhost:5432/devstart_auth_test
+      TEST_DATABASE_URL: postgres://devstart:devstart@localhost:5432/devstart_test
 
     steps:
       - uses: actions/checkout@v5

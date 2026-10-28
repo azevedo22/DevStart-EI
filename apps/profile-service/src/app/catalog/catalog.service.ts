@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   Competency,
   CompetencyCategory,
@@ -9,6 +13,8 @@ import {
 } from '@devstart/shared-types';
 import { COMPETENCIES } from './seed/competencies.seed';
 import { TARGET_STACKS } from './seed/target-stacks.seed';
+
+const COMPETENCY_IDS = new Set(COMPETENCIES.map((c) => c.id));
 
 /**
  * Catálogo em memória (seed). Quando entrar a base de dados,
@@ -36,6 +42,19 @@ export class CatalogService {
     if (!competency)
       throw new NotFoundException(`Competência '${id}' não existe`);
     return competency;
+  }
+
+  /**
+   * Garante que todos os ids existem no catálogo. Sem esta validação, um id
+   * inventado ficaria guardado e nunca apareceria em nenhuma stack.
+   */
+  assertCompetenciesExist(ids: string[]): void {
+    const unknown = ids.filter((id) => !COMPETENCY_IDS.has(id));
+    if (unknown.length) {
+      throw new BadRequestException(
+        `Competência desconhecida: ${unknown.join(', ')}`,
+      );
+    }
   }
 
   findStacks(): TargetStack[] {

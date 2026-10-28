@@ -1,21 +1,95 @@
-import { Component } from '@angular/core';
-import { EmptyState } from '../../../../shared/components/empty-state/empty-state';
+import { Component, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { CatalogApiService } from '../../../../core/catalog/catalog-api.service';
+import { ProfileStore } from '../../../../core/profile/profile-store';
+import { CompetenciesPanel } from '../../components/competencies-panel/competencies-panel';
+import { ProfileInfo } from '../../components/profile-info/profile-info';
+import { ProjectsPanel } from '../../components/projects-panel/projects-panel';
 
-/** Módulo 2 — competências declaradas e projetos (Proof of Work). Próximo passo. */
+/** Módulo 2 — Perfil & Proof of Work. */
 @Component({
   selector: 'ds-profile-page',
-  imports: [EmptyState],
+  imports: [RouterLink, ProfileInfo, CompetenciesPanel, ProjectsPanel],
   template: `
     <div class="container py-4">
-      <h1 class="h3">Perfil & Projetos</h1>
-      <div class="card border-0 shadow-sm mt-3">
-        <ds-empty-state
-          icon="bi-person-workspace"
-          title="Em construção"
-          message="Aqui vais registar as tuas competências e os projetos que as demonstram."
-        />
-      </div>
+      @if (store.error(); as e) {
+        <div
+          class="alert alert-danger d-flex justify-content-between align-items-center"
+        >
+          <span>{{ e }}</span>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger"
+            (click)="store.load(true)"
+          >
+            Tentar de novo
+          </button>
+        </div>
+      }
+      @if (catalog.loadError(); as e) {
+        <div class="alert alert-warning">{{ e }}</div>
+      }
+
+      @if (store.loaded()) {
+        <ds-profile-info />
+
+        @if (proof(); as p) {
+          <div
+            class="alert alert-light border d-flex flex-wrap align-items-center gap-2 mt-3 mb-0"
+          >
+            <i class="bi bi-shield-check text-primary fs-5"></i>
+            <span class="me-auto">
+              <strong>{{ p.withProject }} de {{ p.total }}</strong> competências
+              já têm um projeto que as demonstra.
+              @if (p.total > p.withProject) {
+                <span class="text-body-secondary"
+                  >As que estão a amarelo são o caminho mais rápido para
+                  reforçar o portfólio.</span
+                >
+              }
+            </span>
+            <a routerLink="/skill-gap" class="btn btn-sm btn-primary"
+              >Ver diagnóstico</a
+            >
+          </div>
+        }
+
+        <div class="row g-4 mt-0">
+          <div class="col-lg-5">
+            <ds-competencies-panel />
+          </div>
+          <div class="col-lg-7">
+            <ds-projects-panel />
+          </div>
+        </div>
+      } @else if (store.loading()) {
+        <div class="text-center py-5 text-body-secondary">
+          <span
+            class="spinner-border spinner-border-sm me-2"
+            aria-hidden="true"
+          ></span
+          >A carregar o teu perfil…
+        </div>
+      }
     </div>
   `,
 })
-export class ProfilePage {}
+export class ProfilePage {
+  protected readonly store = inject(ProfileStore);
+  protected readonly catalog = inject(CatalogApiService);
+
+  protected readonly proof = computed(() => {
+    const declared = this.store.competencies();
+    if (!declared.length) return null;
+    const withProjects = this.store.competenciesWithProjects();
+    return {
+      total: declared.length,
+      withProject: declared.filter((c) => withProjects.has(c.competencyId))
+        .length,
+    };
+  });
+
+  constructor() {
+    this.store.load();
+  }
+}

@@ -101,3 +101,11 @@ export function calculateSkillGap(
 
   return result;
 }
+
+/** Resposta de GET /skill-gap/overview: compatibilidade com cada stack. */
+export interface StackMatch {
+  stackId: string;
+  title: string;
+  matchPercentage: number;
+  missingCount: number; // competências em falta ou abaixo do nível
+}
