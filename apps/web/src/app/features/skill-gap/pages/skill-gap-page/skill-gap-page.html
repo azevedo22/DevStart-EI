@@ -1,0 +1,116 @@
+<div class="container py-4">
+  <header class="mb-4">
+    <h1 class="h3 mb-1">Diagnóstico de Skill Gap</h1>
+    <p class="text-body-secondary mb-0">
+      Escolhe a stack que procuras e indica o que já dominas. O resultado
+      atualiza à medida que preenches.
+    </p>
+  </header>
+
+  @if (loadError) {
+  <div class="alert alert-warning d-flex gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle"></i>
+    <span>{{ loadError }}</span>
+  </div>
+  }
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <form [formGroup]="form" class="card border-0 shadow-sm">
+        <div class="card-body">
+          <label for="stack" class="form-label fw-semibold">Stack alvo</label>
+          <select id="stack" class="form-select mb-2" formControlName="stackId">
+            <option value="" disabled>Escolhe uma stack…</option>
+            @for (stack of stacks(); track stack.id) {
+            <option [value]="stack.id">{{ stack.title }}</option>
+            }
+          </select>
+          @if (selectedStack(); as stack) {
+          <p class="small text-body-secondary">{{ stack.description }}</p>
+          }
+
+          <hr />
+
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-semibold">As tuas competências</span>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-primary"
+              (click)="addSkill()"
+            >
+              <i class="bi bi-plus-lg me-1"></i>Adicionar
+            </button>
+          </div>
+
+          <div formArrayName="skills" class="vstack gap-2">
+            @for (skill of skills.controls; track skill; let i = $index) {
+            <div [formGroupName]="i" class="row g-2 align-items-center">
+              <div class="col-12 col-sm-5">
+                <select
+                  class="form-select form-select-sm"
+                  formControlName="competencyId"
+                  aria-label="Competência"
+                >
+                  <option value="">Competência…</option>
+                  @for (c of competencies(); track c.id) {
+                  <option [value]="c.id">{{ c.name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-6 col-sm-3">
+                <select
+                  class="form-select form-select-sm"
+                  formControlName="level"
+                  aria-label="Nível"
+                >
+                  @for (level of levels; track level) {
+                  <option [value]="level">{{ levelLabel[level] }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-4 col-sm-3">
+                <div class="form-check form-switch mb-0">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    [id]="'proj-' + i"
+                    formControlName="hasProject"
+                  />
+                  <label class="form-check-label small" [for]="'proj-' + i"
+                    >Projeto</label
+                  >
+                </div>
+              </div>
+              <div class="col-2 col-sm-1 text-end">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-link text-danger p-0"
+                  (click)="removeSkill(i)"
+                  aria-label="Remover"
+                >
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-lg-6">
+      @if (result(); as r) {
+      <ds-gap-result [result]="r" [competencies]="competencies()" />
+      } @else {
+      <div class="card border-0 shadow-sm">
+        <ds-empty-state
+          icon="bi-bullseye"
+          title="Escolhe uma stack alvo"
+          message="O diagnóstico aparece aqui."
+        />
+      </div>
+      }
+    </div>
+  </div>
+</div>

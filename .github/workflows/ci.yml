@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Em PRs só corre o que foi afetado pela alteração; no main corre tudo.
+      - uses: nrwl/nx-set-shas@v4
+
+      - name: Testes
+        run: npx nx affected -t test --base=$NX_BASE --head=$NX_HEAD
+
+      - name: Build
+        run: npx nx affected -t build --base=$NX_BASE --head=$NX_HEAD
