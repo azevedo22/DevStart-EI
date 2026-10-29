@@ -354,4 +354,53 @@ describeDb('Profile & Skill Service (e2e)', () => {
       await expect(deleted(ANA)).resolves.toBeUndefined();
     });
   });
+
+  describe('evento user.demo-created (conta de demonstração)', () => {
+    const seed = async (userId: string) => {
+      const { DemoProfileSeeder } = await import('./demo/demo-profile.seeder');
+      await app.get(DemoProfileSeeder).seed(userId);
+    };
+    const ids = (list: { competencyId: string }[]) =>
+      list.map((c) => c.competencyId).sort();
+
+    it('preenche perfil, competências e projetos com dados válidos no catálogo', async () => {
+      await seed(ANA);
+      const { body: profile } = await ana.get('/api/profile').expect(200);
+      expect(profile.headline).toMatch(/Engenharia Informática/);
+      expect(profile.competencies.length).toBeGreaterThanOrEqual(10);
+
+      const { body: projects } = await ana.get('/api/projects').expect(200);
+      expect(projects.map((p: { title: string }) => p.title)[0]).toBe(
+        'Gestor de despesas partilhadas',
+      );
+    });
+
+    it('o diagnóstico da stack full-stack mostra os quatro casos', async () => {
+      await seed(ANA);
+      const { body } = await ana
+        .get('/api/skill-gap?stackId=junior-fullstack-angular-node')
+        .expect(200);
+      expect(ids(body.coveredWithoutProjects)).toEqual([
+        'nestjs',
+        'unit-testing',
+      ]);
+      expect(ids(body.belowLevel)).toEqual(['rest-api']);
+      expect(ids(body.missing)).toEqual(['auth-jwt', 'docker', 'orm']);
+      expect(body.coveredWithProjects.length).toBeGreaterThan(0);
+    });
+
+    it('é idempotente: um evento repetido não duplica nada', async () => {
+      await seed(ANA);
+      await seed(ANA);
+      const { body: projects } = await ana.get('/api/projects').expect(200);
+      expect(projects).toHaveLength(3);
+    });
+
+    it('não toca nos dados de outros utilizadores', async () => {
+      await rui.put('/api/profile/competencies/java', { level: 'BASIC' });
+      await seed(ANA);
+      const { body } = await rui.get('/api/profile').expect(200);
+      expect(ids(body.competencies)).toEqual(['java']);
+    });
+  });
 });

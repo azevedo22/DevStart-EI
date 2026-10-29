@@ -38,6 +38,7 @@ function buildApp(
 describe('access policy', () => {
   it.each([
     ['POST', '/api/v1/auth/login'],
+    ['POST', '/api/v1/auth/demo'],
     ['POST', '/api/v1/auth/refresh'],
     ['GET', '/api/v1/stacks'],
     ['GET', '/api/v1/stacks/junior-fullstack-angular-node'],

@@ -1,4 +1,8 @@
-import { APPLICATION_LIMITS, Interview } from '@devstart/shared-types';
+import {
+  APPLICATION_LIMITS,
+  Interview,
+  SaveInterviewRequest,
+} from '@devstart/shared-types';
 import {
   ConflictException,
   Injectable,
@@ -38,7 +42,7 @@ export class InterviewsService {
       );
     }
     const saved = await this.interviews.save(
-      this.interviews.create({ applicationId, ...this.fields(dto) }),
+      this.interviews.create({ applicationId, ...toInterviewFields(dto) }),
     );
     return toInterview(saved);
   }
@@ -49,7 +53,7 @@ export class InterviewsService {
     dto: SaveInterviewDto,
   ): Promise<Interview> {
     const interview = await this.findOwned(userId, id);
-    Object.assign(interview, this.fields(dto));
+    Object.assign(interview, toInterviewFields(dto));
     return toInterview(await this.interviews.save(interview));
   }
 
@@ -71,18 +75,21 @@ export class InterviewsService {
     if (!interview) throw new NotFoundException(NOT_FOUND);
     return interview;
   }
+}
 
-  private fields(dto: SaveInterviewDto): Partial<InterviewEntity> {
-    return {
-      type: dto.type,
-      scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
-      completed: dto.completed,
-      // Só faz sentido avaliar uma entrevista que já aconteceu.
-      rating: dto.completed ? (dto.rating ?? null) : null,
-      outcome: dto.outcome,
-      questionsAsked: dto.questionsAsked,
-      strengths: dto.strengths ?? null,
-      improvements: dto.improvements ?? null,
-    };
-  }
+/** Campos de uma entrevista a partir do pedido. Exportado para os dados de demonstração. */
+export function toInterviewFields(
+  dto: SaveInterviewRequest,
+): Partial<InterviewEntity> {
+  return {
+    type: dto.type,
+    scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
+    completed: dto.completed,
+    // Só faz sentido avaliar uma entrevista que já aconteceu.
+    rating: dto.completed ? (dto.rating ?? null) : null,
+    outcome: dto.outcome,
+    questionsAsked: dto.questionsAsked,
+    strengths: dto.strengths ?? null,
+    improvements: dto.improvements ?? null,
+  };
 }

@@ -13,7 +13,7 @@ const PUBLIC_RULES: PublicRule[] = [
   // Sessão: é aqui que se obtém o token, por isso não pode exigi-lo.
   {
     method: 'POST',
-    pattern: /^\/api\/v1\/auth\/(register|login|refresh|logout)$/,
+    pattern: /^\/api\/v1\/auth\/(register|login|refresh|logout|demo)$/,
   },
   // Catálogo e pré-visualização do gap: permitem experimentar a app sem conta.
   { method: 'GET', pattern: /^\/api\/v1\/competencies(\/[^/]+)?$/ },

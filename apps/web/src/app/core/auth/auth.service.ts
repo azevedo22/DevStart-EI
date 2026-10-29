@@ -42,6 +42,8 @@ export class AuthService {
   readonly user = this._user.asReadonly();
   readonly status = this._status.asReadonly();
   readonly isAuthenticated = computed(() => this._status() === 'authenticated');
+  /** Conta de demonstração: dados de exemplo, apagada automaticamente. */
+  readonly isDemo = computed(() => !!this._user()?.demoExpiresAt);
 
   getAccessToken(): string | null {
     return this.accessToken;
@@ -56,6 +58,14 @@ export class AuthService {
 
   login(body: LoginRequest): Observable<UserDto> {
     return this.http.post<AuthResponse>(`${this.url}/login`, body).pipe(
+      tap((res) => this.setSession(res)),
+      map((res) => res.user),
+    );
+  }
+
+  /** Cria uma conta de demonstração (dados de exemplo) e abre a sessão. */
+  startDemo(): Observable<UserDto> {
+    return this.http.post<AuthResponse>(`${this.url}/demo`, {}).pipe(
       tap((res) => this.setSession(res)),
       map((res) => res.user),
     );
@@ -84,10 +94,13 @@ export class AuthService {
     );
   }
 
-  /** Apaga a conta (pede a password). A sessão local termina logo a seguir. */
-  deleteAccount(password: string): Observable<void> {
+  /**
+   * Apaga a conta. Pede a password, exceto numa conta de demonstração.
+   * A sessão local termina logo a seguir.
+   */
+  deleteAccount(password?: string): Observable<void> {
     return this.http
-      .delete<void>(`${this.url}/me`, { body: { password } })
+      .delete<void>(`${this.url}/me`, { body: password ? { password } : {} })
       .pipe(tap(() => this.clearSession()));
   }
 

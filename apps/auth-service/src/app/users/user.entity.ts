@@ -25,6 +25,10 @@ export class User {
   @Column({ type: 'varchar', length: 16, default: 'GRADUATE' })
   role!: UserRole;
 
+  /** Preenchido só nas contas de demonstração: a partir daqui a conta é apagada. */
+  @Column({ name: 'demo_expires_at', type: 'timestamptz', nullable: true })
+  demoExpiresAt!: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
@@ -40,5 +44,6 @@ export function toUserDto(user: User): UserDto {
     fullName: user.fullName,
     role: user.role,
     createdAt: user.createdAt.toISOString(),
+    demoExpiresAt: user.demoExpiresAt?.toISOString() ?? null,
   };
 }

@@ -7,6 +7,7 @@ import { User } from '../users/user.entity';
 import { Env } from '../config/env';
 import { CreateAuthTables1730140000000 } from './migrations/1730140000000-create-auth-tables';
 import { CreateOutbox1730170000000 } from './migrations/1730170000000-create-outbox';
+import { AddDemoAccounts1730180000000 } from './migrations/1730180000000-add-demo-accounts';
 import { OutboxEvent } from '../outbox/outbox-event.entity';
 
 /** Entidades e migrações listadas explicitamente: globs não funcionam com o bundle do webpack. */
@@ -14,6 +15,7 @@ export const ENTITIES = [User, RefreshToken, OutboxEvent];
 export const MIGRATIONS = [
   CreateAuthTables1730140000000,
   CreateOutbox1730170000000,
+  AddDemoAccounts1730180000000,
 ];
 
 @Module({

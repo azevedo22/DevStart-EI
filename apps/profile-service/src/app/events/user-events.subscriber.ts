@@ -8,10 +8,12 @@ import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { Env } from '../config/env';
+import { DemoProfileSeeder } from '../demo/demo-profile.seeder';
 
 /**
  * Ouve eventos sobre utilizadores publicados pelo Auth Service.
- * user.deleted → apaga perfil, competências declaradas e projetos.
+ * user.deleted      → apaga perfil, competências declaradas e projetos.
+ * user.demo-created → preenche a conta de demonstração com o perfil de exemplo.
  */
 @Injectable()
 export class UserEventsSubscriber extends EventSubscriber {
@@ -21,6 +23,7 @@ export class UserEventsSubscriber extends EventSubscriber {
   constructor(
     private readonly config: ConfigService<Env, true>,
     @InjectDataSource() private readonly db: DataSource,
+    private readonly demo: DemoProfileSeeder,
   ) {
     super();
   }
@@ -30,7 +33,10 @@ export class UserEventsSubscriber extends EventSubscriber {
   }
 
   protected handlers(): EventHandlers {
-    return { 'user.deleted': (e) => this.onUserDeleted(e) };
+    return {
+      'user.deleted': (e) => this.onUserDeleted(e),
+      'user.demo-created': (e) => this.demo.seed(e.payload.userId),
+    };
   }
 
   /**

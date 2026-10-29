@@ -478,4 +478,81 @@ describeDb('Application Tracker Service (e2e)', () => {
       await expect(deleted(ANA)).resolves.toBeUndefined();
     });
   });
+
+  describe('evento user.demo-created (conta de demonstração)', () => {
+    const seed = async (userId: string) => {
+      const { DemoApplicationsSeeder } =
+        await import('./demo/demo-applications.seeder');
+      await app.get(DemoApplicationsSeeder).seed(userId);
+    };
+
+    it('preenche o Kanban com candidaturas em várias colunas e posições contínuas', async () => {
+      await seed(ANA);
+      const board = (await ana.get('/api/applications/board').expect(200))
+        .body as Record<string, JobApplication[]>;
+
+      const filled = Object.entries(board)
+        .filter(([, cards]) => cards.length)
+        .map(([status]) => status)
+        .sort();
+      expect(filled).toEqual(
+        [
+          'APPLIED',
+          'HR_INTERVIEW',
+          'REJECTED',
+          'TECHNICAL_INTERVIEW',
+          'TECHNICAL_TEST',
+        ].sort(),
+      );
+      for (const cards of Object.values(board)) {
+        expect(cards.map((c) => c.position)).toEqual(cards.map((_, i) => i));
+      }
+    });
+
+    it('a acessibilidade é calculada pelo servidor, incluindo a vaga "júnior" que pede 3 anos', async () => {
+      await seed(ANA);
+      const { body } = await ana.get('/api/applications/stats').expect(200);
+      expect(body.total).toBe(6);
+      expect(body.byAccessibility.UNREALISTIC).toBe(1);
+      expect(body.byAccessibility.STRETCH).toBe(1);
+      expect(body.interviews).toBe(3);
+
+      const board = (await ana.get('/api/applications/board').expect(200))
+        .body as Record<string, JobApplication[]>;
+      const [rejected] = board['REJECTED'];
+      expect(rejected.mislabeledJunior).toBe(true);
+    });
+
+    it('o histórico de estados fica com datas entre a candidatura e hoje', async () => {
+      await seed(ANA);
+      const board = (await ana.get('/api/applications/board').expect(200))
+        .body as Record<string, JobApplication[]>;
+      const [nimbus] = board['TECHNICAL_INTERVIEW'];
+      const { body } = await ana
+        .get(`/api/applications/${nimbus.id}`)
+        .expect(200);
+      expect(
+        body.history.map((h: { from: string | null; to: string }) => h.to),
+      ).toEqual(['APPLIED', 'HR_INTERVIEW', 'TECHNICAL_INTERVIEW']);
+      const times = body.history.map((h: { changedAt: string }) =>
+        new Date(h.changedAt).getTime(),
+      );
+      expect([...times].sort((a, b) => a - b)).toEqual(times);
+      expect(times[0]).toBeLessThan(Date.now() - 7 * 86_400_000);
+    });
+
+    it('é idempotente e não toca nos dados de outros utilizadores', async () => {
+      await create({ companyName: 'Empresa da Ana' });
+      await rui.post('/api/applications', JOB).expect(201);
+      await seed(RUI);
+      await seed(RUI);
+      expect(
+        (await rui.get('/api/applications/stats').expect(200)).body.total,
+      ).toBe(1);
+      await seed(ANA.replace('1111', '3333'));
+      expect(
+        (await ana.get('/api/applications/stats').expect(200)).body.total,
+      ).toBe(1);
+    });
+  });
 });

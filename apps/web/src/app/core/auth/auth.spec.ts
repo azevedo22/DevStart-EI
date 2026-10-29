@@ -24,6 +24,7 @@ const session = (token: string): AuthResponse => ({
     fullName: 'Ana Silva',
     role: 'GRADUATE',
     createdAt: '2026-01-01T00:00:00Z',
+    demoExpiresAt: null,
   },
 });
 
@@ -170,13 +171,18 @@ describe('autenticação no frontend', () => {
 
   describe('apagar conta', () => {
     beforeEach(() => {
-      auth.login({ email: 'ana@example.com', password: 'segura123' }).subscribe();
+      auth
+        .login({ email: 'ana@example.com', password: 'segura123' })
+        .subscribe();
       backend.expectOne('/api/v1/auth/login').flush(session('t1'));
     });
 
     it('envia a password no corpo e termina a sessão local', () => {
       auth.deleteAccount('segura123').subscribe();
-      const req = backend.expectOne({ method: 'DELETE', url: '/api/v1/auth/me' });
+      const req = backend.expectOne({
+        method: 'DELETE',
+        url: '/api/v1/auth/me',
+      });
       expect(req.request.body).toEqual({ password: 'segura123' });
       expect(req.request.headers.get('Authorization')).toBe('Bearer t1');
       req.flush(null, { status: 204, statusText: 'No Content' });
@@ -185,17 +191,55 @@ describe('autenticação no frontend', () => {
 
     it('password errada (403) não tenta renovar a sessão nem a termina', () => {
       let message = '';
-      auth.deleteAccount('errada').subscribe({ error: (e) => (message = e.message) });
+      auth
+        .deleteAccount('errada')
+        .subscribe({ error: (e) => (message = e.message) });
       backend
         .expectOne('/api/v1/auth/me')
-        .flush({ message: 'Password incorreta.' }, { status: 403, statusText: 'Forbidden' });
+        .flush(
+          { message: 'Password incorreta.' },
+          { status: 403, statusText: 'Forbidden' },
+        );
       backend.expectNone('/api/v1/auth/refresh');
       expect(message).toBe('Password incorreta.');
       expect(auth.status()).toBe('authenticated');
     });
+
+    it('numa demonstração apaga sem password (corpo vazio)', () => {
+      auth.deleteAccount().subscribe();
+      const req = backend.expectOne({
+        method: 'DELETE',
+        url: '/api/v1/auth/me',
+      });
+      expect(req.request.body).toEqual({});
+      req.flush(null, { status: 204, statusText: 'No Content' });
+      expect(auth.status()).toBe('anonymous');
+    });
   });
 
+  describe('demonstração', () => {
+    it('startDemo abre a sessão e isDemo fica verdadeiro', () => {
+      auth.startDemo().subscribe();
+      const res = session('demo-token');
+      res.user.demoExpiresAt = '2026-12-01T00:00:00Z';
+      backend
+        .expectOne({ method: 'POST', url: '/api/v1/auth/demo' })
+        .flush(res);
+      expect(auth.status()).toBe('authenticated');
+      expect(auth.isDemo()).toBe(true);
+      expect(auth.getAccessToken()).toBe('demo-token');
+    });
 
+    it('uma conta normal não é demonstração', () => {
+      auth
+        .login({ email: 'ana@example.com', password: 'segura123' })
+        .subscribe();
+      backend.expectOne('/api/v1/auth/login').flush(session('t1'));
+      expect(auth.isDemo()).toBe(false);
+    });
+  });
+
+  describe('safeReturnUrl', () => {
     it.each([
       ['/applications', '/applications'],
       ['/skill-gap?x=1', '/skill-gap?x=1'],

@@ -11,6 +11,7 @@ import {
   JobApplication,
   JobApplicationDetail,
   classifyAccessibility,
+  SaveApplicationRequest,
 } from '@devstart/shared-types';
 import {
   BadRequestException,
@@ -196,7 +197,7 @@ export class ApplicationsService {
       const saved = await em.save(
         em.create(ApplicationEntity, {
           userId,
-          ...this.fields(dto),
+          ...toApplicationFields(dto),
           status,
           position: 0,
         }),
@@ -223,7 +224,7 @@ export class ApplicationsService {
         'Para mudar de coluna usa PATCH /applications/:id/move.',
       );
     }
-    await this.applications.update({ id, userId }, this.fields(dto));
+    await this.applications.update({ id, userId }, toApplicationFields(dto));
     return this.get(userId, id);
   }
 
@@ -370,27 +371,6 @@ export class ApplicationsService {
   }
 
   /** Campos editáveis. A acessibilidade é sempre recalculada aqui, nunca vem do cliente. */
-  private fields(dto: SaveApplicationDto): Partial<ApplicationEntity> {
-    const yearsRequired = dto.yearsRequired ?? null;
-    const verdict = classifyAccessibility({
-      yearsRequired,
-      seniority: dto.seniority,
-    });
-    return {
-      companyName: dto.companyName,
-      jobTitle: dto.jobTitle,
-      jobUrl: dto.jobUrl ?? null,
-      location: dto.location ?? null,
-      workMode: dto.workMode,
-      requiredCompetencyIds: dto.requiredCompetencyIds,
-      yearsRequired,
-      seniority: dto.seniority,
-      accessibility: verdict.accessibility,
-      mislabeledJunior: verdict.mislabeledJunior,
-      appliedAt: dto.appliedAt,
-      notes: dto.notes ?? null,
-    };
-  }
 }
 
 /** Junta o número de entrevistas de cada candidatura numa só consulta (subconsulta de contagem). */
@@ -448,5 +428,33 @@ export function toInterview(i: InterviewEntity): Interview {
     strengths: i.strengths,
     improvements: i.improvements,
     createdAt: i.createdAt.toISOString(),
+  };
+}
+
+/**
+ * Campos de uma candidatura a partir do pedido. A acessibilidade é sempre
+ * calculada aqui, nunca aceite do cliente. Exportado para os dados de demonstração.
+ */
+export function toApplicationFields(
+  dto: SaveApplicationRequest,
+): Partial<ApplicationEntity> {
+  const yearsRequired = dto.yearsRequired ?? null;
+  const verdict = classifyAccessibility({
+    yearsRequired,
+    seniority: dto.seniority,
+  });
+  return {
+    companyName: dto.companyName,
+    jobTitle: dto.jobTitle,
+    jobUrl: dto.jobUrl ?? null,
+    location: dto.location ?? null,
+    workMode: dto.workMode,
+    requiredCompetencyIds: dto.requiredCompetencyIds,
+    yearsRequired,
+    seniority: dto.seniority,
+    accessibility: verdict.accessibility,
+    mislabeledJunior: verdict.mislabeledJunior,
+    appliedAt: dto.appliedAt,
+    notes: dto.notes ?? null,
   };
 }

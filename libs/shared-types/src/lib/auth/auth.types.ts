@@ -9,6 +9,11 @@ export interface UserDto {
   fullName: string;
   role: UserRole;
   createdAt: string;
+  /**
+   * Só nas contas de demonstração: quando a conta é apagada automaticamente.
+   * null numa conta normal.
+   */
+  demoExpiresAt: string | null;
 }
 
 export interface RegisterRequest {
@@ -23,15 +28,18 @@ export interface LoginRequest {
 }
 
 /**
- * Resposta de register, login e refresh.
+ * Apagar a conta pede a password outra vez: um access token roubado não chega para isso.
+ * Exceção: as contas de demonstração não têm password conhecida e apagam-se sem ela.
+ */
+export interface DeleteAccountRequest {
+  password?: string;
+}
+
+/**
+ * Resposta de register, login, refresh e demo.
  * O refresh token NÃO vem aqui: vai num cookie httpOnly que o JavaScript não lê,
  * o que o protege de ataques XSS. O access token fica só em memória no frontend.
  */
-/** Apagar a conta pede a password outra vez: um access token roubado não chega para isso. */
-export interface DeleteAccountRequest {
-  password: string;
-}
-
 export interface AuthResponse {
   user: UserDto;
   accessToken: string;

@@ -1,3 +1,4 @@
+import { DemoApplicationsSeeder } from './demo/demo-applications.seeder';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -30,6 +31,11 @@ import { InterviewsService } from './interviews/interviews.service';
     ]),
   ],
   controllers: [HealthController, ApplicationsController, InterviewsController],
-  providers: [ApplicationsService, InterviewsService, UserEventsSubscriber],
+  providers: [
+    ApplicationsService,
+    InterviewsService,
+    DemoApplicationsSeeder,
+    UserEventsSubscriber,
+  ],
 })
 export class AppModule {}

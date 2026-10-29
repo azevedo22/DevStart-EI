@@ -1,11 +1,15 @@
-import { PROFILE_LIMITS, Project } from '@devstart/shared-types';
+import {
+  PROFILE_LIMITS,
+  Project,
+  SaveProjectRequest,
+} from '@devstart/shared-types';
 import {
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DeepPartial, Repository } from 'typeorm';
 import { CatalogService } from '../catalog/catalog.service';
 import { SaveProjectDto } from './dto/project.dto';
 import { ProjectCompetencyEntity, ProjectEntity } from './project.entities';
@@ -45,7 +49,7 @@ export class ProjectsService {
       );
     }
     const saved = await this.projects.save(
-      this.projects.create({ userId, ...this.fields(dto) }),
+      this.projects.create({ userId, ...toProjectFields(dto) }),
     );
     return toProject(saved);
   }
@@ -61,7 +65,7 @@ export class ProjectsService {
 
     // Numa transação: ou muda tudo (dados + competências) ou não muda nada.
     await this.projects.manager.transaction(async (em) => {
-      const { competencies, ...columns } = this.fields(dto);
+      const { competencies, ...columns } = toProjectFields(dto);
       // updatedAt explícito: a alteração pode ser só nas competências (outra tabela).
       await em.update(
         ProjectEntity,
@@ -107,23 +111,6 @@ export class ProjectsService {
     if (!project) throw new NotFoundException(NOT_FOUND);
     return project;
   }
-
-  private fields(dto: SaveProjectDto): Partial<ProjectEntity> {
-    return {
-      title: dto.title,
-      description: dto.description,
-      repositoryUrl: dto.repositoryUrl ?? null,
-      liveUrl: dto.liveUrl ?? null,
-      origin: dto.origin,
-      // O contexto académico só faz sentido em projetos académicos.
-      academicContext:
-        dto.origin === 'ACADEMIC' ? (dto.academicContext ?? null) : null,
-      practices: dto.practices,
-      competencies: dto.competencyIds.map((competencyId) =>
-        this.links.create({ competencyId }),
-      ),
-    };
-  }
 }
 
 function toProject(p: ProjectEntity): Project {
@@ -139,5 +126,23 @@ function toProject(p: ProjectEntity): Project {
     practices: p.practices,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
+  };
+}
+
+/** Campos de um projeto a partir do pedido. Exportado para os dados de demonstração. */
+export function toProjectFields(
+  dto: SaveProjectRequest,
+): DeepPartial<ProjectEntity> {
+  return {
+    title: dto.title,
+    description: dto.description,
+    repositoryUrl: dto.repositoryUrl ?? null,
+    liveUrl: dto.liveUrl ?? null,
+    origin: dto.origin,
+    // O contexto académico só faz sentido em projetos académicos.
+    academicContext:
+      dto.origin === 'ACADEMIC' ? (dto.academicContext ?? null) : null,
+    practices: dto.practices,
+    competencies: dto.competencyIds.map((competencyId) => ({ competencyId })),
   };
 }

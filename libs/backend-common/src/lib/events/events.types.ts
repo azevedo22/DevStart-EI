@@ -14,6 +14,11 @@ export const DEAD_LETTER_STREAM = 'devstart:events:dead-letter';
 export interface EventPayloads {
   /** A conta foi apagada: cada serviço apaga os dados desse utilizador (direito ao apagamento, RGPD). */
   'user.deleted': { userId: string };
+  /**
+   * Foi criada uma conta de demonstração: cada serviço preenche-a com os seus
+   * dados de exemplo. Quando a conta expira, segue-se um user.deleted normal.
+   */
+  'user.demo-created': { userId: string };
 }
 
 export type EventType = keyof EventPayloads;

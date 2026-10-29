@@ -5,7 +5,14 @@ import {
   RegisterRequest,
 } from '@devstart/shared-types';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, Length, Matches, MaxLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  Length,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -41,7 +48,9 @@ export class LoginDto implements LoginRequest {
 }
 
 export class DeleteAccountDto implements DeleteAccountRequest {
+  /** Obrigatória exceto nas contas de demonstração (verificado no serviço). */
+  @IsOptional()
   @IsString()
   @MaxLength(PASSWORD_RULES.maxLength)
-  password!: string;
+  password?: string;
 }

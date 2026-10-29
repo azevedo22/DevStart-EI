@@ -108,6 +108,7 @@ describe('ApplicationsStore', () => {
         fullName: 'Ana',
         role: 'GRADUATE',
         createdAt: '',
+        demoExpiresAt: null,
       },
     } satisfies AuthResponse);
     TestBed.tick();

@@ -16,6 +16,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { CookieOptions, Request, Response } from 'express';
 import { Env } from '../config/env';
 import { AuthService, AuthSession } from './auth.service';
+import { DemoAccountsService } from './demo-accounts.service';
 import { DeleteAccountDto, LoginDto, RegisterDto } from './dto/auth.dto';
 import { AuthenticatedRequest, JwtAuthGuard } from './guards/jwt-auth.guard';
 
@@ -24,10 +25,14 @@ export const REFRESH_COOKIE = 'ds_refresh';
 /** Limite mais apertado nos endpoints que aceitam passwords (por IP, por minuto). */
 const CREDENTIALS_LIMIT = { default: { limit: 10, ttl: 60_000 } };
 
+/** Cada demonstração cria uma conta: 5 por IP a cada 10 minutos chega para quem experimenta. */
+const DEMO_LIMIT = { default: { limit: 5, ttl: 10 * 60_000 } };
+
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly demos: DemoAccountsService,
     private readonly config: ConfigService<Env, true>,
   ) {}
 
@@ -48,6 +53,13 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
     return this.withCookie(res, await this.auth.login(dto));
+  }
+
+  /** Cria uma conta de demonstração com dados de exemplo e abre a sessão. */
+  @Post('demo')
+  @Throttle(DEMO_LIMIT)
+  async demo(@Res({ passthrough: true }) res: Response): Promise<AuthResponse> {
+    return this.withCookie(res, await this.demos.create());
   }
 
   @Post('refresh')
@@ -83,7 +95,7 @@ export class AuthController {
     return this.auth.me(req.user.sub);
   }
 
-  /** Apaga a conta. Pede a password, tem o limite apertado e termina a sessão. */
+  /** Apaga a conta. Pede a password (exceto numa demonstração), tem o limite apertado e termina a sessão. */
   @Delete('me')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)

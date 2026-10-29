@@ -1,9 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { DemoButton } from '../../../demo/components/demo-button/demo-button';
 
 @Component({
   selector: 'ds-home-page',
-  imports: [RouterLink],
+  imports: [RouterLink, DemoButton],
   template: `
     <div class="container py-5">
       @if (accountDeleted) {
@@ -15,6 +17,15 @@ import { RouterLink } from '@angular/router';
           A tua conta e todos os teus dados foram apagados.
         </div>
       }
+      @if (demoEnded) {
+        <div
+          class="alert alert-success d-flex align-items-center gap-2"
+          role="status"
+        >
+          <i class="bi bi-check-circle"></i>
+          A demonstração terminou e os dados de exemplo foram apagados.
+        </div>
+      }
       <div class="row justify-content-center text-center">
         <div class="col-lg-8">
           <h1 class="display-6 fw-semibold">
@@ -24,9 +35,23 @@ import { RouterLink } from '@angular/router';
             Descobre o que te falta para a stack que procuras, mostra o que já
             sabes com projetos e acompanha as tuas candidaturas num só sítio.
           </p>
-          <a routerLink="/skill-gap" class="btn btn-primary btn-lg mt-3">
-            <i class="bi bi-bar-chart-steps me-2"></i>Fazer diagnóstico
-          </a>
+          <div
+            class="d-flex flex-wrap justify-content-center align-items-start gap-2 mt-3"
+          >
+            <a routerLink="/skill-gap" class="btn btn-primary btn-lg">
+              <i class="bi bi-bar-chart-steps me-2"></i>Fazer diagnóstico
+            </a>
+            @if (!auth.isAuthenticated()) {
+              <ds-demo-button btnClass="btn-outline-primary btn-lg" />
+            }
+          </div>
+          @if (!auth.isAuthenticated()) {
+            <p class="small text-body-secondary mt-3 mb-0">
+              A demonstração cria uma conta só tua, com um perfil, projetos e
+              candidaturas de exemplo. É apagada automaticamente ao fim de 24
+              horas.
+            </p>
+          }
         </div>
       </div>
 
@@ -52,6 +77,9 @@ import { RouterLink } from '@angular/router';
 export class HomePage {
   /** Definido pela página de conta ao apagar (navegação com state). */
   protected readonly accountDeleted = !!history.state?.accountDeleted;
+  /** Definido pelo aviso de demonstração ao terminar. */
+  protected readonly demoEnded = !!history.state?.demoEnded;
+  protected readonly auth = inject(AuthService);
 
   protected readonly modules = [
     {

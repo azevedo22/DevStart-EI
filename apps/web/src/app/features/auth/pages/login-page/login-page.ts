@@ -3,13 +3,14 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { safeReturnUrl } from '../../../../core/auth/auth.guards';
+import { DemoButton } from '../../../demo/components/demo-button/demo-button';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ApiError } from '../../../../core/http/error.interceptor';
 import { FieldError } from '../../../../shared/forms/field-error';
 
 @Component({
   selector: 'ds-login-page',
-  imports: [ReactiveFormsModule, RouterLink, FieldError],
+  imports: [ReactiveFormsModule, RouterLink, FieldError, DemoButton],
   template: `
     <div class="container py-5">
       <div class="row justify-content-center">
@@ -78,6 +79,12 @@ import { FieldError } from '../../../../shared/forms/field-error';
               >Cria uma</a
             >
           </p>
+          <div class="text-center border-top mt-3 pt-3">
+            <p class="small text-body-secondary mb-2">
+              Só queres ver como funciona?
+            </p>
+            <ds-demo-button btnClass="btn-outline-secondary btn-sm" />
+          </div>
         </div>
       </div>
     </div>

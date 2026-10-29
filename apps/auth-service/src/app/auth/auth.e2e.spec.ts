@@ -42,6 +42,8 @@ describeDb('Auth Service (e2e)', () => {
       BCRYPT_ROUNDS: '4', // rápido nos testes; em produção fica 12
       THROTTLE_DISABLED: 'true',
       REDIS_URL: TEST_REDIS_URL,
+      DEMO_MAX_ACTIVE: '3', // baixo para testar o limite
+      DEMO_TTL_HOURS: '24',
     });
     // Importado depois de definir o ambiente, porque o ConfigModule lê-o ao carregar.
     const { AppModule } = await import('../app.module');
@@ -309,5 +311,109 @@ describeDb('Auth Service (e2e)', () => {
         expect(pending).toBe(0);
       },
     );
+  });
+
+  describe('POST /auth/demo (contas de demonstração)', () => {
+    const demo = () => http.post('/api/auth/demo').expect(201);
+
+    it('cria uma conta temporária, abre a sessão e pede os dados de exemplo aos outros serviços', async () => {
+      const res = await demo();
+      const { user } = res.body;
+
+      expect(user.email).toMatch(/^demo-.+@demo\.devstart\.invalid$/);
+      const hoursLeft =
+        (new Date(user.demoExpiresAt).getTime() - Date.now()) / 3_600_000;
+      expect(hoursLeft).toBeGreaterThan(23.9);
+      expect(hoursLeft).toBeLessThanOrEqual(24);
+
+      // O cookie de refresh não dura mais do que a conta.
+      const expires = /Expires=([^;]+)/.exec(refreshCookie(res))![1];
+      expect(new Date(expires).getTime()).toBeLessThanOrEqual(
+        new Date(user.demoExpiresAt).getTime(),
+      );
+
+      await http
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${res.body.accessToken}`)
+        .expect(200);
+
+      const outbox = await app
+        .get(DataSource)
+        .query('SELECT type, payload FROM outbox_events');
+      expect(outbox).toEqual([
+        { type: 'user.demo-created', payload: { userId: user.id } },
+      ]);
+    });
+
+    it('cada visitante recebe uma conta diferente', async () => {
+      const a = await demo();
+      const b = await demo();
+      expect(a.body.user.id).not.toBe(b.body.user.id);
+    });
+
+    it('recusa com 503 quando já há demasiadas demonstrações ativas', async () => {
+      for (let i = 0; i < 3; i++) await demo();
+      const res = await http.post('/api/auth/demo').expect(503);
+      expect(res.body.message).toMatch(/demasiadas demonstrações/);
+    });
+
+    it('as contas normais não contam para o limite e as expiradas também não', async () => {
+      await register().expect(201);
+      for (let i = 0; i < 3; i++) await demo();
+      await app
+        .get(DataSource)
+        .query(
+          `UPDATE users SET demo_expires_at = now() - interval '1 minute' WHERE demo_expires_at IS NOT NULL`,
+        );
+      await demo();
+    });
+
+    it('apaga-se sem password (ninguém a conhece); uma conta normal continua a precisar dela', async () => {
+      const { body } = await demo();
+      await http
+        .delete('/api/auth/me')
+        .set('Authorization', `Bearer ${body.accessToken}`)
+        .send({})
+        .expect(204);
+
+      const normal = await register().expect(201);
+      await http
+        .delete('/api/auth/me')
+        .set('Authorization', `Bearer ${normal.body.accessToken}`)
+        .send({})
+        .expect(400);
+    });
+
+    it('a limpeza apaga só as demonstrações expiradas, pelo mesmo caminho de uma eliminação normal', async () => {
+      const { DemoAccountsService } = await import('./demo-accounts.service');
+      const db = app.get(DataSource);
+      const normal = await register().expect(201);
+      const expired = await demo();
+      const active = await demo();
+      await db.query(
+        `UPDATE users SET demo_expires_at = now() - interval '1 minute' WHERE id = $1`,
+        [expired.body.user.id],
+      );
+      await db.query(`DELETE FROM outbox_events`);
+
+      expect(await app.get(DemoAccountsService).purgeExpired()).toBe(1);
+
+      const ids = (await db.query('SELECT id FROM users')).map(
+        (r: { id: string }) => r.id,
+      );
+      expect(ids.sort()).toEqual(
+        [normal.body.user.id, active.body.user.id].sort(),
+      );
+      expect(await db.query('SELECT type, payload FROM outbox_events')).toEqual(
+        [{ type: 'user.deleted', payload: { userId: expired.body.user.id } }],
+      );
+      // A sessão da conta expirada deixa de servir.
+      await http
+        .post('/api/auth/refresh')
+        .set('Cookie', cookieValue(refreshCookie(expired)))
+        .expect(401);
+
+      expect(await app.get(DemoAccountsService).purgeExpired()).toBe(0);
+    });
   });
 });

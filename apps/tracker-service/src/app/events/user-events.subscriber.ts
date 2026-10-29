@@ -8,10 +8,12 @@ import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { Env } from '../config/env';
+import { DemoApplicationsSeeder } from '../demo/demo-applications.seeder';
 
 /**
  * Ouve eventos sobre utilizadores publicados pelo Auth Service.
- * user.deleted → apaga candidaturas (o histórico e as entrevistas vão em cascata).
+ * user.deleted      → apaga candidaturas (o histórico e as entrevistas vão em cascata).
+ * user.demo-created → preenche a conta de demonstração com candidaturas de exemplo.
  */
 @Injectable()
 export class UserEventsSubscriber extends EventSubscriber {
@@ -21,6 +23,7 @@ export class UserEventsSubscriber extends EventSubscriber {
   constructor(
     private readonly config: ConfigService<Env, true>,
     @InjectDataSource() private readonly db: DataSource,
+    private readonly demo: DemoApplicationsSeeder,
   ) {
     super();
   }
@@ -30,7 +33,10 @@ export class UserEventsSubscriber extends EventSubscriber {
   }
 
   protected handlers(): EventHandlers {
-    return { 'user.deleted': (e) => this.onUserDeleted(e) };
+    return {
+      'user.deleted': (e) => this.onUserDeleted(e),
+      'user.demo-created': (e) => this.demo.seed(e.payload.userId),
+    };
   }
 
   /** Idempotente: um segundo evento igual não encontra nada e termina sem erro. */

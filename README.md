@@ -10,6 +10,9 @@ Ajuda a responder a três perguntas:
 > Estado: os três módulos funcionam de ponta a ponta (autenticação, perfil com projetos, diagnóstico de
 > skill gap e quadro de candidaturas), com eventos entre serviços. A aplicação inteira corre em contentores
 > com um comando, e está pronta a publicar num servidor com HTTPS ([guia de deploy](docs/deploy.md)).
+>
+> **Para experimentar sem criar conta:** botão _Experimentar sem registo_ na página inicial. Cria uma
+> conta só tua, já com perfil, projetos e candidaturas de exemplo, que se apaga sozinha ao fim de 24 horas.
 
 ## Arquitetura
 
@@ -128,6 +131,29 @@ os outros serviços: publica um evento `user.deleted` e cada serviço trata do q
   Service marca o utilizador como revogado no Redis durante 15 minutos (a validade do token) e o gateway
   recusa esses tokens. Sem isto, um token antigo podia voltar a criar dados para uma conta apagada.
 
+### Contas de demonstração
+
+O botão _Experimentar sem registo_ cria uma conta temporária por visitante, já preenchida, para quem
+quer ver a aplicação em dois minutos (um recrutador, por exemplo).
+
+- **Uma conta por visitante, não uma conta partilhada.** Ninguém vê nem estraga o que outro visitante
+  fez, e não é preciso repor dados.
+- **Cada serviço preenche a sua parte, por evento.** O Auth Service cria a conta e publica
+  `user.demo-created`; o perfil e as candidaturas de exemplo são criados pelos serviços que os possuem,
+  numa transação cada (o visitante vê tudo ou nada). Os dados chegam em cerca de 150 ms; o frontend
+  espera por eles antes de mostrar a aplicação.
+- **Os dados de exemplo mostram todos os casos:** o diagnóstico da stack full-stack tem competências
+  com projeto, sem projeto, abaixo do nível e em falta; o Kanban tem candidaturas em todas as fases e
+  uma vaga "júnior" que pede 3 anos. Os campos passam pelas mesmas funções que a API usa.
+- **Expiração pelo mesmo caminho da eliminação.** Uma tarefa periódica apaga as contas expiradas com
+  `user.deleted` (`FOR UPDATE SKIP LOCKED`, seguro com várias instâncias). O visitante também pode
+  terminar a qualquer momento, sem password.
+- **Limites contra abuso:** 5 demonstrações por IP a cada 10 minutos e um máximo de contas ativas
+  (`DEMO_MAX_ACTIVE`, 0 desliga a funcionalidade).
+
+Os dados de exemplo estão em `apps/profile-service/src/app/demo/demo-profile.data.ts` e
+`apps/tracker-service/src/app/demo/demo-applications.data.ts`, e são fictícios.
+
 ### Redis: o que guarda e o que acontece se falhar
 
 | Uso                                                        | Se o Redis falhar                                                               |
@@ -155,6 +181,9 @@ O catálogo de competências e stacks usa cache HTTP (`Cache-Control` + `ETag`):
   `npm ci` do monorepo fica numa camada partilhada: depois da primeira imagem, as outras constroem-se em
   segundos. Cada imagem final leva só o bundle do serviço e as dependências que ele importa (cerca de
   50 MB em vez das centenas do monorepo), e corre como utilizador sem privilégios.
+- **O nginx volta a resolver o nome do gateway** (DNS do Docker, a cada 10 s). Sem isto, quando o
+  gateway é recriado num deploy e muda de IP, o nginx continuaria a enviar pedidos para o endereço
+  antigo e a API ficaria em 502 até alguém reiniciar o nginx.
 - **Healthchecks e ordem de arranque.** Cada serviço só arranca depois de o PostgreSQL e o Redis estarem
   saudáveis, o gateway depois dos serviços, e o nginx depois do gateway.
 - **Cabeçalhos de segurança no nginx**, incluindo uma Content Security Policy que só permite scripts da
@@ -216,28 +245,30 @@ Para publicar num servidor com domínio e HTTPS, ver [docs/deploy.md](docs/deplo
 
 ## API (implementada até agora)
 
-| Método               | Endpoint                            | Descrição                                             |
-| -------------------- | ----------------------------------- | ----------------------------------------------------- |
-| `POST`               | `/api/v1/auth/register`             | Cria conta, devolve access token e define o cookie    |
-| `POST`               | `/api/v1/auth/login`                | Inicia sessão                                         |
-| `POST`               | `/api/v1/auth/refresh`              | Novo access token a partir do cookie (com rotação)    |
-| `POST`               | `/api/v1/auth/logout`               | Revoga a sessão e limpa o cookie                      |
-| `GET`                | `/api/v1/auth/me`                   | Utilizador autenticado 🔒                             |
-| `GET`                | `/api/v1/profile`                   | Perfil com as competências declaradas 🔒              |
-| `PUT`                | `/api/v1/profile`                   | Atualiza título, instituição, ano e apresentação 🔒   |
-| `PUT`                | `/api/v1/profile/competencies/:id`  | Declara uma competência ou muda o nível 🔒            |
-| `DELETE`             | `/api/v1/profile/competencies/:id`  | Remove uma competência do perfil 🔒                   |
-| `GET`                | `/api/v1/projects`                  | Projetos do utilizador 🔒                             |
-| `POST`               | `/api/v1/projects`                  | Cria um projeto 🔒                                    |
-| `GET`/`PUT`/`DELETE` | `/api/v1/projects/:id`              | Lê, substitui ou apaga um projeto 🔒                  |
-| `GET`                | `/api/v1/skill-gap?stackId=`        | Gap calculado com o perfil guardado 🔒                |
-| `GET`                | `/api/v1/skill-gap/overview`        | Compatibilidade com todas as stacks, ordenada 🔒      |
-| `GET`                | `/api/v1/competencies?category=&q=` | Catálogo de competências (pesquisa em nome e aliases) |
-| `GET`                | `/api/v1/competencies/:id`          | Detalhe de uma competência                            |
-| `GET`                | `/api/v1/stacks`                    | Stacks alvo                                           |
-| `GET`                | `/api/v1/stacks/:id`                | Detalhe de uma stack                                  |
-| `POST`               | `/api/v1/skill-gap/preview`         | Calcula o gap sem perfil guardado                     |
-| `GET`                | `/api/health`                       | Estado de cada serviço (em cada porta)                |
+| Método               | Endpoint                            | Descrição                                                                                               |
+| -------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `POST`               | `/api/v1/auth/register`             | Cria conta, devolve access token e define o cookie                                                      |
+| `POST`               | `/api/v1/auth/login`                | Inicia sessão                                                                                           |
+| `POST`               | `/api/v1/auth/demo`                 | Cria uma conta de demonstração com dados de exemplo                                                     |
+| `POST`               | `/api/v1/auth/refresh`              | Novo access token a partir do cookie (com rotação)                                                      |
+| `POST`               | `/api/v1/auth/logout`               | Revoga a sessão e limpa o cookie                                                                        |
+| `GET`                | `/api/v1/auth/me`                   | Utilizador autenticado 🔒                                                                               |
+| `DELETE`             | `/api/v1/auth/me`                   | Apaga a conta e, por evento, os dados em todos os serviços (pede a password, exceto em demonstração) 🔒 |
+| `GET`                | `/api/v1/profile`                   | Perfil com as competências declaradas 🔒                                                                |
+| `PUT`                | `/api/v1/profile`                   | Atualiza título, instituição, ano e apresentação 🔒                                                     |
+| `PUT`                | `/api/v1/profile/competencies/:id`  | Declara uma competência ou muda o nível 🔒                                                              |
+| `DELETE`             | `/api/v1/profile/competencies/:id`  | Remove uma competência do perfil 🔒                                                                     |
+| `GET`                | `/api/v1/projects`                  | Projetos do utilizador 🔒                                                                               |
+| `POST`               | `/api/v1/projects`                  | Cria um projeto 🔒                                                                                      |
+| `GET`/`PUT`/`DELETE` | `/api/v1/projects/:id`              | Lê, substitui ou apaga um projeto 🔒                                                                    |
+| `GET`                | `/api/v1/skill-gap?stackId=`        | Gap calculado com o perfil guardado 🔒                                                                  |
+| `GET`                | `/api/v1/skill-gap/overview`        | Compatibilidade com todas as stacks, ordenada 🔒                                                        |
+| `GET`                | `/api/v1/competencies?category=&q=` | Catálogo de competências (pesquisa em nome e aliases)                                                   |
+| `GET`                | `/api/v1/competencies/:id`          | Detalhe de uma competência                                                                              |
+| `GET`                | `/api/v1/stacks`                    | Stacks alvo                                                                                             |
+| `GET`                | `/api/v1/stacks/:id`                | Detalhe de uma stack                                                                                    |
+| `POST`               | `/api/v1/skill-gap/preview`         | Calcula o gap sem perfil guardado                                                                       |
+| `GET`                | `/api/health`                       | Estado de cada serviço (em cada porta)                                                                  |
 
 🔒 exige `Authorization: Bearer <token>`. Tudo o que não está nesta tabela também é protegido por omissão.
 
@@ -271,7 +302,7 @@ apps/web/src/app/
 - [x] Análise de anúncios e filtro de vagas acessíveis a quem tem 0 anos de experiência
 - [x] Eventos entre serviços (Redis Streams + outbox) e eliminação de conta em todos os serviços
 - [x] Rate limiting partilhado em Redis, revogação de tokens e cache HTTP do catálogo
-- [ ] Conta de demonstração com dados de exemplo
+- [x] Contas de demonstração temporárias, preenchidas por evento e apagadas ao fim de 24 horas
 
 ## Autor
 

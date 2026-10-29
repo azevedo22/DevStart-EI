@@ -68,6 +68,22 @@ export class Env {
   TRUST_PROXY_HOPS = 1;
 
   /**
+   * Contas de demonstração ("Experimentar sem registo"): quantas podem existir ao
+   * mesmo tempo e quantas horas duram. 0 desliga a funcionalidade (404).
+   */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(10_000)
+  DEMO_MAX_ACTIVE = 200;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(168)
+  DEMO_TTL_HOURS = 24;
+
+  /**
    * Redis partilhado: eventos entre serviços e contadores do rate limiting.
    * Vazio desliga ambos (o rate limiting passa a ser em memória, por instância).
    */
