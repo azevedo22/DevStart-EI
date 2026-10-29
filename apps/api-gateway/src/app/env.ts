@@ -32,6 +32,10 @@ export class GatewayEnv {
 
   @IsString()
   JWT_ISSUER = 'devstart-auth';
+
+  /** Redis partilhado: o gateway lê daqui os utilizadores revogados. Vazio desliga. */
+  @IsString()
+  REDIS_URL = 'redis://localhost:6379';
 }
 
 export function validateGatewayEnv(raw: Record<string, unknown>): GatewayEnv {

@@ -8,9 +8,13 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { redisTestUrl } from '@devstart/backend-common';
 
 const TEST_DATABASE_URL = process.env['TEST_DATABASE_URL'];
 const describeDb = TEST_DATABASE_URL ? describe : describe.skip;
+/** Opcional: com Redis, testa também a publicação do evento user.deleted. */
+const TEST_REDIS_URL = redisTestUrl(2);
+const itRedis = TEST_REDIS_URL ? it : it.skip;
 
 const USER = {
   email: 'Ana.Silva@Example.com',
@@ -37,6 +41,7 @@ describeDb('Auth Service (e2e)', () => {
       AUTH_DATABASE_URL: TEST_DATABASE_URL,
       BCRYPT_ROUNDS: '4', // rápido nos testes; em produção fica 12
       THROTTLE_DISABLED: 'true',
+      REDIS_URL: TEST_REDIS_URL,
     });
     // Importado depois de definir o ambiente, porque o ConfigModule lê-o ao carregar.
     const { AppModule } = await import('../app.module');
@@ -54,7 +59,7 @@ describeDb('Auth Service (e2e)', () => {
   beforeEach(async () => {
     await app
       .get(DataSource)
-      .query('TRUNCATE "refresh_tokens", "users" CASCADE');
+      .query('TRUNCATE "outbox_events", "refresh_tokens", "users" CASCADE');
   });
 
   afterAll(async () => {
@@ -219,5 +224,90 @@ describeDb('Auth Service (e2e)', () => {
     it('é idempotente: sem sessão também responde 204', async () => {
       await http.post('/api/auth/logout').expect(204);
     });
+  });
+
+  describe('DELETE /auth/me (apagar conta)', () => {
+    const del = (
+      token: string | null,
+      body: object = { password: USER.password },
+    ) => {
+      const req = http.delete('/api/auth/me').send(body);
+      return token ? req.set('Authorization', `Bearer ${token}`) : req;
+    };
+
+    it('exige sessão e a password atual', async () => {
+      const { body } = await register().expect(201);
+      await del(null).expect(401);
+      const wrong = await del(body.accessToken, {
+        password: 'errada123',
+      }).expect(403);
+      expect(wrong.body.message).toBe('Password incorreta.');
+      await del(body.accessToken, {}).expect(400);
+    });
+
+    it('apaga o utilizador e as sessões, limpa o cookie e regista o evento no outbox', async () => {
+      const res = await register().expect(201);
+      const cookie = cookieValue(refreshCookie(res));
+
+      const out = await del(res.body.accessToken).expect(204);
+      expect(refreshCookie(out)).toMatch(/Expires=Thu, 01 Jan 1970/);
+
+      const db = app.get(DataSource);
+      const [{ users }] = await db.query(
+        'SELECT count(*)::int AS users FROM users',
+      );
+      const [{ tokens }] = await db.query(
+        'SELECT count(*)::int AS tokens FROM refresh_tokens',
+      );
+      expect({ users, tokens }).toEqual({ users: 0, tokens: 0 });
+
+      const outbox = await db.query('SELECT type, payload FROM outbox_events');
+      expect(outbox).toEqual([
+        { type: 'user.deleted', payload: { userId: res.body.user.id } },
+      ]);
+
+      // A sessão antiga já não serve e o email fica livre.
+      await http.post('/api/auth/refresh').set('Cookie', cookie).expect(401);
+      await login({ email: USER.email, password: USER.password }).expect(401);
+      await register().expect(201);
+    });
+
+    itRedis(
+      'publica o evento no Redis, marca-o como publicado e revoga os tokens',
+      async () => {
+        const { OutboxRelay } = await import('../outbox/outbox-relay');
+        const { EVENTS_STREAM } = await import('@devstart/backend-common');
+        const Redis = (await import('ioredis')).default;
+        const redis = new Redis(TEST_REDIS_URL);
+        await redis.del(EVENTS_STREAM);
+
+        const { body } = await register().expect(201);
+        await del(body.accessToken).expect(204);
+        await app.get(OutboxRelay).flush();
+
+        const entries = await redis.xrange(EVENTS_STREAM, '-', '+');
+        // Os access tokens já emitidos ficam revogados até expirarem.
+        const { revokedUserKey } = await import('@devstart/backend-common');
+        const ttl = await redis.ttl(revokedUserKey(body.user.id));
+        await redis.quit();
+        expect(ttl).toBeGreaterThan(0);
+        expect(ttl).toBeLessThanOrEqual(900);
+        expect(entries).toHaveLength(1);
+        expect(entries[0][1]).toEqual(
+          expect.arrayContaining([
+            'type',
+            'user.deleted',
+            'payload',
+            JSON.stringify({ userId: body.user.id }),
+          ]),
+        );
+        const [{ pending }] = await app
+          .get(DataSource)
+          .query(
+            'SELECT count(*)::int AS pending FROM outbox_events WHERE published_at IS NULL',
+          );
+        expect(pending).toBe(0);
+      },
+    );
   });
 });

@@ -6,6 +6,15 @@ import { RouterLink } from '@angular/router';
   imports: [RouterLink],
   template: `
     <div class="container py-5">
+      @if (accountDeleted) {
+        <div
+          class="alert alert-success d-flex align-items-center gap-2"
+          role="status"
+        >
+          <i class="bi bi-check-circle"></i>
+          A tua conta e todos os teus dados foram apagados.
+        </div>
+      }
       <div class="row justify-content-center text-center">
         <div class="col-lg-8">
           <h1 class="display-6 fw-semibold">
@@ -41,6 +50,9 @@ import { RouterLink } from '@angular/router';
   `,
 })
 export class HomePage {
+  /** Definido pela página de conta ao apagar (navegação com state). */
+  protected readonly accountDeleted = !!history.state?.accountDeleted;
+
   protected readonly modules = [
     {
       path: '/skill-gap',

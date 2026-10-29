@@ -1,5 +1,6 @@
 # Infraestrutura local para desenvolvimento.
-#   docker compose up -d db     → arranca o PostgreSQL
+#   docker compose up -d        → arranca o PostgreSQL e o Redis
+#   docker compose up -d db     → só o PostgreSQL
 #   docker compose down         → pára (os dados ficam no volume)
 #   docker compose down -v      → pára e apaga os dados
 services:
@@ -21,5 +22,22 @@ services:
       timeout: 3s
       retries: 10
 
+  # Eventos entre serviços (Redis Streams) e contadores do rate limiting.
+  # AOF ligado: os eventos ainda por consumir sobrevivem a um reinício do Redis.
+  redis:
+    image: redis:7-alpine
+    container_name: devstart-redis
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - devstart-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   devstart-db-data:
+  devstart-redis-data:

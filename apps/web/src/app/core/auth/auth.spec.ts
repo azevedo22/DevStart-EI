@@ -168,7 +168,34 @@ describe('autenticação no frontend', () => {
     });
   });
 
-  describe('safeReturnUrl', () => {
+  describe('apagar conta', () => {
+    beforeEach(() => {
+      auth.login({ email: 'ana@example.com', password: 'segura123' }).subscribe();
+      backend.expectOne('/api/v1/auth/login').flush(session('t1'));
+    });
+
+    it('envia a password no corpo e termina a sessão local', () => {
+      auth.deleteAccount('segura123').subscribe();
+      const req = backend.expectOne({ method: 'DELETE', url: '/api/v1/auth/me' });
+      expect(req.request.body).toEqual({ password: 'segura123' });
+      expect(req.request.headers.get('Authorization')).toBe('Bearer t1');
+      req.flush(null, { status: 204, statusText: 'No Content' });
+      expect(auth.status()).toBe('anonymous');
+    });
+
+    it('password errada (403) não tenta renovar a sessão nem a termina', () => {
+      let message = '';
+      auth.deleteAccount('errada').subscribe({ error: (e) => (message = e.message) });
+      backend
+        .expectOne('/api/v1/auth/me')
+        .flush({ message: 'Password incorreta.' }, { status: 403, statusText: 'Forbidden' });
+      backend.expectNone('/api/v1/auth/refresh');
+      expect(message).toBe('Password incorreta.');
+      expect(auth.status()).toBe('authenticated');
+    });
+  });
+
+
     it.each([
       ['/applications', '/applications'],
       ['/skill-gap?x=1', '/skill-gap?x=1'],

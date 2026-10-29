@@ -19,9 +19,13 @@ function sign(
 }
 
 /** App mínima: o middleware à frente e um endpoint que devolve os cabeçalhos que chegariam ao serviço. */
-function buildApp() {
+function buildApp(
+  extra: Partial<Parameters<typeof createAuthMiddleware>[0]> = {},
+) {
   const app = express();
-  app.use(createAuthMiddleware({ jwtSecret: SECRET, issuer: ISSUER }));
+  app.use(
+    createAuthMiddleware({ jwtSecret: SECRET, issuer: ISSUER, ...extra }),
+  );
   app.all(/.*/, (req, res) =>
     res.json({
       userId: req.headers['x-user-id'] ?? null,
@@ -124,5 +128,44 @@ describe('auth middleware', () => {
 
   it('não interfere com rotas do próprio gateway', async () => {
     await http.get('/api/health').expect(200);
+  });
+});
+
+describe('revogação (conta apagada)', () => {
+  it('recusa o token de um utilizador revogado, mesmo com assinatura válida', async () => {
+    const http = buildApp({ isRevoked: async (id) => id === 'apagado' });
+    const ok = sign({ sub: 'ativo', role: 'GRADUATE' });
+    const gone = sign({ sub: 'apagado', role: 'GRADUATE' });
+    await http
+      .get('/api/v1/profile')
+      .set('Authorization', `Bearer ${ok}`)
+      .expect(200);
+    const res = await http
+      .get('/api/v1/profile')
+      .set('Authorization', `Bearer ${gone}`)
+      .expect(401);
+    expect(res.body.message).toBe('Esta sessão já não é válida.');
+  });
+
+  it('se a verificação falhar (Redis em baixo), deixa passar e avisa', async () => {
+    const onError = jest.fn();
+    const http = buildApp({
+      isRevoked: async () => {
+        throw new Error('ECONNREFUSED');
+      },
+      onRevocationCheckError: onError,
+    });
+    const token = sign({ sub: 'u1', role: 'GRADUATE' });
+    await http
+      .get('/api/v1/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(onError).toHaveBeenCalled();
+  });
+
+  it('rotas públicas não consultam a revogação', async () => {
+    const isRevoked = jest.fn();
+    await buildApp({ isRevoked }).get('/api/v1/stacks').expect(200);
+    expect(isRevoked).not.toHaveBeenCalled();
   });
 });

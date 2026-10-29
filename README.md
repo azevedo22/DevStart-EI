@@ -8,7 +8,7 @@ Ajuda a responder a três perguntas:
 3. **Em que ponto estão as minhas candidaturas?** Quadro Kanban do envio do CV até à proposta.
 
 > Estado: os três módulos funcionam de ponta a ponta (autenticação, perfil com projetos, diagnóstico de
-> skill gap e quadro de candidaturas). Próximos passos: Dockerfiles por serviço e deploy.
+> skill gap e quadro de candidaturas), com eventos entre serviços. Próximos passos: Dockerfiles e deploy.
 
 ## Arquitetura
 
@@ -24,19 +24,21 @@ Ajuda a responder a três perguntas:
              └─────┬─────┘ └─────┬──────┘ └─────────┬─────────┘
                    │             │                  │
                PostgreSQL    PostgreSQL         PostgreSQL     (uma base de dados por serviço)
+                   │             ▲                  ▲
+                   └──outbox──▶ Redis Streams ──────┘          (eventos: user.deleted)
                         ╲        │        ╱
                     libs/shared-types (contratos + lógica de gap)
 ```
 
-| Projeto                | Responsabilidade                                                                                      |
-| ---------------------- | ----------------------------------------------------------------------------------------------------- |
-| `apps/web`             | SPA em Angular 22 (Standalone Components, Signals, Reactive Forms, RxJS) + Bootstrap 5 / ng-bootstrap |
-| `apps/api-gateway`     | Ponto de entrada único. Valida o JWT e encaminha `/api/v1/<recurso>` para o serviço dono do recurso   |
-| `apps/auth-service`    | Registo, login, JWT e refresh tokens com rotação (PostgreSQL + TypeORM + migrações)                   |
-| `apps/profile-service` | Perfil, competências declaradas, projetos, stacks alvo e cálculo do skill gap (PostgreSQL)            |
-| `apps/tracker-service` | Candidaturas, Kanban com histórico de estados, entrevistas e estatísticas (PostgreSQL)                |
-| `libs/shared-types`    | Contratos partilhados e lógica de domínio pura: `calculateSkillGap`, `analyzeJobPosting`              |
-| `libs/backend-common`  | Código comum dos serviços NestJS: identidade via gateway, transformações, validação de config         |
+| Projeto                | Responsabilidade                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- |
+| `apps/web`             | SPA em Angular 22 (Standalone Components, Signals, Reactive Forms, RxJS) + Bootstrap 5 / ng-bootstrap   |
+| `apps/api-gateway`     | Ponto de entrada único. Valida o JWT e encaminha `/api/v1/<recurso>` para o serviço dono do recurso     |
+| `apps/auth-service`    | Registo, login, JWT e refresh tokens com rotação (PostgreSQL + TypeORM + migrações)                     |
+| `apps/profile-service` | Perfil, competências declaradas, projetos, stacks alvo e cálculo do skill gap (PostgreSQL)              |
+| `apps/tracker-service` | Candidaturas, Kanban com histórico de estados, entrevistas e estatísticas (PostgreSQL)                  |
+| `libs/shared-types`    | Contratos partilhados e lógica de domínio pura: `calculateSkillGap`, `analyzeJobPosting`                |
+| `libs/backend-common`  | Código comum dos serviços NestJS: identidade via gateway, barramento de eventos (Redis Streams), config |
 
 ### Decisões de arquitetura
 
@@ -99,6 +101,43 @@ Ajuda a responder a três perguntas:
 - **Regras partilhadas.** As regras de password vêm de `libs/shared-types` e são validadas no formulário
   e no servidor com o mesmo critério.
 
+### Eventos entre serviços
+
+Quando alguém apaga a conta, os dados estão em três bases de dados diferentes. O Auth Service não chama
+os outros serviços: publica um evento `user.deleted` e cada serviço trata do que é seu.
+
+```
+ auth-service                         Redis Streams                profile / tracker
+ ┌───────────────────────────┐        ┌──────────────┐           ┌──────────────────────┐
+ │ BEGIN                     │        │              │  grupo    │ apaga os dados desse │
+ │  DELETE users             │ relay  │ devstart:    │ ────────▶ │ utilizador (idempo-  │
+ │  INSERT outbox_events     │ ─────▶ │ events       │  XACK     │ tente) e confirma    │
+ │ COMMIT                    │        │              │ ◀──────── │                      │
+ └───────────────────────────┘        └──────────────┘           └──────────────────────┘
+```
+
+- **Transactional outbox.** O evento é gravado na mesma transação que apaga o utilizador. Um _relay_
+  publica-o no Redis e repete enquanto não conseguir. Se o Redis estiver em baixo no momento, nada se perde.
+- **Redis Streams com consumer groups, não pub/sub.** Cada serviço tem o seu grupo e confirma cada evento
+  (`XACK`) só depois de o tratar. Um serviço que estava em baixo recebe os eventos ao voltar. Testado:
+  com o tracker desligado, a conta foi apagada e as candidaturas desapareceram quando ele arrancou.
+- **Entrega pelo menos uma vez.** Os handlers são idempotentes (apagar duas vezes = apagar uma).
+  Um evento que falha 5 vezes vai para uma _dead-letter_ em vez de bloquear os seguintes.
+- **Tokens revogados.** Os access tokens não têm estado e valeriam até expirar. Ao apagar a conta, o Auth
+  Service marca o utilizador como revogado no Redis durante 15 minutos (a validade do token) e o gateway
+  recusa esses tokens. Sem isto, um token antigo podia voltar a criar dados para uma conta apagada.
+
+### Redis: o que guarda e o que acontece se falhar
+
+| Uso                                                        | Se o Redis falhar                                                               |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Eventos entre serviços                                     | Ficam no outbox e são publicados quando o Redis voltar                          |
+| Contadores do rate limiting (partilhados entre instâncias) | Deixa passar e regista (_fail-open_): uma falha do Redis não bloqueia os logins |
+| Revogação de tokens                                        | Deixa passar: os tokens expiram sozinhos em 15 minutos                          |
+
+O catálogo de competências e stacks usa cache HTTP (`Cache-Control` + `ETag`): o browser guarda-o
+5 minutos e depois revalida; sem alterações, a resposta é um `304` sem corpo.
+
 ## Como correr
 
 Requisitos: Node.js 22+ e Docker (para o PostgreSQL).
@@ -106,7 +145,7 @@ Requisitos: Node.js 22+ e Docker (para o PostgreSQL).
 ```bash
 npm install
 cp .env.example .env
-docker compose up -d db   # PostgreSQL com as bases de dados de cada serviço
+docker compose up -d      # PostgreSQL (uma base por serviço) e Redis
 npm start                 # web + gateway + 3 serviços
 ```
 
@@ -120,8 +159,9 @@ Outros comandos:
 ```bash
 npm run start:backend  # só os serviços
 npm test               # testes de todos os projetos
-TEST_DATABASE_URL=postgres://devstart:devstart@localhost:5432/devstart_test npm test
-                       # inclui os testes e2e contra PostgreSQL (ignorados sem esta variável)
+TEST_DATABASE_URL=postgres://devstart:devstart@localhost:5432/devstart_test \
+TEST_REDIS_URL=redis://localhost:6379 npm test
+                       # inclui os testes e2e contra PostgreSQL e Redis (ignorados sem estas variáveis)
 npm run build          # build de todos os projetos
 npm run graph          # grafo de dependências do monorepo
 ```
@@ -182,8 +222,9 @@ apps/web/src/app/
 - [x] Diagnóstico com os dados guardados e ranking das stacks mais próximas
 - [x] Kanban de candidaturas com drag & drop, histórico de estados e entrevistas com feedback
 - [x] Análise de anúncios e filtro de vagas acessíveis a quem tem 0 anos de experiência
+- [x] Eventos entre serviços (Redis Streams + outbox) e eliminação de conta em todos os serviços
+- [x] Rate limiting partilhado em Redis, revogação de tokens e cache HTTP do catálogo
 - [ ] Conta de demonstração com dados de exemplo
-- [ ] Evento `user.deleted` para limpar dados nos outros serviços
 
 ## Autor
 

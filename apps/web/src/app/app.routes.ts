@@ -41,5 +41,14 @@ export const appRoutes: Routes = [
         (m) => m.APPLICATIONS_ROUTES,
       ),
   },
+  {
+    path: 'account',
+    title: 'A minha conta · DevStart EI',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/account/pages/account-page/account-page').then(
+        (m) => m.AccountPage,
+      ),
+  },
   { path: '**', redirectTo: '' },
 ];

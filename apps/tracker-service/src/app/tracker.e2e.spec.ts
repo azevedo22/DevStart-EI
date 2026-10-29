@@ -46,9 +46,11 @@ describeDb('Application Tracker Service (e2e)', () => {
   let http: ReturnType<typeof request>;
 
   beforeAll(async () => {
+    // REDIS_URL vazio: o consumidor de eventos não arranca; os handlers são chamados diretamente.
     Object.assign(process.env, {
       NODE_ENV: 'test',
       TRACKER_DATABASE_URL: TEST_DATABASE_URL,
+      REDIS_URL: '',
     });
     const { AppModule } = await import('./app.module');
     const { configureApp } = await import('@devstart/backend-common');
@@ -432,6 +434,48 @@ describeDb('Application Tracker Service (e2e)', () => {
     it('sem candidaturas, a taxa de resposta é null e não 0%', async () => {
       const { body } = await ana.get('/api/applications/stats').expect(200);
       expect(body).toMatchObject({ total: 0, responseRate: null });
+    });
+  });
+
+  describe('evento user.deleted', () => {
+    const deleted = async (userId: string) => {
+      const { UserEventsSubscriber } =
+        await import('./events/user-events.subscriber');
+      const { createEvent } = await import('@devstart/backend-common');
+      await app
+        .get(UserEventsSubscriber)
+        .onUserDeleted(createEvent('user.deleted', { userId }));
+    };
+
+    it('apaga candidaturas, histórico e entrevistas só desse utilizador', async () => {
+      const a = await create();
+      await ana
+        .post(`/api/applications/${a.id}/interviews`, INTERVIEW)
+        .expect(201);
+      await rui
+        .post('/api/applications', { ...JOB, companyName: 'Do Rui' })
+        .expect(201);
+
+      await deleted(ANA);
+
+      expect((await ana.get('/api/applications').expect(200)).body).toEqual([]);
+      const db = app.get(DataSource);
+      const [{ i }] = await db.query(
+        'SELECT count(*)::int AS i FROM interviews',
+      );
+      const [{ h }] = await db.query(
+        'SELECT count(*)::int AS h FROM application_status_history',
+      );
+      expect({ i, h }).toEqual({ i: 0, h: 1 }); // resta só o histórico da candidatura do Rui
+      expect(
+        (await rui.get('/api/applications').expect(200)).body,
+      ).toHaveLength(1);
+    });
+
+    it('é idempotente', async () => {
+      await create();
+      await deleted(ANA);
+      await expect(deleted(ANA)).resolves.toBeUndefined();
     });
   });
 });

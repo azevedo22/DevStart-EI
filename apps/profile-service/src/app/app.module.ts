@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CatalogModule } from './catalog/catalog.module';
 import { validateEnv } from './config/env';
 import { DatabaseModule } from './database/database.module';
+import { UserEventsSubscriber } from './events/user-events.subscriber';
 import { HealthController } from './health.controller';
 import { ProfileController } from './profile/profile.controller';
 import {
@@ -41,6 +42,6 @@ import { SkillGapController } from './skill-gap/skill-gap.controller';
     ProjectsController,
     SkillGapController,
   ],
-  providers: [ProfileService, ProjectsService],
+  providers: [ProfileService, ProjectsService, UserEventsSubscriber],
 })
 export class AppModule {}

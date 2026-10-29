@@ -59,6 +59,13 @@ import { AuthService } from '../../auth/auth.service';
                       {{ auth.user()?.email }}
                     </div>
                     <div class="dropdown-divider"></div>
+                    <a
+                      ngbDropdownItem
+                      routerLink="/account"
+                      (click)="collapsed.set(true)"
+                    >
+                      <i class="bi bi-gear me-2"></i>A minha conta
+                    </a>
                     <button ngbDropdownItem (click)="logout()">
                       <i class="bi bi-box-arrow-right me-2"></i>Terminar sessão
                     </button>

@@ -84,6 +84,13 @@ export class AuthService {
     );
   }
 
+  /** Apaga a conta (pede a password). A sessão local termina logo a seguir. */
+  deleteAccount(password: string): Observable<void> {
+    return this.http
+      .delete<void>(`${this.url}/me`, { body: { password } })
+      .pipe(tap(() => this.clearSession()));
+  }
+
   logout(): Observable<void> {
     return this.http.post<void>(`${this.url}/logout`, {}).pipe(
       catchError(() => of(undefined)), // mesmo que o servidor falhe, a sessão local termina

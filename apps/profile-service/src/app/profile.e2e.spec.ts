@@ -30,9 +30,11 @@ describeDb('Profile & Skill Service (e2e)', () => {
   let http: ReturnType<typeof request>;
 
   beforeAll(async () => {
+    // REDIS_URL vazio: o consumidor de eventos não arranca; os handlers são chamados diretamente.
     Object.assign(process.env, {
       NODE_ENV: 'test',
       PROFILE_DATABASE_URL: TEST_DATABASE_URL,
+      REDIS_URL: '',
     });
     const { AppModule } = await import('./app.module');
     const { configureApp } = await import('@devstart/backend-common');
@@ -81,6 +83,24 @@ describeDb('Profile & Skill Service (e2e)', () => {
 
     it('o catálogo continua público', async () => {
       await http.get('/api/stacks').expect(200);
+    });
+
+    it('o catálogo pode ser guardado em cache e revalidado com ETag (304)', async () => {
+      const first = await http.get('/api/competencies').expect(200);
+      expect(first.headers['cache-control']).toMatch(/public, max-age=300/);
+      const etag = first.headers['etag'];
+      expect(etag).toBeTruthy();
+
+      const again = await http
+        .get('/api/competencies')
+        .set('If-None-Match', etag)
+        .expect(304);
+      expect(again.text).toBeFalsy();
+    });
+
+    it('dados pessoais nunca ficam em cache partilhada', async () => {
+      const res = await ana.get('/api/profile').expect(200);
+      expect(res.headers['cache-control'] ?? '').not.toMatch(/public/);
     });
   });
 
@@ -288,6 +308,50 @@ describeDb('Profile & Skill Service (e2e)', () => {
     it('stack inexistente dá 404 e stack em falta dá 400', async () => {
       await ana.get('/api/skill-gap?stackId=nao-existe').expect(404);
       await ana.get('/api/skill-gap').expect(400);
+    });
+  });
+
+  describe('evento user.deleted', () => {
+    const deleted = async (userId: string) => {
+      const { UserEventsSubscriber } =
+        await import('./events/user-events.subscriber');
+      const { createEvent } = await import('@devstart/backend-common');
+      await app
+        .get(UserEventsSubscriber)
+        .onUserDeleted(createEvent('user.deleted', { userId }));
+    };
+
+    it('apaga perfil, competências e projetos só desse utilizador', async () => {
+      await ana.put('/api/profile', { headline: 'Ana' }).expect(200);
+      await ana
+        .put('/api/profile/competencies/angular', { level: 'BASIC' })
+        .expect(200);
+      await ana.post('/api/projects', PROJECT).expect(201);
+      await rui
+        .put('/api/profile/competencies/react', { level: 'BASIC' })
+        .expect(200);
+      await rui.post('/api/projects', PROJECT).expect(201);
+
+      await deleted(ANA);
+
+      const anaProfile = (await ana.get('/api/profile').expect(200)).body;
+      expect(anaProfile).toMatchObject({ headline: null, competencies: [] });
+      expect((await ana.get('/api/projects').expect(200)).body).toEqual([]);
+      const [{ links }] = await app
+        .get(DataSource)
+        .query('SELECT count(*)::int AS links FROM project_competencies');
+      expect(links).toBe(PROJECT.competencyIds.length); // só as do Rui
+
+      expect(
+        (await rui.get('/api/profile').expect(200)).body.competencies,
+      ).toHaveLength(1);
+      expect((await rui.get('/api/projects').expect(200)).body).toHaveLength(1);
+    });
+
+    it('é idempotente: o mesmo evento duas vezes não dá erro', async () => {
+      await ana.post('/api/projects', PROJECT).expect(201);
+      await deleted(ANA);
+      await expect(deleted(ANA)).resolves.toBeUndefined();
     });
   });
 });

@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshToken } from './refresh-token.entity';
+import { OutboxRelay } from '../outbox/outbox-relay';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { RefreshToken } from './refresh-token.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard],
+  providers: [AuthService, JwtAuthGuard, OutboxRelay],
+  exports: [OutboxRelay],
 })
 export class AuthModule {}

@@ -2,6 +2,7 @@ import { AuthResponse, UserDto } from '@devstart/shared-types';
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -15,7 +16,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { CookieOptions, Request, Response } from 'express';
 import { Env } from '../config/env';
 import { AuthService, AuthSession } from './auth.service';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { DeleteAccountDto, LoginDto, RegisterDto } from './dto/auth.dto';
 import { AuthenticatedRequest, JwtAuthGuard } from './guards/jwt-auth.guard';
 
 export const REFRESH_COOKIE = 'ds_refresh';
@@ -80,6 +81,20 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@Req() req: AuthenticatedRequest): Promise<UserDto> {
     return this.auth.me(req.user.sub);
+  }
+
+  /** Apaga a conta. Pede a password, tem o limite apertado e termina a sessão. */
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @Throttle(CREDENTIALS_LIMIT)
+  async deleteAccount(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: DeleteAccountDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.auth.deleteAccount(req.user.sub, dto.password);
+    res.clearCookie(REFRESH_COOKIE, this.cookieOptions());
   }
 
   private withCookie(res: Response, session: AuthSession): AuthResponse {

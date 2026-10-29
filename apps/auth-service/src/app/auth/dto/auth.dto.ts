@@ -1,4 +1,5 @@
 import {
+  DeleteAccountRequest,
   LoginRequest,
   PASSWORD_RULES,
   RegisterRequest,
@@ -34,6 +35,12 @@ export class LoginDto implements LoginRequest {
   @IsEmail({}, { message: 'Email inválido.' })
   email!: string;
 
+  @IsString()
+  @MaxLength(PASSWORD_RULES.maxLength)
+  password!: string;
+}
+
+export class DeleteAccountDto implements DeleteAccountRequest {
   @IsString()
   @MaxLength(PASSWORD_RULES.maxLength)
   password!: string;

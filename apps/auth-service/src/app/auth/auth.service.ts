@@ -1,17 +1,24 @@
+import { createEvent, revokedUserKey } from '@devstart/backend-common';
 import { AuthResponse, JwtPayload, UserDto } from '@devstart/shared-types';
 import {
   ConflictException,
+  ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'node:crypto';
-import { IsNull, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { Env } from '../config/env';
+import { OutboxEvent } from '../outbox/outbox-event.entity';
+import { OutboxRelay } from '../outbox/outbox-relay';
+import { AUTH_REDIS } from '../config/redis';
+import type Redis from 'ioredis';
 import { User, toUserDto } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
@@ -46,6 +53,9 @@ export class AuthService {
     private readonly config: ConfigService<Env, true>,
     @InjectRepository(RefreshToken)
     private readonly tokens: Repository<RefreshToken>,
+    @InjectDataSource() private readonly db: DataSource,
+    private readonly outbox: OutboxRelay,
+    @Inject(AUTH_REDIS) private readonly redis: Redis | null,
   ) {
     this.dummyHash = bcrypt.hashSync('dummy-password-for-timing', this.rounds);
   }
@@ -129,6 +139,54 @@ export class AuthService {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException(INVALID_SESSION);
     return toUserDto(user);
+  }
+
+  /**
+   * Apaga a conta (direito ao apagamento, RGPD). Confirma a password, apaga o
+   * utilizador (os refresh tokens vão em cascata) e regista o evento user.deleted
+   * no outbox, tudo na mesma transação. Os outros serviços apagam os seus dados
+   * quando o evento lhes chega.
+   */
+  async deleteAccount(userId: string, password: string): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user) throw new UnauthorizedException(INVALID_SESSION);
+    // 403 e não 401: a sessão é válida, a confirmação é que falhou. Com 401, o
+    // frontend tentaria renovar a sessão e repetir o pedido.
+    if (!(await bcrypt.compare(password, user.passwordHash))) {
+      throw new ForbiddenException('Password incorreta.');
+    }
+
+    const event = createEvent('user.deleted', { userId });
+    await this.db.transaction(async (em) => {
+      await em.insert(OutboxEvent, {
+        id: event.id,
+        type: event.type,
+        payload: event.payload,
+        occurredAt: new Date(event.occurredAt),
+        publishedAt: null,
+      });
+      await em.delete(User, { id: userId });
+    });
+    this.logger.log(`Conta ${userId} apagada; evento ${event.id} no outbox.`);
+    this.outbox.kick();
+    await this.revokeAccessTokens(userId);
+  }
+
+  /**
+   * Os access tokens já emitidos valem até expirar. Marca o utilizador como
+   * revogado no Redis durante esse tempo; o gateway recusa-os.
+   * Se o Redis estiver em baixo, os tokens expiram sozinhos em JWT_ACCESS_TTL.
+   */
+  private async revokeAccessTokens(userId: string): Promise<void> {
+    if (!this.redis) return;
+    const ttl = this.config.get('JWT_ACCESS_TTL', { infer: true });
+    try {
+      await this.redis.set(revokedUserKey(userId), '1', 'EX', ttl);
+    } catch (err) {
+      this.logger.warn(
+        `Não foi possível revogar os tokens de ${userId} (${(err as Error).message}); expiram em ${ttl}s.`,
+      );
+    }
   }
 
   private async startSession(

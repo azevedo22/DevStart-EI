@@ -10,6 +10,7 @@ import { ApplicationsController } from './applications/applications.controller';
 import { ApplicationsService } from './applications/applications.service';
 import { validateEnv } from './config/env';
 import { DatabaseModule } from './database/database.module';
+import { UserEventsSubscriber } from './events/user-events.subscriber';
 import { HealthController } from './health.controller';
 import { InterviewsController } from './interviews/interviews.controller';
 import { InterviewsService } from './interviews/interviews.service';
@@ -29,6 +30,6 @@ import { InterviewsService } from './interviews/interviews.service';
     ]),
   ],
   controllers: [HealthController, ApplicationsController, InterviewsController],
-  providers: [ApplicationsService, InterviewsService],
+  providers: [ApplicationsService, InterviewsService, UserEventsSubscriber],
 })
 export class AppModule {}

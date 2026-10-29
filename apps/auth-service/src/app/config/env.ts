@@ -54,6 +54,13 @@ export class Env {
   @Min(4)
   @Max(15)
   BCRYPT_ROUNDS = 12;
+
+  /**
+   * Redis partilhado: eventos entre serviços e contadores do rate limiting.
+   * Vazio desliga ambos (o rate limiting passa a ser em memória, por instância).
+   */
+  @IsString()
+  REDIS_URL = 'redis://localhost:6379';
 }
 
 export function validateEnv(raw: Record<string, unknown>): Env {

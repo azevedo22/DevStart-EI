@@ -27,6 +27,11 @@ export interface LoginRequest {
  * O refresh token NÃO vem aqui: vai num cookie httpOnly que o JavaScript não lê,
  * o que o protege de ataques XSS. O access token fica só em memória no frontend.
  */
+/** Apagar a conta pede a password outra vez: um access token roubado não chega para isso. */
+export interface DeleteAccountRequest {
+  password: string;
+}
+
 export interface AuthResponse {
   user: UserDto;
   accessToken: string;

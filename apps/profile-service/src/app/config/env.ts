@@ -13,6 +13,10 @@ export class Env {
   @IsString()
   PROFILE_DATABASE_URL =
     'postgres://devstart:devstart@localhost:5432/devstart_profile';
+
+  /** Redis partilhado, para ouvir eventos de outros serviços. Vazio desliga o consumidor. */
+  @IsString()
+  REDIS_URL = 'redis://localhost:6379';
 }
 
 export const validateEnv = createEnvValidator(Env, 'profile-service');
