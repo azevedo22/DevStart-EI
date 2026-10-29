@@ -1,3 +1,4 @@
+import pg from 'pg';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -23,6 +24,9 @@ export const MIGRATIONS = [CreateTrackerTables1730160000000];
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
         type: 'postgres',
+        // Driver explícito: sem isto o TypeORM carrega o 'pg' dinamicamente e o build
+        // de produção não o inclui nas dependências da imagem Docker.
+        driver: pg,
         url: config.get('TRACKER_DATABASE_URL', { infer: true }),
         entities: ENTITIES,
         migrations: MIGRATIONS,

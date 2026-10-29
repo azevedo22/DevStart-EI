@@ -1,0 +1,42 @@
+# Produção num servidor (VPS): acrescenta o Caddy à frente com HTTPS automático.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app up -d --build
+#
+# Precisa no .env: JWT_ACCESS_SECRET, POSTGRES_PASSWORD e DOMAIN (ver docs/deploy.md).
+services:
+  # Base de dados, Redis e nginx deixam de publicar portas: só o Caddy fica exposto.
+  db:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  web:
+    ports: !reset []
+
+  auth-service:
+    environment:
+      # Caddy + nginx + gateway à frente do serviço.
+      TRUST_PROXY_HOPS: 3
+
+  api-gateway:
+    environment:
+      WEB_ORIGIN: https://${DOMAIN:?Define DOMAIN no .env}
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: [app]
+    restart: unless-stopped
+    depends_on: [web]
+    environment:
+      DOMAIN: ${DOMAIN:?Define DOMAIN no .env}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # certificados: não apagar, ou o Let's Encrypt limita novos pedidos
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

@@ -56,6 +56,18 @@ export class Env {
   BCRYPT_ROUNDS = 12;
 
   /**
+   * Quantos proxies estão à frente do serviço. O IP do cliente (usado no rate
+   * limiting) é lido de X-Forwarded-For saltando este número de entradas.
+   * 1 = só o gateway (desenvolvimento); 2 = nginx + gateway (docker compose).
+   * Um valor baixo demais faz todos os pedidos parecerem vir do mesmo IP.
+   */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  TRUST_PROXY_HOPS = 1;
+
+  /**
    * Redis partilhado: eventos entre serviços e contadores do rate limiting.
    * Vazio desliga ambos (o rate limiting passa a ser em memória, por instância).
    */

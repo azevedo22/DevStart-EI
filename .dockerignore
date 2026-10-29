@@ -1,0 +1,16 @@
+# Só o código-fonte entra no contexto de build; o resto é gerado dentro da imagem.
+node_modules
+dist
+tmp
+out-tsc
+coverage
+.nx
+.angular
+.git
+.github
+.vscode
+.idea
+**/*.log
+.env
+.env.*
+!.env.example

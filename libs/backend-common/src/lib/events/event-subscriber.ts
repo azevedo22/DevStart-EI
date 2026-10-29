@@ -32,8 +32,14 @@ export abstract class EventSubscriber
       this.logger.warn('Consumidor de eventos desligado (sem REDIS_URL).');
       return;
     }
+    const redis = createRedis(url, `${this.group}-consumer`, {
+      blocking: true,
+    });
+    // Sem listener, o ioredis escreve "Unhandled error event" com stack trace a cada
+    // tentativa de religação. O ciclo do consumidor já regista a falha (com backoff).
+    redis.on('error', () => undefined);
     this.consumer = new EventConsumer({
-      redis: createRedis(url, `${this.group}-consumer`, { blocking: true }),
+      redis,
       group: this.group,
       consumer: `${hostname()}-${process.pid}`,
       handlers: this.handlers(),

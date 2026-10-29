@@ -1,0 +1,10 @@
+# HTTPS automático (Let's Encrypt) para o domínio em DOMAIN.
+# O Caddy obtém e renova o certificado sozinho; só precisa das portas 80 e 443 abertas
+# e de o DNS do domínio apontar para o servidor.
+{$DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	# O Caddy substitui o X-Forwarded-For pelo IP de quem lhe ligou (não confia no
+	# que o cliente envia). Depois do nginx e do gateway, o auth-service conta 3 saltos.
+	reverse_proxy web:80
+}

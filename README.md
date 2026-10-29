@@ -8,7 +8,8 @@ Ajuda a responder a três perguntas:
 3. **Em que ponto estão as minhas candidaturas?** Quadro Kanban do envio do CV até à proposta.
 
 > Estado: os três módulos funcionam de ponta a ponta (autenticação, perfil com projetos, diagnóstico de
-> skill gap e quadro de candidaturas), com eventos entre serviços. Próximos passos: Dockerfiles e deploy.
+> skill gap e quadro de candidaturas), com eventos entre serviços. A aplicação inteira corre em contentores
+> com um comando, e está pronta a publicar num servidor com HTTPS ([guia de deploy](docs/deploy.md)).
 
 ## Arquitetura
 
@@ -138,6 +139,34 @@ os outros serviços: publica um evento `user.deleted` e cada serviço trata do q
 O catálogo de competências e stacks usa cache HTTP (`Cache-Control` + `ETag`): o browser guarda-o
 5 minutos e depois revalida; sem alterações, a resposta é um `304` sem corpo.
 
+### Em contentores
+
+```
+ browser ──▶ nginx :8080 ──┬── /        → ficheiros estáticos do Angular
+                           └── /api/... → api-gateway → auth / profile / tracker
+                                                              │
+                                                    PostgreSQL + Redis
+```
+
+- **Só o nginx tem porta publicada.** Os serviços, o gateway, o PostgreSQL e o Redis ficam na rede interna
+  do Docker. O frontend e a API partilham a mesma origem: sem CORS, e o cookie `SameSite=Strict` funciona
+  sem exceções.
+- **Um Dockerfile multi-stage para as 5 imagens.** Os serviços NestJS constroem-se da mesma forma, e o
+  `npm ci` do monorepo fica numa camada partilhada: depois da primeira imagem, as outras constroem-se em
+  segundos. Cada imagem final leva só o bundle do serviço e as dependências que ele importa (cerca de
+  50 MB em vez das centenas do monorepo), e corre como utilizador sem privilégios.
+- **Healthchecks e ordem de arranque.** Cada serviço só arranca depois de o PostgreSQL e o Redis estarem
+  saudáveis, o gateway depois dos serviços, e o nginx depois do gateway.
+- **Cabeçalhos de segurança no nginx**, incluindo uma Content Security Policy que só permite scripts da
+  própria origem.
+- **O IP real do cliente atravessa os proxies.** O rate limiting conta tentativas por IP. Atrás do nginx e
+  do gateway, o auth-service lê o IP de `X-Forwarded-For` saltando o número certo de proxies
+  (`TRUST_PROXY_HOPS`). Com o valor errado, todos os pedidos pareceriam vir do nginx e 10 logins falhados
+  de uma pessoa bloqueariam toda a gente. Um `X-Forwarded-For` forjado pelo cliente não muda nada.
+- **Smoke test na CI.** Um job constrói as imagens, arranca a stack inteira e percorre-a através do nginx
+  (`tools/smoke-test.sh`): frontend, cabeçalhos, registo, os três serviços, eliminação da conta e revogação
+  do token.
+
 ## Como correr
 
 Requisitos: Node.js 22+ e Docker (para o PostgreSQL).
@@ -149,7 +178,7 @@ docker compose up -d      # PostgreSQL (uma base por serviço) e Redis
 npm start                 # web + gateway + 3 serviços
 ```
 
-As migrações correm automaticamente quando o `auth-service` arranca.
+As migrações correm automaticamente quando cada serviço arranca.
 
 - Aplicação: http://localhost:4200
 - API Gateway: http://localhost:3000/api/v1
@@ -167,6 +196,23 @@ npm run graph          # grafo de dependências do monorepo
 ```
 
 As variáveis de ambiente estão documentadas em `.env.example`.
+
+### Correr tudo com Docker
+
+Para ver a aplicação como em produção, sem instalar Node.js:
+
+```bash
+echo "JWT_ACCESS_SECRET=$(openssl rand -base64 48)" >> .env
+docker compose --profile app up -d --build   # primeira vez: alguns minutos
+tools/smoke-test.sh                          # opcional: verifica a stack de ponta a ponta
+```
+
+- Aplicação: http://localhost:8080
+
+Se já tinhas corrido o modo de desenvolvimento, o volume do PostgreSQL é reaproveitado (com as migrações
+aplicadas por cima). Para começar do zero: `docker compose --profile app down -v`.
+
+Para publicar num servidor com domínio e HTTPS, ver [docs/deploy.md](docs/deploy.md).
 
 ## API (implementada até agora)
 
@@ -217,7 +263,8 @@ apps/web/src/app/
 - [x] CI com GitHub Actions (com PostgreSQL para os testes e2e)
 - [x] Auth Service: registo, login, JWT, refresh com rotação e validação no gateway
 - [x] PostgreSQL com migrações e Docker Compose
-- [ ] Dockerfiles por serviço e `docker compose up` da aplicação inteira
+- [x] Imagens Docker, `docker compose` da aplicação inteira e smoke test na CI
+- [ ] Publicação online (configuração com HTTPS pronta: [docs/deploy.md](docs/deploy.md))
 - [x] Perfil: competências declaradas e projetos (Proof of Work)
 - [x] Diagnóstico com os dados guardados e ranking das stacks mais próximas
 - [x] Kanban de candidaturas com drag & drop, histórico de estados e entrevistas com feedback

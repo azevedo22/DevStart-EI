@@ -62,3 +62,31 @@ jobs:
 
       - name: Build
         run: npx nx affected -t build --base=$NX_BASE --head=$NX_HEAD
+
+  # Constrói as 5 imagens, arranca a aplicação inteira em contentores e testa-a
+  # através do nginx, como um browser. Apanha o que os testes unitários não veem:
+  # dependências em falta na imagem, configuração do nginx, proxies, healthchecks.
+  docker:
+    runs-on: ubuntu-latest
+    env:
+      # Só para este job; nunca usado fora da CI.
+      JWT_ACCESS_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build das imagens
+        run: docker compose --profile app build
+
+      - name: Arrancar a aplicação
+        run: docker compose --profile app up -d --wait --wait-timeout 180
+
+      - name: Smoke test (nginx → gateway → serviços)
+        run: tools/smoke-test.sh http://localhost:8080
+
+      - name: Logs em caso de falha
+        if: failure()
+        run: docker compose --profile app logs --no-color
+
+      - name: Parar
+        if: always()
+        run: docker compose --profile app down -v
