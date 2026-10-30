@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import {
+  DestroyRef,
   Injectable,
   computed,
   effect,
@@ -10,6 +11,9 @@ import {
 import {
   APPLICATION_STATUSES,
   Accessibility,
+  DailyGoalProgress,
+  dailyGoalProgress,
+  localDate,
   ApplicationBoard,
   ApplicationStats,
   ApplicationStatus,
@@ -57,6 +61,23 @@ export class ApplicationsStore {
   readonly error = this._error.asReadonly();
   readonly loaded = computed(() => this._board() !== null);
 
+  // ── Objetivo diário ─────────────────────────────────────────
+  /** O dia de hoje no fuso do utilizador; muda sozinho à meia-noite. */
+  private readonly today = signal(localDate());
+
+  /**
+   * Progresso no objetivo de candidaturas de hoje. Calculado a partir do
+   * quadro, por isso atualiza no instante em que uma candidatura é criada.
+   */
+  readonly dailyGoal = computed<DailyGoalProgress | null>(() => {
+    const board = this._board();
+    if (!board) return null;
+    const dates = APPLICATION_STATUSES.flatMap((s) =>
+      board[s].map((a) => a.appliedAt),
+    );
+    return dailyGoalProgress(dates, this.today());
+  });
+
   // ── Filtros (aplicados no cliente, para serem instantâneos) ──
   readonly search = signal('');
   readonly accessibilityFilter = signal<Accessibility | null>(null);
@@ -92,6 +113,12 @@ export class ApplicationsStore {
         if (userId !== this.loadedFor) this.reset();
       });
     });
+    // À meia-noite o objetivo recomeça: confirma o dia uma vez por minuto.
+    const timer = setInterval(() => {
+      const now = localDate();
+      if (now !== this.today()) this.today.set(now);
+    }, 60_000);
+    inject(DestroyRef).onDestroy(() => clearInterval(timer));
   }
 
   load(force = false): void {

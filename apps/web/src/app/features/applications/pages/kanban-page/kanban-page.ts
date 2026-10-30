@@ -1,3 +1,4 @@
+import { DailyGoal } from '../../components/daily-goal/daily-goal';
 import {
   CdkDrag,
   CdkDragDrop,
@@ -46,6 +47,7 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
     ApplicationCard,
     BoardStats,
     EmptyState,
+    DailyGoal,
   ],
   template: `
     <div class="container-fluid py-4 px-3 px-md-4">
@@ -81,6 +83,8 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
           </button>
         </div>
       }
+
+      <ds-daily-goal class="d-block mb-3" />
 
       @if (store.stats(); as stats) {
         <ds-board-stats [stats]="stats" class="d-block mb-3" />

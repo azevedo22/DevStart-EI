@@ -131,6 +131,19 @@ os outros serviços: publica um evento `user.deleted` e cada serviço trata do q
   Service marca o utilizador como revogado no Redis durante 15 minutos (a validade do token) e o gateway
   recusa esses tokens. Sem isto, um token antigo podia voltar a criar dados para uma conta apagada.
 
+### Objetivo diário
+
+Meta de candidaturas por dia, para dar ritmo à procura: **3 é suficiente, 7 é bom, 10 é muito bom**.
+Aparece no topo das Candidaturas e na página inicial, com quanto falta para o próximo patamar, a
+sequência de dias seguidos com pelo menos 3, os últimos 7 dias e uma pequena celebração ao subir de
+patamar.
+
+- **Regra partilhada e testada** (`libs/shared-types`, `dailyGoalProgress`): conta as candidaturas
+  com data de hoje no fuso do utilizador; a sequência sobrevive até ao fim do dia (se hoje ainda não
+  chegou a 3, conta até ontem). Novos tipos de objetivo são novas definições da mesma função.
+- **Instantâneo:** é calculado no browser a partir do quadro, por isso atualiza no momento em que se
+  cria uma candidatura, e recomeça sozinho à meia-noite.
+
 ### Importar o CV com IA
 
 Uma conta nova começa pelo perfil, com um botão para importar o CV (PDF ou DOCX). Um modelo de
@@ -335,6 +348,7 @@ apps/web/src/app/
 - [x] Análise de anúncios e filtro de vagas acessíveis a quem tem 0 anos de experiência
 - [x] Eventos entre serviços (Redis Streams + outbox) e eliminação de conta em todos os serviços
 - [x] Rate limiting partilhado em Redis, revogação de tokens e cache HTTP do catálogo
+- [x] Objetivo diário de candidaturas (3 / 7 / 10) com sequência de dias seguidos
 - [x] Importação do CV com IA local (Ollama) e ficha com formação, experiência, línguas e links
 - [x] Contas de demonstração temporárias, preenchidas por evento e apagadas ao fim de 24 horas
 
