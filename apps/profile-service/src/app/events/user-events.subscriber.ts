@@ -59,6 +59,14 @@ export class UserEventsSubscriber extends EventSubscriber {
         `DELETE FROM profiles WHERE user_id = $1`,
         [userId],
       );
+      // Formação, experiência e línguas: sem contagem no log, só se apagam.
+      for (const table of [
+        'profile_education',
+        'profile_experience',
+        'profile_languages',
+      ]) {
+        await em.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
+      }
       return {
         projects: projects[1],
         competencies: competencies[1],

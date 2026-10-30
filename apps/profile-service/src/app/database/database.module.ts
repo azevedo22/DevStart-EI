@@ -1,3 +1,9 @@
+import { AddBackground1730190000000 } from './migrations/1730190000000-add-background';
+import {
+  EducationEntity,
+  ExperienceEntity,
+  LanguageEntity,
+} from '../background/background.entities';
 import pg from 'pg';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -19,8 +25,14 @@ export const ENTITIES = [
   ProfileCompetencyEntity,
   ProjectEntity,
   ProjectCompetencyEntity,
+  EducationEntity,
+  ExperienceEntity,
+  LanguageEntity,
 ];
-export const MIGRATIONS = [CreateProfileTables1730150000000];
+export const MIGRATIONS = [
+  CreateProfileTables1730150000000,
+  AddBackground1730190000000,
+];
 
 @Module({
   imports: [

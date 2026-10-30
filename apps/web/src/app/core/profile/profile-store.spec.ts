@@ -24,9 +24,16 @@ const session = (id: string): AuthResponse => ({
 const profile = (userId: string, competencyIds: string[] = []): Profile => ({
   userId,
   headline: null,
+  location: null,
   university: null,
   graduationYear: null,
   bio: null,
+  linkedinUrl: null,
+  githubUrl: null,
+  portfolioUrl: null,
+  education: [],
+  experience: [],
+  languages: [],
   updatedAt: '2026-01-01T00:00:00Z',
   competencies: competencyIds.map((competencyId) => ({
     competencyId,
@@ -142,5 +149,38 @@ describe('ProfileStore', () => {
       .flush(project('b', ['react']));
 
     expect(store.projects().map((p) => p.id)).toEqual(['b', 'a']);
+  });
+
+  describe('importação do CV', () => {
+    it('envia o ficheiro como multipart no campo "file"', () => {
+      signIn('ana');
+      const file = new File(['%PDF-1.4'], 'cv.pdf', {
+        type: 'application/pdf',
+      });
+      store.analyzeCv(file).subscribe();
+      const req = backend.expectOne({
+        method: 'POST',
+        url: '/api/v1/profile/cv/analyze',
+      });
+      const body = req.request.body as FormData;
+      expect(body).toBeInstanceOf(FormData);
+      expect((body.get('file') as File).name).toBe('cv.pdf');
+      req.flush({});
+    });
+
+    it('depois de importar, usa o perfil devolvido e recarrega os projetos', () => {
+      signIn('ana');
+      load(profile('ana'));
+      store
+        .importCv({ competencies: [{ competencyId: 'java', level: 'BASIC' }] })
+        .subscribe();
+      backend
+        .expectOne({ method: 'POST', url: '/api/v1/profile/cv/import' })
+        .flush(profile('ana', ['java']));
+      backend.expectOne('/api/v1/projects').flush([project('novo', ['java'])]);
+
+      expect(store.competencies().map((c) => c.competencyId)).toEqual(['java']);
+      expect(store.projects().map((p) => p.id)).toEqual(['novo']);
+    });
   });
 });

@@ -1,7 +1,17 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BackgroundController } from './background/background.controller';
+import {
+  EducationEntity,
+  ExperienceEntity,
+  LanguageEntity,
+} from './background/background.entities';
+import { BackgroundService } from './background/background.service';
 import { CatalogModule } from './catalog/catalog.module';
+import { CvController } from './cv/cv.controller';
+import { CvService } from './cv/cv.service';
+import { OllamaClient } from './cv/ollama.client';
 import { validateEnv } from './config/env';
 import { DatabaseModule } from './database/database.module';
 import { DemoProfileSeeder } from './demo/demo-profile.seeder';
@@ -34,17 +44,25 @@ import { SkillGapController } from './skill-gap/skill-gap.controller';
       ProfileCompetencyEntity,
       ProjectEntity,
       ProjectCompetencyEntity,
+      EducationEntity,
+      ExperienceEntity,
+      LanguageEntity,
     ]),
     CatalogModule,
   ],
   controllers: [
     HealthController,
     ProfileController,
+    BackgroundController,
+    CvController,
     ProjectsController,
     SkillGapController,
   ],
   providers: [
     ProfileService,
+    BackgroundService,
+    CvService,
+    OllamaClient,
     ProjectsService,
     DemoProfileSeeder,
     UserEventsSubscriber,

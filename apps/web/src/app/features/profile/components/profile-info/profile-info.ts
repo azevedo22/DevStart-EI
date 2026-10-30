@@ -1,13 +1,19 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { PROFILE_LIMITS } from '@devstart/shared-types';
+import { BACKGROUND_LIMITS, PROFILE_LIMITS } from '@devstart/shared-types';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ApiError } from '../../../../core/http/error.interceptor';
 import { ProfileStore } from '../../../../core/profile/profile-store';
 import { FieldError } from '../../../../shared/forms/field-error';
 
-/** Cabeçalho do perfil: nome, título profissional, universidade e apresentação. */
+/** Só http(s): os links são mostrados como <a href> (nunca "javascript:"). */
+const URL_VALIDATORS = [
+  Validators.maxLength(PROFILE_LIMITS.url),
+  Validators.pattern(/^https?:\/\/\S+$/i),
+];
+
+/** Cabeçalho do perfil: nome, título, instituição, localização, links e apresentação. */
 @Component({
   selector: 'ds-profile-info',
   imports: [ReactiveFormsModule, FieldError],
@@ -24,10 +30,22 @@ import { FieldError } from '../../../../shared/forms/field-error';
               >
                 {{ profile()?.headline || 'Ainda sem título profissional' }}
               </p>
-              @if (educationLine(); as line) {
-                <p class="small text-body-secondary mb-0">
-                  <i class="bi bi-mortarboard me-1"></i>{{ line }}
-                </p>
+              <div class="d-flex flex-wrap gap-3 small text-body-secondary">
+                @if (educationLine(); as line) {
+                  <span><i class="bi bi-mortarboard me-1"></i>{{ line }}</span>
+                }
+                @if (profile()?.location; as location) {
+                  <span><i class="bi bi-geo-alt me-1"></i>{{ location }}</span>
+                }
+              </div>
+              @if (links().length) {
+                <div class="d-flex flex-wrap gap-3 small mt-2">
+                  @for (l of links(); track l.url) {
+                    <a [href]="l.url" target="_blank" rel="noopener noreferrer"
+                      ><i class="bi {{ l.icon }} me-1"></i>{{ l.label }}</a
+                    >
+                  }
+                </div>
               }
             </div>
             <button
@@ -95,6 +113,33 @@ import { FieldError } from '../../../../shared/forms/field-error';
               </div>
             </div>
             <div>
+              <label for="location" class="form-label">Localização</label>
+              <input
+                id="location"
+                class="form-control"
+                formControlName="location"
+                placeholder="Ex.: Bragança"
+              />
+            </div>
+            <div class="row g-3">
+              @for (l of linkFields; track l.key) {
+                <div class="col-md-4">
+                  <label [for]="l.key" class="form-label">{{ l.label }}</label>
+                  <input
+                    [id]="l.key"
+                    type="url"
+                    class="form-control"
+                    [formControlName]="l.key"
+                    placeholder="https://…"
+                  />
+                  <ds-field-error
+                    [control]="form.controls[l.key]"
+                    [messages]="urlMessages"
+                  />
+                </div>
+              }
+            </div>
+            <div>
               <label for="bio" class="form-label">Apresentação</label>
               <textarea
                 id="bio"
@@ -158,6 +203,28 @@ export class ProfileInfo {
       ],
     ],
     bio: ['', Validators.maxLength(PROFILE_LIMITS.bio)],
+    location: ['', Validators.maxLength(BACKGROUND_LIMITS.location)],
+    linkedinUrl: ['', URL_VALIDATORS],
+    githubUrl: ['', URL_VALIDATORS],
+    portfolioUrl: ['', URL_VALIDATORS],
+  });
+
+  protected readonly linkFields = [
+    { key: 'linkedinUrl', label: 'LinkedIn' },
+    { key: 'githubUrl', label: 'GitHub' },
+    { key: 'portfolioUrl', label: 'Portefólio' },
+  ] as const;
+  protected readonly urlMessages = {
+    pattern: 'Tem de começar por http:// ou https://.',
+  };
+
+  protected readonly links = computed(() => {
+    const p = this.profile();
+    return [
+      { url: p?.linkedinUrl, label: 'LinkedIn', icon: 'bi-linkedin' },
+      { url: p?.githubUrl, label: 'GitHub', icon: 'bi-github' },
+      { url: p?.portfolioUrl, label: 'Portefólio', icon: 'bi-globe' },
+    ].filter((l): l is { url: string; label: string; icon: string } => !!l.url);
   });
 
   protected readonly educationLine = computed(() => {
@@ -174,6 +241,10 @@ export class ProfileInfo {
       university: p?.university ?? '',
       graduationYear: p?.graduationYear ?? null,
       bio: p?.bio ?? '',
+      location: p?.location ?? '',
+      linkedinUrl: p?.linkedinUrl ?? '',
+      githubUrl: p?.githubUrl ?? '',
+      portfolioUrl: p?.portfolioUrl ?? '',
     });
     this.error.set(null);
     this.editing.set(true);

@@ -51,7 +51,7 @@ describeDb('Profile & Skill Service (e2e)', () => {
     await app
       .get(DataSource)
       .query(
-        'TRUNCATE "project_competencies", "projects", "profile_competencies", "profiles" CASCADE',
+        'TRUNCATE "project_competencies", "projects", "profile_competencies", "profiles", "profile_education", "profile_experience", "profile_languages" CASCADE',
       );
   });
 
@@ -111,7 +111,29 @@ describeDb('Profile & Skill Service (e2e)', () => {
         userId: ANA,
         headline: null,
         competencies: [],
+        education: [],
+        experience: [],
+        languages: [],
       });
+    });
+
+    it('guarda a localização e os links, e só aceita links http(s)', async () => {
+      const { body } = await ana
+        .put('/api/profile', {
+          location: 'Bragança',
+          linkedinUrl: 'https://www.linkedin.com/in/ana',
+          githubUrl: 'https://github.com/ana',
+        })
+        .expect(200);
+      expect(body).toMatchObject({
+        location: 'Bragança',
+        linkedinUrl: 'https://www.linkedin.com/in/ana',
+        githubUrl: 'https://github.com/ana',
+        portfolioUrl: null,
+      });
+      await ana
+        .put('/api/profile', { githubUrl: 'javascript:alert(1)' })
+        .expect(400);
     });
 
     it('atualiza só os campos enviados e limpa com string vazia', async () => {
@@ -401,6 +423,139 @@ describeDb('Profile & Skill Service (e2e)', () => {
       await seed(ANA);
       const { body } = await rui.get('/api/profile').expect(200);
       expect(ids(body.competencies)).toEqual(['java']);
+    });
+  });
+
+  describe('formação, experiência e línguas', () => {
+    const EDUCATION = {
+      institution: 'Universidade Politécnica de Bragança',
+      degree: 'Licenciatura em Engenharia Informática',
+      fieldOfStudy: null,
+      startYear: 2023,
+      endYear: 2026,
+    };
+    const JOB = {
+      organization: 'Empresa Exemplo',
+      role: 'Estagiário de desenvolvimento',
+      kind: 'INTERNSHIP',
+      startDate: '2026-02',
+      endDate: '2026-06',
+      description: 'Desenvolvimento de uma API REST.',
+    };
+
+    it('adiciona, edita e apaga formação; aparece no perfil', async () => {
+      const { body: created } = await ana
+        .post('/api/profile/education', EDUCATION)
+        .expect(201);
+      await ana
+        .put(`/api/profile/education/${created.id}`, {
+          ...EDUCATION,
+          endYear: null,
+        })
+        .expect(200);
+      const { body: profile } = await ana.get('/api/profile').expect(200);
+      expect(profile.education).toEqual([
+        { ...EDUCATION, id: created.id, endYear: null },
+      ]);
+      await ana.delete(`/api/profile/education/${created.id}`).expect(204);
+      await ana.delete(`/api/profile/education/${created.id}`).expect(404);
+    });
+
+    it('ordena a experiência: a atual primeiro, depois da mais recente para a mais antiga', async () => {
+      await ana.post('/api/profile/experience', JOB).expect(201);
+      await ana
+        .post('/api/profile/experience', {
+          ...JOB,
+          organization: 'Atual',
+          startDate: '2026-09',
+          endDate: null,
+        })
+        .expect(201);
+      await ana
+        .post('/api/profile/experience', {
+          ...JOB,
+          organization: 'Antiga',
+          startDate: '2024-07',
+          endDate: '2024-09',
+        })
+        .expect(201);
+      const { body } = await ana.get('/api/profile').expect(200);
+      expect(
+        body.experience.map((e: { organization: string }) => e.organization),
+      ).toEqual(['Atual', 'Empresa Exemplo', 'Antiga']);
+    });
+
+    it.each([
+      ['data mal formatada', { startDate: '06/2026' }],
+      ['mês 13', { startDate: '2026-13' }],
+      ['fim antes do início', { startDate: '2026-06', endDate: '2026-01' }],
+      ['tipo inválido', { kind: 'CEO' }],
+    ])('recusa experiência com %s', async (_c, patch) => {
+      await ana
+        .post('/api/profile/experience', { ...JOB, ...patch })
+        .expect(400);
+    });
+
+    it('recusa formação que acaba antes de começar', async () => {
+      await ana
+        .post('/api/profile/education', {
+          ...EDUCATION,
+          startYear: 2026,
+          endYear: 2023,
+        })
+        .expect(400);
+    });
+
+    it('as línguas substituem-se de uma vez, sem repetidas e pela ordem indicada', async () => {
+      const { body } = await ana
+        .put('/api/profile/languages', {
+          languages: [
+            { language: 'português', level: 'NATIVE' },
+            { language: 'Inglês', level: 'B1' },
+            { language: 'inglês', level: 'C1' },
+          ],
+        })
+        .expect(200);
+      expect(body).toEqual([
+        { language: 'Português', level: 'NATIVE' },
+        { language: 'Inglês', level: 'C1' },
+      ]);
+      await ana
+        .put('/api/profile/languages', {
+          languages: [{ language: 'Klingon', level: 'Z9' }],
+        })
+        .expect(400);
+    });
+
+    it('não se vê nem se apaga a formação de outro utilizador', async () => {
+      const { body } = await ana
+        .post('/api/profile/education', EDUCATION)
+        .expect(201);
+      await rui.delete(`/api/profile/education/${body.id}`).expect(404);
+      await rui.put(`/api/profile/education/${body.id}`, EDUCATION).expect(404);
+      expect(
+        (await rui.get('/api/profile').expect(200)).body.education,
+      ).toEqual([]);
+    });
+
+    it('user.deleted apaga também a formação, a experiência e as línguas', async () => {
+      await ana.post('/api/profile/education', EDUCATION).expect(201);
+      await ana.post('/api/profile/experience', JOB).expect(201);
+      await ana.put('/api/profile/languages', {
+        languages: [{ language: 'Inglês', level: 'B2' }],
+      });
+      const { UserEventsSubscriber } =
+        await import('./events/user-events.subscriber');
+      const { createEvent } = await import('@devstart/backend-common');
+      await app
+        .get(UserEventsSubscriber)
+        .onUserDeleted(createEvent('user.deleted', { userId: ANA }));
+      const { body } = await ana.get('/api/profile').expect(200);
+      expect([
+        body.education.length,
+        body.experience.length,
+        body.languages.length,
+      ]).toEqual([0, 0, 0]);
     });
   });
 });

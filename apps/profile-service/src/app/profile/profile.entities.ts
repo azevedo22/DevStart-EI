@@ -28,6 +28,28 @@ export class ProfileEntity {
   @Column({ type: 'varchar', length: 1000, nullable: true })
   bio!: string | null;
 
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  location!: string | null;
+
+  @Column({
+    name: 'linkedin_url',
+    type: 'varchar',
+    length: 300,
+    nullable: true,
+  })
+  linkedinUrl!: string | null;
+
+  @Column({ name: 'github_url', type: 'varchar', length: 300, nullable: true })
+  githubUrl!: string | null;
+
+  @Column({
+    name: 'portfolio_url',
+    type: 'varchar',
+    length: 300,
+    nullable: true,
+  })
+  portfolioUrl!: string | null;
+
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 }

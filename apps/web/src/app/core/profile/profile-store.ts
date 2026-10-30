@@ -8,14 +8,21 @@ import {
   untracked,
 } from '@angular/core';
 import {
+  CvDraft,
+  Education,
+  Experience,
+  ImportCvRequest,
+  LanguageSkill,
   Level,
   Profile,
   ProfileCompetency,
   Project,
+  SaveEducationRequest,
+  SaveExperienceRequest,
   SaveProjectRequest,
   UpdateProfileRequest,
 } from '@devstart/shared-types';
-import { Observable, finalize, forkJoin, tap } from 'rxjs';
+import { Observable, finalize, forkJoin, map, switchMap, tap } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { API_BASE_URL } from '../config/api.config';
 import { ApiError } from '../http/error.interceptor';
@@ -154,6 +161,95 @@ export class ProfileStore {
           this._projects.update((list) => list.filter((p) => p.id !== id)),
         ),
       );
+  }
+
+  // ── Importação do CV ────────────────────────────────────────
+
+  /** Envia o CV para análise. Não grava nada: devolve o rascunho para rever. */
+  analyzeCv(file: File): Observable<CvDraft> {
+    const body = new FormData();
+    body.append('file', file, file.name);
+    return this.http.post<CvDraft>(`${this.base}/profile/cv/analyze`, body);
+  }
+
+  /** Grava o que o utilizador escolheu e recarrega os projetos (podem ter entrado novos). */
+  importCv(req: ImportCvRequest): Observable<Profile> {
+    return this.http.post<Profile>(`${this.base}/profile/cv/import`, req).pipe(
+      switchMap((profile) =>
+        this.http.get<Project[]>(`${this.base}/projects`).pipe(
+          tap((projects) => {
+            this._profile.set(profile);
+            this._projects.set(projects);
+          }),
+          map(() => profile),
+        ),
+      ),
+    );
+  }
+
+  // ── Formação, experiência e línguas ─────────────────────────
+  // Depois de gravar, pede-se o perfil outra vez: a ordem das listas é a do servidor.
+
+  saveEducation(
+    body: SaveEducationRequest,
+    id?: string,
+  ): Observable<Education> {
+    const req = id
+      ? this.http.put<Education>(`${this.base}/profile/education/${id}`, body)
+      : this.http.post<Education>(`${this.base}/profile/education`, body);
+    return req.pipe(tap(() => this.refreshProfile()));
+  }
+
+  deleteEducation(id: string): Observable<void> {
+    return this.http
+      .delete<void>(`${this.base}/profile/education/${id}`)
+      .pipe(
+        tap(() =>
+          this.patchProfile({ education: this.without('education', id) }),
+        ),
+      );
+  }
+
+  saveExperience(
+    body: SaveExperienceRequest,
+    id?: string,
+  ): Observable<Experience> {
+    const req = id
+      ? this.http.put<Experience>(`${this.base}/profile/experience/${id}`, body)
+      : this.http.post<Experience>(`${this.base}/profile/experience`, body);
+    return req.pipe(tap(() => this.refreshProfile()));
+  }
+
+  deleteExperience(id: string): Observable<void> {
+    return this.http
+      .delete<void>(`${this.base}/profile/experience/${id}`)
+      .pipe(
+        tap(() =>
+          this.patchProfile({ experience: this.without('experience', id) }),
+        ),
+      );
+  }
+
+  saveLanguages(languages: LanguageSkill[]): Observable<LanguageSkill[]> {
+    return this.http
+      .put<LanguageSkill[]>(`${this.base}/profile/languages`, { languages })
+      .pipe(tap((list) => this.patchProfile({ languages: list })));
+  }
+
+  private refreshProfile(): void {
+    this.http
+      .get<Profile>(`${this.base}/profile`)
+      .subscribe({ next: (p) => this._profile.set(p), error: () => undefined });
+  }
+
+  private patchProfile(changes: Partial<Profile>): void {
+    this._profile.update((p) => (p ? { ...p, ...changes } : p));
+  }
+
+  private without<K extends 'education' | 'experience'>(key: K, id: string) {
+    return (this._profile()?.[key] ?? []).filter(
+      (x) => x.id !== id,
+    ) as Profile[K];
   }
 
   /** Para o diagnóstico: o perfil no formato que calculateSkillGap espera. */

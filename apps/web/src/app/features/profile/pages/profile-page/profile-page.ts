@@ -2,14 +2,23 @@ import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CatalogApiService } from '../../../../core/catalog/catalog-api.service';
 import { ProfileStore } from '../../../../core/profile/profile-store';
+import { BackgroundPanel } from '../../components/background-panel/background-panel';
 import { CompetenciesPanel } from '../../components/competencies-panel/competencies-panel';
+import { CvImport } from '../../components/cv-import/cv-import';
 import { ProfileInfo } from '../../components/profile-info/profile-info';
 import { ProjectsPanel } from '../../components/projects-panel/projects-panel';
 
 /** Módulo 2 — Perfil & Proof of Work. */
 @Component({
   selector: 'ds-profile-page',
-  imports: [RouterLink, ProfileInfo, CompetenciesPanel, ProjectsPanel],
+  imports: [
+    RouterLink,
+    ProfileInfo,
+    CompetenciesPanel,
+    ProjectsPanel,
+    BackgroundPanel,
+    CvImport,
+  ],
   template: `
     <div class="container py-4">
       @if (store.error(); as e) {
@@ -31,6 +40,19 @@ import { ProjectsPanel } from '../../components/projects-panel/projects-panel';
       }
 
       @if (store.loaded()) {
+        @if (welcome && isEmpty()) {
+          <div class="alert alert-success d-flex align-items-center gap-2">
+            <i class="bi bi-emoji-smile fs-5"></i>
+            <span
+              >Conta criada. O primeiro passo é preencher o perfil: o mais
+              rápido é importar o teu CV.</span
+            >
+          </div>
+        }
+        <!-- Uma só instância: muda de aspeto quando o perfil deixa de estar
+             vazio, e a mensagem de sucesso da importação não se perde. -->
+        <ds-cv-import [prominent]="isEmpty()" class="d-block mb-3" />
+
         <ds-profile-info />
 
         @if (proof(); as p) {
@@ -53,6 +75,8 @@ import { ProjectsPanel } from '../../components/projects-panel/projects-panel';
             >
           </div>
         }
+
+        <ds-background-panel class="d-block mt-4" />
 
         <div class="row g-4 mt-0">
           <div class="col-lg-5">
@@ -77,6 +101,21 @@ import { ProjectsPanel } from '../../components/projects-panel/projects-panel';
 export class ProfilePage {
   protected readonly store = inject(ProfileStore);
   protected readonly catalog = inject(CatalogApiService);
+
+  /** Definido pelo registo (navegação com state). */
+  protected readonly welcome = !!history.state?.welcome;
+
+  /** Perfil acabado de criar: nada declarado ainda. */
+  protected readonly isEmpty = computed(() => {
+    const p = this.store.profile();
+    return (
+      !!p &&
+      !p.competencies.length &&
+      !p.education.length &&
+      !p.experience.length &&
+      !this.store.projects().length
+    );
+  });
 
   protected readonly proof = computed(() => {
     const declared = this.store.competencies();

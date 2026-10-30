@@ -151,7 +151,13 @@ export class RegisterPage {
       .register(this.form.getRawValue())
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
-        next: () => this.router.navigateByUrl(safeReturnUrl(this.returnUrl())),
+        // Sem destino pedido, uma conta nova começa pelo perfil (importar o CV).
+        next: () =>
+          this.returnUrl()
+            ? this.router.navigateByUrl(safeReturnUrl(this.returnUrl()))
+            : this.router.navigateByUrl('/profile', {
+                state: { welcome: true },
+              }),
         error: (e: ApiError) => {
           if (e.status === 409) {
             this.form.controls.email.setErrors({ server: e.message });

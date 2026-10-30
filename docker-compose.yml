@@ -109,6 +109,11 @@ services:
       PROFILE_SERVICE_PORT: 3002
       PROFILE_DATABASE_URL: postgres://devstart:${POSTGRES_PASSWORD:-devstart}@db:5432/devstart_profile
       REDIS_URL: redis://redis:6379
+      # Ollama a correr no computador (fora do Docker), para ler CVs.
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     healthcheck:
       <<: *healthcheck
       test:

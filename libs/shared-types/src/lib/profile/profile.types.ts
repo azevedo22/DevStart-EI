@@ -1,3 +1,5 @@
+import { Education, Experience, LanguageSkill } from './background.types';
+
 /** Contratos do Profile & Skill Service: competências, projetos e stacks alvo. */
 
 export type Level = 'BASIC' | 'INTERMEDIATE' | 'ADVANCED';
@@ -96,10 +98,17 @@ export interface Project {
 export interface Profile {
   userId: string;
   headline: string | null;
+  location: string | null;
   university: string | null;
   graduationYear: number | null;
   bio: string | null;
+  linkedinUrl: string | null;
+  githubUrl: string | null;
+  portfolioUrl: string | null;
   competencies: ProfileCompetency[];
+  education: Education[];
+  experience: Experience[];
+  languages: LanguageSkill[];
   updatedAt: string;
 }
 
@@ -107,9 +116,13 @@ export interface Profile {
 
 export interface UpdateProfileRequest {
   headline?: string | null;
+  location?: string | null;
   university?: string | null;
   graduationYear?: number | null;
   bio?: string | null;
+  linkedinUrl?: string | null;
+  githubUrl?: string | null;
+  portfolioUrl?: string | null;
 }
 
 export interface DeclareCompetencyRequest {

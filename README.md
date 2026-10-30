@@ -131,6 +131,28 @@ os outros serviços: publica um evento `user.deleted` e cada serviço trata do q
   Service marca o utilizador como revogado no Redis durante 15 minutos (a validade do token) e o gateway
   recusa esses tokens. Sem isto, um token antigo podia voltar a criar dados para uma conta apagada.
 
+### Importar o CV com IA
+
+Uma conta nova começa pelo perfil, com um botão para importar o CV (PDF ou DOCX). Um modelo de
+linguagem local ([Ollama](https://ollama.com)) lê o CV e preenche o perfil: título, localização, links,
+formação, experiência, línguas, competências e projetos.
+
+- **Dois passos, nada gravado sem confirmação.** `POST /profile/cv/analyze` devolve um rascunho; o
+  utilizador escolhe e corrige o que entra, e só `POST /profile/cv/import` grava, numa transação.
+  O que já está no perfil vem desmarcado: a importação nunca substitui dados sem o utilizador escolher,
+  e importar o mesmo CV duas vezes não duplica nada.
+- **O ficheiro não é guardado.** Fica em memória durante o pedido; o formato é verificado pelos
+  primeiros bytes, não pela extensão.
+- **IA local, com saída estruturada.** O Ollama obriga o modelo a responder segundo um JSON Schema,
+  com temperatura 0. Mesmo assim, a resposta é tratada como texto não confiável: datas, anos, links e
+  níveis são validados e normalizados (`cv-normalize.ts`), e as tecnologias são mapeadas para o
+  catálogo com a mesma deteção por palavras-chave da análise de vagas.
+- **Funciona sem IA.** Se o Ollama estiver parado ou o modelo não estiver instalado, a análise
+  devolve o que as palavras-chave encontram (competências e links) e diz porquê.
+
+Para usar: instalar o Ollama e o modelo (`ollama pull qwen2.5:7b`, ou outro definido em
+`OLLAMA_MODEL` no `.env`).
+
 ### Contas de demonstração
 
 O botão _Experimentar sem registo_ cria uma conta temporária por visitante, já preenchida, para quem
@@ -245,30 +267,35 @@ Para publicar num servidor com domínio e HTTPS, ver [docs/deploy.md](docs/deplo
 
 ## API (implementada até agora)
 
-| Método               | Endpoint                            | Descrição                                                                                               |
-| -------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `POST`               | `/api/v1/auth/register`             | Cria conta, devolve access token e define o cookie                                                      |
-| `POST`               | `/api/v1/auth/login`                | Inicia sessão                                                                                           |
-| `POST`               | `/api/v1/auth/demo`                 | Cria uma conta de demonstração com dados de exemplo                                                     |
-| `POST`               | `/api/v1/auth/refresh`              | Novo access token a partir do cookie (com rotação)                                                      |
-| `POST`               | `/api/v1/auth/logout`               | Revoga a sessão e limpa o cookie                                                                        |
-| `GET`                | `/api/v1/auth/me`                   | Utilizador autenticado 🔒                                                                               |
-| `DELETE`             | `/api/v1/auth/me`                   | Apaga a conta e, por evento, os dados em todos os serviços (pede a password, exceto em demonstração) 🔒 |
-| `GET`                | `/api/v1/profile`                   | Perfil com as competências declaradas 🔒                                                                |
-| `PUT`                | `/api/v1/profile`                   | Atualiza título, instituição, ano e apresentação 🔒                                                     |
-| `PUT`                | `/api/v1/profile/competencies/:id`  | Declara uma competência ou muda o nível 🔒                                                              |
-| `DELETE`             | `/api/v1/profile/competencies/:id`  | Remove uma competência do perfil 🔒                                                                     |
-| `GET`                | `/api/v1/projects`                  | Projetos do utilizador 🔒                                                                               |
-| `POST`               | `/api/v1/projects`                  | Cria um projeto 🔒                                                                                      |
-| `GET`/`PUT`/`DELETE` | `/api/v1/projects/:id`              | Lê, substitui ou apaga um projeto 🔒                                                                    |
-| `GET`                | `/api/v1/skill-gap?stackId=`        | Gap calculado com o perfil guardado 🔒                                                                  |
-| `GET`                | `/api/v1/skill-gap/overview`        | Compatibilidade com todas as stacks, ordenada 🔒                                                        |
-| `GET`                | `/api/v1/competencies?category=&q=` | Catálogo de competências (pesquisa em nome e aliases)                                                   |
-| `GET`                | `/api/v1/competencies/:id`          | Detalhe de uma competência                                                                              |
-| `GET`                | `/api/v1/stacks`                    | Stacks alvo                                                                                             |
-| `GET`                | `/api/v1/stacks/:id`                | Detalhe de uma stack                                                                                    |
-| `POST`               | `/api/v1/skill-gap/preview`         | Calcula o gap sem perfil guardado                                                                       |
-| `GET`                | `/api/health`                       | Estado de cada serviço (em cada porta)                                                                  |
+| Método                | Endpoint                            | Descrição                                                                                               |
+| --------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `POST`                | `/api/v1/auth/register`             | Cria conta, devolve access token e define o cookie                                                      |
+| `POST`                | `/api/v1/auth/login`                | Inicia sessão                                                                                           |
+| `POST`                | `/api/v1/auth/demo`                 | Cria uma conta de demonstração com dados de exemplo                                                     |
+| `POST`                | `/api/v1/auth/refresh`              | Novo access token a partir do cookie (com rotação)                                                      |
+| `POST`                | `/api/v1/auth/logout`               | Revoga a sessão e limpa o cookie                                                                        |
+| `GET`                 | `/api/v1/auth/me`                   | Utilizador autenticado 🔒                                                                               |
+| `DELETE`              | `/api/v1/auth/me`                   | Apaga a conta e, por evento, os dados em todos os serviços (pede a password, exceto em demonstração) 🔒 |
+| `GET`                 | `/api/v1/profile`                   | Perfil com as competências declaradas 🔒                                                                |
+| `PUT`                 | `/api/v1/profile`                   | Atualiza título, instituição, ano e apresentação 🔒                                                     |
+| `POST`/`PUT`/`DELETE` | `/api/v1/profile/education[/:id]`   | Formação 🔒                                                                                             |
+| `POST`/`PUT`/`DELETE` | `/api/v1/profile/experience[/:id]`  | Experiência 🔒                                                                                          |
+| `PUT`                 | `/api/v1/profile/languages`         | Substitui a lista de línguas 🔒                                                                         |
+| `POST`                | `/api/v1/profile/cv/analyze`        | Lê o CV (multipart) e devolve um rascunho, sem gravar 🔒                                                |
+| `POST`                | `/api/v1/profile/cv/import`         | Grava o que o utilizador escolheu do rascunho 🔒                                                        |
+| `PUT`                 | `/api/v1/profile/competencies/:id`  | Declara uma competência ou muda o nível 🔒                                                              |
+| `DELETE`              | `/api/v1/profile/competencies/:id`  | Remove uma competência do perfil 🔒                                                                     |
+| `GET`                 | `/api/v1/projects`                  | Projetos do utilizador 🔒                                                                               |
+| `POST`                | `/api/v1/projects`                  | Cria um projeto 🔒                                                                                      |
+| `GET`/`PUT`/`DELETE`  | `/api/v1/projects/:id`              | Lê, substitui ou apaga um projeto 🔒                                                                    |
+| `GET`                 | `/api/v1/skill-gap?stackId=`        | Gap calculado com o perfil guardado 🔒                                                                  |
+| `GET`                 | `/api/v1/skill-gap/overview`        | Compatibilidade com todas as stacks, ordenada 🔒                                                        |
+| `GET`                 | `/api/v1/competencies?category=&q=` | Catálogo de competências (pesquisa em nome e aliases)                                                   |
+| `GET`                 | `/api/v1/competencies/:id`          | Detalhe de uma competência                                                                              |
+| `GET`                 | `/api/v1/stacks`                    | Stacks alvo                                                                                             |
+| `GET`                 | `/api/v1/stacks/:id`                | Detalhe de uma stack                                                                                    |
+| `POST`                | `/api/v1/skill-gap/preview`         | Calcula o gap sem perfil guardado                                                                       |
+| `GET`                 | `/api/health`                       | Estado de cada serviço (em cada porta)                                                                  |
 
 🔒 exige `Authorization: Bearer <token>`. Tudo o que não está nesta tabela também é protegido por omissão.
 
@@ -302,6 +329,7 @@ apps/web/src/app/
 - [x] Análise de anúncios e filtro de vagas acessíveis a quem tem 0 anos de experiência
 - [x] Eventos entre serviços (Redis Streams + outbox) e eliminação de conta em todos os serviços
 - [x] Rate limiting partilhado em Redis, revogação de tokens e cache HTTP do catálogo
+- [x] Importação do CV com IA local (Ollama) e ficha com formação, experiência, línguas e links
 - [x] Contas de demonstração temporárias, preenchidas por evento e apagadas ao fim de 24 horas
 
 ## Autor
