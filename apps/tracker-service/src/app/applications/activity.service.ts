@@ -29,7 +29,8 @@ interface Row {
  * Respostas: só os movimentos que contam como notícia. Sair de "Candidatado"
  * para uma fase de entrevista, ou passar de uma fase para outra, é positivo;
  * entrar em "Proposta" ou "Rejeitado" é proposta ou rejeição. Voltar a
- * "Candidatado" (correção de um engano) não conta.
+ * "Candidatado" (correção de um engano) não conta. As vagas em "Por candidatar"
+ * ainda não são candidaturas: não contam, e sair dessa coluna também não.
  */
 const ACTIVITY_SQL = `
   WITH iv AS (
@@ -48,7 +49,8 @@ const ACTIVITY_SQL = `
          a.job_title, NULL AS status, NULL AS interview_type, NULL::int AS round,
          NULL::timestamptz AS at
     FROM applications a
-   WHERE a.user_id = $1 AND a.applied_at BETWEEN $2::date AND $3::date
+   WHERE a.user_id = $1 AND a.status <> 'SAVED'
+     AND a.applied_at BETWEEN $2::date AND $3::date
 
   UNION ALL
   SELECT (h.changed_at AT TIME ZONE $4)::date::text,
@@ -61,6 +63,7 @@ const ACTIVITY_SQL = `
    WHERE a.user_id = $1
      AND h.from_status IS NOT NULL
      AND h.from_status <> h.to_status
+     AND h.from_status <> 'SAVED' AND h.to_status <> 'SAVED'
      AND (
            h.to_status IN ('OFFER', 'REJECTED')
         OR (h.to_status IN ('TECHNICAL_TEST', 'HR_INTERVIEW', 'TECHNICAL_INTERVIEW')

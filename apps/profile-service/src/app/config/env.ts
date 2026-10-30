@@ -72,6 +72,28 @@ export class Env {
   @Min(5_000)
   @Max(600_000)
   OLLAMA_TIMEOUT_MS = 180_000;
+
+  // ── Vagas (ITJobs.pt) ──────────────────────────────────────
+  /** Chave da API do ITJobs.pt (https://itjobs.pt/api). Vazia desliga a recolha de vagas. */
+  @IsString()
+  ITJOBS_API_KEY = '';
+
+  @IsString()
+  ITJOBS_BASE_URL = 'https://api.itjobs.pt';
+
+  /** De quantos em quantos minutos se vão buscar vagas. 0 desliga a recolha automática. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1440)
+  JOB_SYNC_INTERVAL_MINUTES = 180;
+
+  /** Quantas vagas novas a IA lê em cada recolha (as restantes ficam para a seguinte). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(50)
+  JOB_SYNC_AI_PER_RUN = 10;
 }
 
 export const validateEnv = createEnvValidator(Env, 'profile-service');

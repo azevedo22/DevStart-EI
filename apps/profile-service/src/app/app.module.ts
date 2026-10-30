@@ -12,6 +12,9 @@ import { CatalogModule } from './catalog/catalog.module';
 import { CvController } from './cv/cv.controller';
 import { CvService } from './cv/cv.service';
 import { STRUCTURED_LLM } from './cv/llm';
+import { JobFeedController } from './job-board/job-feed.controller';
+import { JobFeedService } from './job-board/job-feed.service';
+import { JobSyncService } from './job-board/job-sync.service';
 import { JobsController } from './jobs/jobs.controller';
 import { JobsService } from './jobs/jobs.service';
 import { LlmStartupCheck } from './cv/llm-startup-check';
@@ -62,6 +65,7 @@ import { SkillGapController } from './skill-gap/skill-gap.controller';
     BackgroundController,
     CvController,
     JobsController,
+    JobFeedController,
     ProjectsController,
     SkillGapController,
   ],
@@ -70,6 +74,8 @@ import { SkillGapController } from './skill-gap/skill-gap.controller';
     BackgroundService,
     CvService,
     JobsService,
+    JobSyncService,
+    JobFeedService,
     OllamaClient,
     LlmStartupCheck,
     // A IA que lê os CVs escolhe-se no .env (LLM_PROVIDER).

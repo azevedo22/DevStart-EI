@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgbCollapse, NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
+import { JobFeedStore } from '../../../features/job-feed/data/job-feed-store';
 import { AuthService } from '../../auth/auth.service';
 
 @Component({
@@ -31,6 +32,13 @@ import { AuthService } from '../../auth/auth.service';
                   (click)="collapsed.set(true)"
                 >
                   <i class="bi {{ link.icon }} me-1"></i>{{ link.label }}
+                  @if (link.path === '/jobs' && jobs.newCount() > 0) {
+                    <span
+                      class="badge rounded-pill text-bg-success ms-1"
+                      [title]="jobs.newCount() + ' vagas novas para ti'"
+                      >{{ jobs.newCount() }}</span
+                    >
+                  }
                 </a>
               </li>
             }
@@ -106,6 +114,8 @@ import { AuthService } from '../../auth/auth.service';
 })
 export class Navbar {
   protected readonly auth = inject(AuthService);
+  /** Número de vagas novas desde a última visita à secção Vagas. */
+  protected readonly jobs = inject(JobFeedStore);
   private readonly router = inject(Router);
 
   protected readonly collapsed = signal(true);
@@ -116,6 +126,7 @@ export class Navbar {
       label: 'Perfil & Projetos',
       icon: 'bi-person-workspace',
     },
+    { path: '/jobs', label: 'Vagas', icon: 'bi-search' },
     { path: '/applications', label: 'Candidaturas', icon: 'bi-kanban' },
     { path: '/progress', label: 'Progresso', icon: 'bi-graph-up' },
   ];

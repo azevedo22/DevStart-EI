@@ -36,6 +36,18 @@ export class JobsService {
     }
     this.analyzing.add(userId);
     try {
+      return await this.read(text);
+    } finally {
+      this.analyzing.delete(userId);
+    }
+  }
+
+  /**
+   * Lê um anúncio com a IA; se ela não responder, por palavras-chave.
+   * Usado também pela recolha de vagas do ITJobs.
+   */
+  async read(text: string): Promise<JobPostingDraft> {
+    try {
       const raw = await this.llm.chatJson({
         system: JOB_SYSTEM_PROMPT,
         user: `Anúncio:\n"""\n${text}\n"""`,
@@ -55,8 +67,6 @@ export class JobsService {
         ...keywordJobDraft(text, COMPETENCIES, err.message),
         sentToExternalService: this.llm.remote,
       };
-    } finally {
-      this.analyzing.delete(userId);
     }
   }
 }

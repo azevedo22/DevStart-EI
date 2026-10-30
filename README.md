@@ -211,6 +211,32 @@ carregar em guardar.
   (senioridade, anos e competências) e o formulário diz porquê, sem apagar o que já estava escrito.
 - **Aviso antes de enviar:** com a Groq ou a xAI, o formulário diz que o texto vai para esse serviço.
 
+### Vagas para ti (ITJobs.pt)
+
+A secção **Vagas** mostra vagas de entrada publicadas agora no [ITJobs.pt](https://www.itjobs.pt),
+filtradas e ordenadas pelo perfil de cada utilizador. A IA não "procura" vagas (inventá-las-ia): as
+vagas vêm da [API oficial do ITJobs.pt](https://itjobs.pt/api), e a IA lê-as para dizer se são realistas.
+
+- **Recolha de 3 em 3 horas** (`JobSyncService`, Profile Service): pesquisa termos de entrada (júnior,
+  estágio, trainee, graduate…), junta as repetidas pelo id e guarda-as. Ao arrancar só recolhe se a última
+  recolha já passou do intervalo, por isso reiniciar o serviço não gasta pedidos.
+- **Só as vagas novas são analisadas, uma vez para todos.** Triagem por palavras-chave à entrada (grátis);
+  depois a IA lê até 10 vagas novas por recolha (`JOB_SYNC_AI_PER_RUN`), as mais recentes e não excluídas
+  pela triagem. As outras ficam para a recolha seguinte. Se a IA não responder, tenta na próxima.
+- **Vagas que desaparecem do ITJobs ficam fechadas.** Uma recolha vazia ou com erro não fecha nada.
+- **Feed por utilizador** (`GET /jobs/feed`): esconde as pouco realistas, filtra por distrito ou remoto,
+  tipo de contrato e stack alvo do Skill Gap, e ordena pela compatibilidade com as competências do perfil.
+  Os filtros ficam guardados de uma visita para a outra.
+- **Vagas novas desde a última visita:** número no menu (com os filtros dessa visita) e selo "Nova" na lista.
+- **Candidatar-me** abre o anúncio no ITJobs e cria o cartão em "Candidatado", já preenchido.
+  **Guardar para depois** cria-o na coluna nova **"Por candidatar"**.
+- **"Por candidatar" não conta como candidatura:** fica fora do objetivo diário, do relatório semanal, da
+  taxa de resposta e dos totais. Ao arrastar para outra coluna, a data da candidatura passa a ser esse dia.
+
+Para usar: pedir a chave em <https://itjobs.pt/api> e pôr `ITJOBS_API_KEY` no `.env`. Os termos do
+ITJobs.pt limitam o conteúdo a uso pessoal (cláusulas 5 e 6), por isso a app mostra só um resumo e liga sempre
+ao anúncio original; antes de pôr a app online, é preciso autorização do ITJobs.pt.
+
 ### Contas de demonstração
 
 O botão _Experimentar sem registo_ cria uma conta temporária por visitante, já preenchida, para quem
@@ -325,38 +351,42 @@ Para publicar num servidor com domínio e HTTPS, ver [docs/deploy.md](docs/deplo
 
 ## API (implementada até agora)
 
-| Método                | Endpoint                                      | Descrição                                                                                               |
-| --------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `POST`                | `/api/v1/auth/register`                       | Cria conta, devolve access token e define o cookie                                                      |
-| `POST`                | `/api/v1/auth/login`                          | Inicia sessão                                                                                           |
-| `POST`                | `/api/v1/auth/demo`                           | Cria uma conta de demonstração com dados de exemplo                                                     |
-| `POST`                | `/api/v1/auth/refresh`                        | Novo access token a partir do cookie (com rotação)                                                      |
-| `POST`                | `/api/v1/auth/logout`                         | Revoga a sessão e limpa o cookie                                                                        |
-| `GET`                 | `/api/v1/auth/me`                             | Utilizador autenticado 🔒                                                                               |
-| `DELETE`              | `/api/v1/auth/me`                             | Apaga a conta e, por evento, os dados em todos os serviços (pede a password, exceto em demonstração) 🔒 |
-| `GET`                 | `/api/v1/profile`                             | Perfil com as competências declaradas 🔒                                                                |
-| `PUT`                 | `/api/v1/profile`                             | Atualiza título, instituição, ano e apresentação 🔒                                                     |
-| `POST`/`PUT`/`DELETE` | `/api/v1/profile/education[/:id]`             | Formação 🔒                                                                                             |
-| `POST`/`PUT`/`DELETE` | `/api/v1/profile/experience[/:id]`            | Experiência 🔒                                                                                          |
-| `PUT`                 | `/api/v1/profile/languages`                   | Substitui a lista de línguas 🔒                                                                         |
-| `POST`                | `/api/v1/profile/cv/analyze`                  | Lê o CV (multipart) e devolve um rascunho, sem gravar 🔒                                                |
-| `POST`                | `/api/v1/profile/cv/import`                   | Grava o que o utilizador escolheu do rascunho 🔒                                                        |
-| `POST`                | `/api/v1/jobs/analyze`                        | Lê o texto de um anúncio com IA e devolve os campos da candidatura, sem gravar 🔒                       |
-| `PUT`                 | `/api/v1/profile/competencies/:id`            | Declara uma competência ou muda o nível 🔒                                                              |
-| `DELETE`              | `/api/v1/profile/competencies/:id`            | Remove uma competência do perfil 🔒                                                                     |
-| `GET`                 | `/api/v1/projects`                            | Projetos do utilizador 🔒                                                                               |
-| `POST`                | `/api/v1/projects`                            | Cria um projeto 🔒                                                                                      |
-| `GET`/`PUT`/`DELETE`  | `/api/v1/projects/:id`                        | Lê, substitui ou apaga um projeto 🔒                                                                    |
-| `GET`                 | `/api/v1/projects/activity?from=&to=&tz=`     | Projetos criados e atualizados por dia (relatório semanal) 🔒                                           |
-| `GET`                 | `/api/v1/applications/activity?from=&to=&tz=` | Candidaturas, respostas e entrevistas por dia (relatório semanal) 🔒                                    |
-| `GET`                 | `/api/v1/skill-gap?stackId=`                  | Gap calculado com o perfil guardado 🔒                                                                  |
-| `GET`                 | `/api/v1/skill-gap/overview`                  | Compatibilidade com todas as stacks, ordenada 🔒                                                        |
-| `GET`                 | `/api/v1/competencies?category=&q=`           | Catálogo de competências (pesquisa em nome e aliases)                                                   |
-| `GET`                 | `/api/v1/competencies/:id`                    | Detalhe de uma competência                                                                              |
-| `GET`                 | `/api/v1/stacks`                              | Stacks alvo                                                                                             |
-| `GET`                 | `/api/v1/stacks/:id`                          | Detalhe de uma stack                                                                                    |
-| `POST`                | `/api/v1/skill-gap/preview`                   | Calcula o gap sem perfil guardado                                                                       |
-| `GET`                 | `/api/health`                                 | Estado de cada serviço (em cada porta)                                                                  |
+| Método                | Endpoint                                                                       | Descrição                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `POST`                | `/api/v1/auth/register`                                                        | Cria conta, devolve access token e define o cookie                                                      |
+| `POST`                | `/api/v1/auth/login`                                                           | Inicia sessão                                                                                           |
+| `POST`                | `/api/v1/auth/demo`                                                            | Cria uma conta de demonstração com dados de exemplo                                                     |
+| `POST`                | `/api/v1/auth/refresh`                                                         | Novo access token a partir do cookie (com rotação)                                                      |
+| `POST`                | `/api/v1/auth/logout`                                                          | Revoga a sessão e limpa o cookie                                                                        |
+| `GET`                 | `/api/v1/auth/me`                                                              | Utilizador autenticado 🔒                                                                               |
+| `DELETE`              | `/api/v1/auth/me`                                                              | Apaga a conta e, por evento, os dados em todos os serviços (pede a password, exceto em demonstração) 🔒 |
+| `GET`                 | `/api/v1/profile`                                                              | Perfil com as competências declaradas 🔒                                                                |
+| `PUT`                 | `/api/v1/profile`                                                              | Atualiza título, instituição, ano e apresentação 🔒                                                     |
+| `POST`/`PUT`/`DELETE` | `/api/v1/profile/education[/:id]`                                              | Formação 🔒                                                                                             |
+| `POST`/`PUT`/`DELETE` | `/api/v1/profile/experience[/:id]`                                             | Experiência 🔒                                                                                          |
+| `PUT`                 | `/api/v1/profile/languages`                                                    | Substitui a lista de línguas 🔒                                                                         |
+| `POST`                | `/api/v1/profile/cv/analyze`                                                   | Lê o CV (multipart) e devolve um rascunho, sem gravar 🔒                                                |
+| `POST`                | `/api/v1/profile/cv/import`                                                    | Grava o que o utilizador escolheu do rascunho 🔒                                                        |
+| `POST`                | `/api/v1/jobs/analyze`                                                         | Lê o texto de um anúncio com IA e devolve os campos da candidatura, sem gravar 🔒                       |
+| `GET`                 | `/api/v1/jobs/feed?locations=&remote=&contracts=&stackId=&includeUnrealistic=` | Vagas do ITJobs.pt filtradas e comparadas com o perfil 🔒                                               |
+| `GET`                 | `/api/v1/jobs/feed/new-count`                                                  | Vagas novas desde a última visita 🔒                                                                    |
+| `GET`                 | `/api/v1/jobs/feed/last-query`                                                 | Filtros da última visita 🔒                                                                             |
+| `PUT`                 | `/api/v1/jobs/feed/visit`                                                      | Regista a visita (e os filtros) 🔒                                                                      |
+| `PUT`                 | `/api/v1/profile/competencies/:id`                                             | Declara uma competência ou muda o nível 🔒                                                              |
+| `DELETE`              | `/api/v1/profile/competencies/:id`                                             | Remove uma competência do perfil 🔒                                                                     |
+| `GET`                 | `/api/v1/projects`                                                             | Projetos do utilizador 🔒                                                                               |
+| `POST`                | `/api/v1/projects`                                                             | Cria um projeto 🔒                                                                                      |
+| `GET`/`PUT`/`DELETE`  | `/api/v1/projects/:id`                                                         | Lê, substitui ou apaga um projeto 🔒                                                                    |
+| `GET`                 | `/api/v1/projects/activity?from=&to=&tz=`                                      | Projetos criados e atualizados por dia (relatório semanal) 🔒                                           |
+| `GET`                 | `/api/v1/applications/activity?from=&to=&tz=`                                  | Candidaturas, respostas e entrevistas por dia (relatório semanal) 🔒                                    |
+| `GET`                 | `/api/v1/skill-gap?stackId=`                                                   | Gap calculado com o perfil guardado 🔒                                                                  |
+| `GET`                 | `/api/v1/skill-gap/overview`                                                   | Compatibilidade com todas as stacks, ordenada 🔒                                                        |
+| `GET`                 | `/api/v1/competencies?category=&q=`                                            | Catálogo de competências (pesquisa em nome e aliases)                                                   |
+| `GET`                 | `/api/v1/competencies/:id`                                                     | Detalhe de uma competência                                                                              |
+| `GET`                 | `/api/v1/stacks`                                                               | Stacks alvo                                                                                             |
+| `GET`                 | `/api/v1/stacks/:id`                                                           | Detalhe de uma stack                                                                                    |
+| `POST`                | `/api/v1/skill-gap/preview`                                                    | Calcula o gap sem perfil guardado                                                                       |
+| `GET`                 | `/api/health`                                                                  | Estado de cada serviço (em cada porta)                                                                  |
 
 🔒 exige `Authorization: Bearer <token>`. Tudo o que não está nesta tabela também é protegido por omissão.
 
@@ -393,6 +423,7 @@ apps/web/src/app/
 - [x] Objetivo diário nos dias úteis (1 / 2 / 3) e relatório semanal com gráfico por dia
 - [x] Importação do CV com IA local (Ollama) e ficha com formação, experiência, línguas e links
 - [x] Análise de anúncios com IA: empresa, título, senioridade, experiência e competências
+- [x] Vagas do ITJobs.pt analisadas pela IA, com filtros, vagas novas e coluna "Por candidatar"
 - [x] Contas de demonstração temporárias, preenchidas por evento e apagadas ao fim de 24 horas
 
 ## Autor

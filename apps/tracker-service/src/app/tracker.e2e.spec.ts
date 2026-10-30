@@ -437,6 +437,81 @@ describeDb('Application Tracker Service (e2e)', () => {
     });
   });
 
+  describe('"Por candidatar" (vagas guardadas)', () => {
+    const stats = async () =>
+      (await ana.get('/api/applications/stats').expect(200)).body;
+
+    it('guardar não é candidatar-se: não conta nos totais nem na atividade', async () => {
+      await create({ appliedAt: '2026-10-26' });
+      const saved = await create({
+        companyName: 'Guardada',
+        status: 'SAVED',
+        appliedAt: '2026-10-27',
+      });
+      expect(saved.status).toBe('SAVED');
+      expect(await stats()).toMatchObject({
+        total: 1,
+        saved: 1,
+        active: 1,
+        byStatus: { SAVED: 1, APPLIED: 1 },
+      });
+      const { body } = await ana
+        .get('/api/applications/activity?from=2026-10-26&to=2026-11-01')
+        .expect(200);
+      expect(body.map((e: { subject: string }) => e.subject)).toEqual([
+        JOB.companyName,
+      ]);
+    });
+
+    it('ao sair da coluna, passa a ser candidatura com a data desse dia', async () => {
+      const saved = await create({ status: 'SAVED', appliedAt: '2026-10-20' });
+      const { body: moved } = await ana
+        .patch(`/api/applications/${saved.id}/move`, {
+          status: 'APPLIED',
+          position: 0,
+          appliedAt: '2026-10-29',
+        })
+        .expect(200);
+      expect(moved).toMatchObject({
+        status: 'APPLIED',
+        appliedAt: '2026-10-29',
+      });
+      // Sair de "Por candidatar" não é uma resposta da empresa.
+      expect(await stats()).toMatchObject({
+        total: 1,
+        saved: 0,
+        responseRate: 0,
+      });
+      const { body } = await ana
+        .get('/api/applications/activity?from=2026-10-26&to=2026-11-01')
+        .expect(200);
+      expect(body.map((e: { kind: string }) => e.kind)).toEqual(['APPLIED']);
+    });
+
+    it('mover entre outras colunas não muda a data', async () => {
+      const a = await create({ appliedAt: '2026-10-20' });
+      const { body } = await ana
+        .patch(`/api/applications/${a.id}/move`, {
+          status: 'HR_INTERVIEW',
+          position: 0,
+          appliedAt: '2026-10-29',
+        })
+        .expect(200);
+      expect(body.appliedAt).toBe('2026-10-20');
+    });
+
+    it('data inválida ao mover: 400', async () => {
+      const saved = await create({ status: 'SAVED' });
+      await ana
+        .patch(`/api/applications/${saved.id}/move`, {
+          status: 'APPLIED',
+          position: 0,
+          appliedAt: '2026-02-31',
+        })
+        .expect(400);
+    });
+  });
+
   describe('experiência pedida', () => {
     it('guarda a lista sem linhas vazias e devolve-a', async () => {
       const a = await create({

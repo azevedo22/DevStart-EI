@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import {
   APPLICATION_STATUSES,
+  isApplied,
   Accessibility,
   DailyGoalProgress,
   dailyGoalProgress,
@@ -73,7 +74,8 @@ export class ApplicationsStore {
   readonly dailyGoal = computed<DailyGoalProgress | null>(() => {
     const board = this._board();
     if (!board) return null;
-    const dates = APPLICATION_STATUSES.flatMap((s) =>
+    // As vagas guardadas em "Por candidatar" ainda não são candidaturas.
+    const dates = APPLICATION_STATUSES.filter(isApplied).flatMap((s) =>
       board[s].map((a) => a.appliedAt),
     );
     return dailyGoalProgress(dates, this.today());
@@ -177,12 +179,19 @@ export class ApplicationsStore {
     if (!card || (card.status === status && card.position === position))
       return Promise.resolve();
 
-    this._board.set(applyMove(before, card, status, position));
+    // Sair de "Por candidatar" é candidatar-se hoje (no fuso do utilizador).
+    const appliedAt =
+      !isApplied(card.status) && isApplied(status) ? this._today() : undefined;
+    this._board.set(applyMove(before, card, status, position, appliedAt));
     this._error.set(null);
 
     return new Promise((resolve, reject) => {
       this.http
-        .patch<JobApplication>(`${this.base}/${id}/move`, { status, position })
+        .patch<JobApplication>(`${this.base}/${id}/move`, {
+          status,
+          position,
+          ...(appliedAt && { appliedAt }),
+        })
         .subscribe({
           next: (saved) => {
             this.updateBoard((b) => {
@@ -295,12 +304,13 @@ export function applyMove(
   card: JobApplication,
   status: ApplicationStatus,
   position: number,
+  appliedAt?: string,
 ): ApplicationBoard {
   const next = { ...board };
   const source = board[card.status].filter((a) => a.id !== card.id);
   const target = card.status === status ? source : [...board[status]];
   const index = Math.max(0, Math.min(position, target.length));
-  target.splice(index, 0, { ...card, status });
+  target.splice(index, 0, { ...card, status, ...(appliedAt && { appliedAt }) });
   next[card.status] = renumber(source);
   next[status] = renumber(target);
   return next;

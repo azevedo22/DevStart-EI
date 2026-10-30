@@ -7,6 +7,8 @@ import {
   ApplicationStats,
   ApplicationStatus,
   CLOSED_STATUSES,
+  NOT_APPLIED_STATUSES,
+  isApplied,
   Interview,
   JobApplication,
   JobApplicationDetail,
@@ -149,15 +151,19 @@ export class ApplicationsService {
     ) as Record<Accessibility, number>;
     for (const r of rows) {
       byStatus[r.status] += r.count;
-      byAccessibility[r.accessibility] += r.count;
+      // As vagas guardadas ainda não são candidaturas.
+      if (isApplied(r.status)) byAccessibility[r.accessibility] += r.count;
     }
-    const total = rows.reduce((sum, r) => sum + r.count, 0);
+    const saved = NOT_APPLIED_STATUSES.reduce((n, s) => n + byStatus[s], 0);
+    const total = rows.reduce((sum, r) => sum + r.count, 0) - saved;
 
-    // "Responderam" = alguma vez saiu de APPLIED (incluindo rejeições depois de entrevista).
+    // "Responderam" = alguma vez saiu de APPLIED (incluindo rejeições depois de
+    // entrevista). Sair de "Por candidatar" é candidatar-se, não uma resposta.
     const [{ responded }] = await this.db.query(
       `SELECT count(DISTINCT h.application_id)::int AS responded
          FROM application_status_history h JOIN applications a ON a.id = h.application_id
-        WHERE a.user_id = $1 AND h.from_status IS NOT NULL`,
+        WHERE a.user_id = $1 AND h.from_status IS NOT NULL
+          AND h.from_status NOT IN ('SAVED') AND a.status NOT IN ('SAVED')`,
       [userId],
     );
     const [{ interviews }] = await this.db.query(
@@ -167,6 +173,7 @@ export class ApplicationsService {
 
     return {
       total,
+      saved,
       active: total - CLOSED_STATUSES.reduce((sum, s) => sum + byStatus[s], 0),
       byStatus,
       byAccessibility,
@@ -281,10 +288,18 @@ export class ApplicationsService {
           toStatus: dto.status,
         });
       }
+      // Sair de "Por candidatar" é candidatar-se: a data passa a ser esse dia.
+      const applying = !isApplied(from.status) && isApplied(dto.status);
       await em.update(
         ApplicationEntity,
         { id },
-        { status: dto.status, position: to },
+        {
+          status: dto.status,
+          position: to,
+          ...(applying && {
+            appliedAt: dto.appliedAt ?? new Date().toISOString().slice(0, 10),
+          }),
+        },
       );
     });
     return this.get(userId, id);

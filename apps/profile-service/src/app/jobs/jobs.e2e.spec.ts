@@ -101,7 +101,7 @@ describeDb('Análise de anúncios com IA (e2e)', () => {
     configureApp(app);
     await app.init();
     http = request(app.getHttpServer());
-  });
+  }, 30_000);
 
   beforeEach(() => {
     mode = 'ok';

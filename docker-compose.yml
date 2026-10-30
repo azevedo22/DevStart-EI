@@ -117,6 +117,10 @@ services:
       XAI_MODEL: ${XAI_MODEL:-grok-4-fast-non-reasoning}
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      # Vagas do ITJobs.pt (sem chave, a recolha fica desligada).
+      ITJOBS_API_KEY: ${ITJOBS_API_KEY:-}
+      JOB_SYNC_INTERVAL_MINUTES: ${JOB_SYNC_INTERVAL_MINUTES:-180}
+      JOB_SYNC_AI_PER_RUN: ${JOB_SYNC_AI_PER_RUN:-10}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     healthcheck:

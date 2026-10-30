@@ -10,6 +10,7 @@ import {
 import { Env } from '../config/env';
 import { CreateTrackerTables1730160000000 } from './migrations/1730160000000-create-tracker-tables';
 import { AddExperienceRequirements1730200000000 } from './migrations/1730200000000-add-experience-requirements';
+import { AddSavedStatus1730210000000 } from './migrations/1730210000000-add-saved-status';
 
 /** Entidades e migrações listadas explicitamente: globs não funcionam com o bundle do webpack. */
 export const ENTITIES = [
@@ -20,6 +21,7 @@ export const ENTITIES = [
 export const MIGRATIONS = [
   CreateTrackerTables1730160000000,
   AddExperienceRequirements1730200000000,
+  AddSavedStatus1730210000000,
 ];
 
 @Module({

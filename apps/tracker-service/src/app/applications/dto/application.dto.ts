@@ -128,4 +128,9 @@ export class MoveApplicationDto implements MoveApplicationRequest {
   @IsInt()
   @Min(0)
   position!: number;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Data inválida (AAAA-MM-DD).' })
+  @IsISO8601({ strict: true }, { message: 'Data inválida (AAAA-MM-DD).' })
+  appliedAt?: string;
 }

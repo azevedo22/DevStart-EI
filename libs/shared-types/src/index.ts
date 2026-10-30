@@ -8,3 +8,4 @@ export * from './lib/jobs/job-analysis';
 export * from './lib/goals/daily-goals';
 export * from './lib/goals/weekly-report';
 export * from './lib/jobs/job-posting.types';
+export * from './lib/jobs/job-board.types';

@@ -145,6 +145,33 @@ describe('ApplicationsStore', () => {
     expect(store.error()).toMatch(/Não foi possível mover/);
   });
 
+  it('"Por candidatar" não conta para o objetivo; ao sair, conta com a data de hoje', () => {
+    const today = store.today();
+    store.move('a', 'SAVED', 0);
+    const req = backend.expectOne('/api/v1/applications/a/move');
+    expect(req.request.body).toEqual({ status: 'SAVED', position: 0 });
+    req.flush(card('a', 'SAVED', 0));
+    backend.expectOne('/api/v1/applications/stats').flush(stats);
+
+    expect(store.dailyGoal()!.today.count).toBe(0);
+
+    store.move('a', 'APPLIED', 0);
+    // Otimista: a data muda já, e o objetivo de hoje sobe logo.
+    expect(store.board()!.APPLIED[0]).toMatchObject({
+      id: 'a',
+      appliedAt: today,
+    });
+    expect(store.dailyGoal()!.today.count).toBe(1);
+    const back = backend.expectOne('/api/v1/applications/a/move');
+    expect(back.request.body).toEqual({
+      status: 'APPLIED',
+      position: 0,
+      appliedAt: today,
+    });
+    back.flush({ ...card('a', 'APPLIED', 0), appliedAt: today });
+    backend.expectOne('/api/v1/applications/stats').flush(stats);
+  });
+
   it('filtra sem pedir nada ao servidor', () => {
     store.search.set('b');
     expect(ids(store.visibleBoard(), 'APPLIED')).toEqual(['b']);

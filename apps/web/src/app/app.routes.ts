@@ -42,6 +42,15 @@ export const appRoutes: Routes = [
       ),
   },
   {
+    path: 'jobs',
+    title: 'Vagas · DevStart EI',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/job-feed/pages/jobs-page/jobs-page').then(
+        (m) => m.JobsPage,
+      ),
+  },
+  {
     path: 'progress',
     title: 'Progresso · DevStart EI',
     canActivate: [authGuard],

@@ -64,6 +64,7 @@ export class UserEventsSubscriber extends EventSubscriber {
         'profile_education',
         'profile_experience',
         'profile_languages',
+        'job_feed_visits',
       ]) {
         await em.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
       }

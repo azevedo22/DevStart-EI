@@ -87,10 +87,15 @@ export class ApplicationCard {
         new Date(this.application().appliedAt + 'T00:00:00').getTime()) /
         86_400_000,
     );
-    if (days <= 0) return 'hoje';
-    if (days === 1) return 'ontem';
-    return days < 30
-      ? `há ${days} dias`
-      : `há ${Math.floor(days / 30)} ${days < 60 ? 'mês' : 'meses'}`;
+    // Em "Por candidatar", a data é a do dia em que foi guardada.
+    const prefix = this.application().status === 'SAVED' ? 'guardada ' : '';
+    if (days <= 0) return prefix + 'hoje';
+    if (days === 1) return prefix + 'ontem';
+    return (
+      prefix +
+      (days < 30
+        ? `há ${days} dias`
+        : `há ${Math.floor(days / 30)} ${days < 60 ? 'mês' : 'meses'}`)
+    );
   });
 }

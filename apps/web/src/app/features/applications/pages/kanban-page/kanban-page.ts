@@ -27,6 +27,7 @@ import { BoardStats } from '../../components/board-stats/board-stats';
 import { ApplicationsStore } from '../../data/applications-store';
 
 const COLUMN_STYLE: Record<ApplicationStatus, string> = {
+  SAVED: 'border-warning',
   APPLIED: 'border-secondary',
   TECHNICAL_TEST: 'border-info',
   HR_INTERVIEW: 'border-primary',

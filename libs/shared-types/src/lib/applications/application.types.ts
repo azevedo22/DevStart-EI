@@ -3,6 +3,7 @@ import type { Accessibility, Seniority } from '../jobs/job-analysis';
 
 /** Colunas do Kanban, por ordem. */
 export const APPLICATION_STATUSES = [
+  'SAVED',
   'APPLIED',
   'TECHNICAL_TEST',
   'HR_INTERVIEW',
@@ -14,6 +15,7 @@ export const APPLICATION_STATUSES = [
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
+  SAVED: 'Por candidatar',
   APPLIED: 'Candidatado',
   TECHNICAL_TEST: 'Teste Técnico',
   HR_INTERVIEW: 'Entrevista RH',
@@ -21,6 +23,17 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   OFFER: 'Proposta',
   REJECTED: 'Rejeitado',
 };
+
+/**
+ * Vagas guardadas para depois: ainda não são candidaturas. Não contam para o
+ * objetivo diário, o relatório semanal, a taxa de resposta nem os totais.
+ * Ao sair desta coluna, a data da candidatura passa a ser esse dia.
+ */
+export const NOT_APPLIED_STATUSES: readonly ApplicationStatus[] = ['SAVED'];
+
+export function isApplied(status: ApplicationStatus): boolean {
+  return !NOT_APPLIED_STATUSES.includes(status);
+}
 
 /** Estados finais: o processo acabou, com ou sem sucesso. */
 export const CLOSED_STATUSES: readonly ApplicationStatus[] = [
@@ -85,13 +98,18 @@ export interface SaveApplicationRequest {
   seniority: Seniority;
   appliedAt: string;
   notes?: string | null;
-  /** Só na criação: coluna onde a candidatura começa (por omissão, APPLIED). */
+  /** Só na criação: coluna onde começa (por omissão, APPLIED; SAVED para guardar para depois). */
   status?: ApplicationStatus;
 }
 
 export interface MoveApplicationRequest {
   status: ApplicationStatus;
   position: number;
+  /**
+   * Ao sair de "Por candidatar": o dia da candidatura no fuso do utilizador
+   * (AAAA-MM-DD). Sem ele, o servidor usa o dia de hoje em UTC.
+   */
+  appliedAt?: string;
 }
 
 export type InterviewType = 'HR' | 'TECHNICAL' | 'TEST';
@@ -147,7 +165,10 @@ export type ApplicationBoard = Record<ApplicationStatus, JobApplication[]>;
 
 /** Resposta de GET /applications/stats */
 export interface ApplicationStats {
+  /** Candidaturas feitas (sem as vagas guardadas em "Por candidatar"). */
   total: number;
+  /** Vagas guardadas para depois. */
+  saved: number;
   active: number; // ainda em processo
   byStatus: Record<ApplicationStatus, number>;
   byAccessibility: Record<Accessibility, number>;
