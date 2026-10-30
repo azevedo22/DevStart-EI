@@ -117,6 +117,7 @@ export class Navbar {
       icon: 'bi-person-workspace',
     },
     { path: '/applications', label: 'Candidaturas', icon: 'bi-kanban' },
+    { path: '/progress', label: 'Progresso', icon: 'bi-graph-up' },
   ];
 
   protected readonly firstName = computed(

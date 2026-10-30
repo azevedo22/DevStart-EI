@@ -437,6 +437,158 @@ describeDb('Application Tracker Service (e2e)', () => {
     });
   });
 
+  describe('atividade por dia (relatório semanal)', () => {
+    const WEEK = '?from=2026-10-26&to=2026-11-01';
+    const db = () => app.get(DataSource);
+    const move = (id: string, status: string) =>
+      ana
+        .patch(`/api/applications/${id}/move`, { status, position: 0 })
+        .expect(200);
+    /** Põe a última mudança de estado numa hora conhecida. */
+    const lastMoveAt = (id: string, at: string) =>
+      db().query(
+        `UPDATE application_status_history SET changed_at = $2
+          WHERE id = (SELECT id FROM application_status_history
+                       WHERE application_id = $1 ORDER BY changed_at DESC LIMIT 1)`,
+        [id, at],
+      );
+
+    it('candidaturas, respostas e entrevistas, cada uma no seu dia', async () => {
+      const farfetch = await create({
+        companyName: 'Farfetch',
+        appliedAt: '2026-10-26',
+      });
+      const critical = await create({
+        companyName: 'Critical',
+        appliedAt: '2026-10-27',
+      });
+      await create({ companyName: 'Antiga', appliedAt: '2026-10-01' });
+
+      await move(critical.id, 'HR_INTERVIEW');
+      await lastMoveAt(critical.id, '2026-10-27T15:00:00Z');
+      await move(farfetch.id, 'REJECTED');
+      await lastMoveAt(farfetch.id, '2026-10-30T09:00:00Z');
+
+      // Marcada na quarta para quinta; a segunda já fica para a semana seguinte.
+      const first = (
+        await ana
+          .post(`/api/applications/${critical.id}/interviews`, {
+            ...INTERVIEW,
+            type: 'HR',
+            scheduledAt: '2026-10-29T10:00:00Z',
+          })
+          .expect(201)
+      ).body;
+      await db().query(
+        `UPDATE interviews SET created_at = '2026-10-28T09:00:00Z' WHERE id = $1`,
+        [first.id],
+      );
+      const second = (
+        await ana
+          .post(`/api/applications/${critical.id}/interviews`, {
+            ...INTERVIEW,
+            type: 'TECHNICAL',
+            scheduledAt: '2026-11-03T10:00:00Z',
+          })
+          .expect(201)
+      ).body;
+      await db().query(
+        `UPDATE interviews SET created_at = '2026-11-03T08:00:00Z' WHERE id = $1`,
+        [second.id],
+      );
+
+      // Outra pessoa, mesma semana: não aparece.
+      await rui
+        .post('/api/applications', { ...JOB, appliedAt: '2026-10-27' })
+        .expect(201);
+
+      const { body } = await ana
+        .get(`/api/applications/activity${WEEK}&tz=Europe/Lisbon`)
+        .expect(200);
+      expect(
+        body.map((e: Record<string, unknown>) => [
+          e['date'],
+          e['kind'],
+          e['subject'],
+        ]),
+      ).toEqual([
+        ['2026-10-26', 'APPLIED', 'Farfetch'],
+        ['2026-10-27', 'APPLIED', 'Critical'],
+        ['2026-10-27', 'RESPONSE_POSITIVE', 'Critical'],
+        ['2026-10-28', 'INTERVIEW_SCHEDULED', 'Critical'],
+        ['2026-10-29', 'INTERVIEW', 'Critical'],
+        ['2026-10-30', 'REJECTED', 'Farfetch'],
+      ]);
+      expect(body[2]).toMatchObject({ status: 'HR_INTERVIEW' });
+      expect(body[4]).toMatchObject({
+        interviewType: 'HR',
+        round: 1,
+        at: '2026-10-29T10:00:00.000Z',
+        jobTitle: JOB.jobTitle,
+      });
+
+      // A 2.ª entrevista aparece na semana dela, com o número certo.
+      const next = (
+        await ana
+          .get('/api/applications/activity?from=2026-11-02&to=2026-11-08')
+          .expect(200)
+      ).body;
+      expect(next).toEqual([
+        expect.objectContaining({
+          date: '2026-11-03',
+          kind: 'INTERVIEW',
+          round: 2,
+          interviewType: 'TECHNICAL',
+        }),
+      ]);
+    });
+
+    it('o dia de cada resposta depende do fuso do utilizador', async () => {
+      const a = await create({ appliedAt: '2026-10-26' });
+      await move(a.id, 'TECHNICAL_TEST');
+      await lastMoveAt(a.id, '2026-10-27T23:30:00Z');
+      const dayIn = async (tz: string) =>
+        (
+          await ana
+            .get(
+              `/api/applications/activity${WEEK}&tz=${encodeURIComponent(tz)}`,
+            )
+            .expect(200)
+        ).body.find((e: { kind: string }) => e.kind === 'RESPONSE_POSITIVE')
+          .date;
+      expect(await dayIn('Europe/Lisbon')).toBe('2026-10-27');
+      expect(await dayIn('Asia/Tokyo')).toBe('2026-10-28');
+    });
+
+    it('voltar a "Candidatado" ou reordenar não conta como resposta', async () => {
+      const a = await create({ appliedAt: '2026-10-26' });
+      await move(a.id, 'REJECTED');
+      await move(a.id, 'APPLIED');
+      await lastMoveAt(a.id, '2026-10-28T10:00:00Z');
+      await db().query(
+        `UPDATE application_status_history SET changed_at = '2026-10-27T10:00:00Z'
+          WHERE application_id = $1 AND to_status = 'REJECTED'`,
+        [a.id],
+      );
+      const { body } = await ana
+        .get(`/api/applications/activity${WEEK}`)
+        .expect(200);
+      expect(body.map((e: { kind: string }) => e.kind)).toEqual([
+        'APPLIED',
+        'REJECTED',
+      ]);
+    });
+
+    it.each([
+      ['sem datas', ''],
+      ['data inválida', '?from=2026-13-01&to=2026-12-02'],
+      ['intervalo grande', '?from=2026-01-01&to=2026-12-31'],
+      ['fuso desconhecido', `${WEEK}&tz=Marte/Olympus`],
+    ])('%s: 400', async (_c, query) => {
+      await ana.get(`/api/applications/activity${query}`).expect(400);
+    });
+  });
+
   describe('evento user.deleted', () => {
     const deleted = async (userId: string) => {
       const { UserEventsSubscriber } =

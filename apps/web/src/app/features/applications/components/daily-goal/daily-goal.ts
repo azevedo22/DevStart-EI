@@ -28,9 +28,11 @@ const TIER_COLOR: Record<GoalTier, string> = {
 const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
 /**
- * Objetivo diário de candidaturas: 3 é suficiente, 7 é bom, 10 é muito bom.
- * Barra com os três patamares, quanto falta para o próximo, sequência de dias
- * seguidos e os últimos 7 dias. Ao subir de patamar, há uma pequena celebração.
+ * Objetivo diário de candidaturas, só nos dias úteis: 1 é suficiente, 2 é
+ * bom, 3 é muito bom. Barra com os três patamares, quanto falta para o
+ * próximo, sequência de dias úteis seguidos e a semana de segunda a domingo.
+ * Ao subir de patamar, há uma pequena celebração. Ao fim de semana não há
+ * objetivo: o cartão aponta para o relatório da semana.
  */
 @Component({
   selector: 'ds-daily-goal',
@@ -50,15 +52,26 @@ const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
                 id="daily-goal-title"
                 class="h6 text-body-secondary text-uppercase small mb-1"
               >
-                <i class="bi bi-bullseye me-1"></i>Objetivo de hoje
+                @if (p.restDay) {
+                  <i class="bi bi-cup-hot me-1"></i>Fim de semana
+                } @else {
+                  <i class="bi bi-bullseye me-1"></i>Objetivo de hoje
+                }
               </h2>
               <div class="d-flex align-items-baseline gap-2">
                 <span class="display-6 fw-semibold lh-1">{{
                   p.today.count
                 }}</span>
                 <span class="text-body-secondary">
-                  / {{ p.max }}
-                  {{ p.max === 1 ? p.goal.unit.one : p.goal.unit.many }}
+                  @if (p.restDay) {
+                    {{
+                      p.today.count === 1 ? p.goal.unit.one : p.goal.unit.many
+                    }}
+                    hoje
+                  } @else {
+                    / {{ p.max }}
+                    {{ p.max === 1 ? p.goal.unit.one : p.goal.unit.many }}
+                  }
                 </span>
                 @if (p.today.tier; as t) {
                   <span class="badge text-bg-{{ color(t) }} ms-1">
@@ -75,29 +88,44 @@ const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
                   [class.text-warning-emphasis]="p.streakIncludesToday"
                   [class.text-body-secondary]="!p.streakIncludesToday"
                   [title]="
-                    p.streakIncludesToday
-                      ? 'Dias seguidos com pelo menos 3 candidaturas'
-                      : 'Chega a 3 hoje para manter a sequência'
+                    p.restDay
+                      ? 'Dias úteis seguidos com pelo menos 1 candidatura (o fim de semana não conta)'
+                      : p.streakIncludesToday
+                        ? 'Dias úteis seguidos com pelo menos 1 candidatura'
+                        : 'Faz 1 candidatura hoje para manter a sequência'
                   "
                 >
                   <i class="bi bi-fire me-1"></i>{{ p.streak }}
-                  {{ p.streak === 1 ? 'dia seguido' : 'dias seguidos' }}
+                  {{
+                    p.streak === 1 ? 'dia útil seguido' : 'dias úteis seguidos'
+                  }}
                 </div>
               }
               <!-- Últimos 7 dias -->
               <div
                 class="d-flex gap-1 mt-2 justify-content-end"
-                aria-label="Últimos 7 dias"
+                aria-label="Esta semana, de segunda a domingo"
               >
-                @for (d of p.week; track d.date; let last = $last) {
-                  <div class="text-center" [title]="d.date + ': ' + d.count">
+                @for (d of p.week; track d.date) {
+                  <div
+                    class="text-center"
+                    [title]="
+                      d.date +
+                      ': ' +
+                      d.count +
+                      (d.active ? '' : ' (fim de semana, sem objetivo)')
+                    "
+                  >
                     <div
                       class="day rounded-1"
                       [class]="
                         d.tier ? 'bg-' + color(d.tier) : 'bg-body-secondary'
                       "
-                      [class.today]="last"
-                      [style.opacity]="d.tier ? 1 : d.count ? 0.6 : 0.35"
+                      [class.rest]="!d.active"
+                      [class.today]="d.date === p.today.date"
+                      [style.opacity]="
+                        !d.active || d.tier ? 1 : d.count ? 0.6 : 0.35
+                      "
                     ></div>
                     <div class="tiny text-body-secondary">
                       {{ weekday(d.date) }}
@@ -108,76 +136,103 @@ const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
             </div>
           </div>
 
-          <!-- Barra com os patamares -->
-          <div
-            class="goal-bar mt-4"
-            role="progressbar"
-            [attr.aria-valuenow]="p.today.count"
-            aria-valuemin="0"
-            [attr.aria-valuemax]="p.max"
-            [attr.aria-label]="
-              'Candidaturas de hoje: ' + p.today.count + ' de ' + p.max
-            "
-          >
-            <div class="goal-track">
-              <div
-                class="goal-fill bg-{{
-                  p.today.tier ? color(p.today.tier) : 'secondary'
-                }}"
-                [style.width.%]="percent(p.today.count, p.max)"
-              ></div>
-            </div>
-            @for (t of p.goal.tiers; track t.tier) {
-              <div
-                class="goal-mark"
-                [style.left.%]="percent(t.target, p.max)"
-                [class.reached]="p.today.count >= t.target"
-              >
-                <span
-                  class="dot bg-{{
-                    p.today.count >= t.target ? color(t.tier) : 'body-secondary'
-                  }}"
-                ></span>
-                <span class="mark-label small">
-                  <strong>{{ t.target }}</strong>
-                  <!-- Em ecrãs estreitos os nomes não cabem; o selo e a mensagem já os dizem. -->
-                  <span class="d-none d-sm-inline"> {{ labels[t.tier] }}</span>
-                </span>
-              </div>
-            }
-          </div>
-
-          <div class="d-flex flex-wrap align-items-center gap-2 mt-4 pt-1">
-            <p class="mb-0 me-auto" role="status">
-              @if (celebration(); as c) {
-                <span class="celebrate fw-semibold text-{{ color(c) }}">
-                  <i class="bi bi-stars me-1"></i>Chegaste a {{ labels[c] }}!
-                </span>
-              } @else if (!p.next) {
-                <span class="fw-semibold text-success">
-                  <i class="bi bi-trophy me-1"></i>Objetivo máximo de hoje
-                  cumprido.
-                </span>
-              } @else if (p.today.count === 0) {
-                Começa com <strong>{{ p.next.missing }}</strong> candidaturas
-                para chegar a <strong>{{ labels[p.next.tier] }}</strong
-                >.
-              } @else {
-                {{ p.next.missing === 1 ? 'Falta' : 'Faltam' }}
-                <strong>{{ p.next.missing }}</strong> para
-                <strong>{{ labels[p.next.tier] }}</strong
-                >.
-              }
-            </p>
-            @if (showLink()) {
-              <a
-                routerLink="/applications"
-                class="btn btn-sm btn-outline-primary"
-              >
-                <i class="bi bi-kanban me-1"></i>Ir para as candidaturas
+          @if (p.restDay) {
+            <div
+              class="d-flex flex-wrap align-items-center gap-2 mt-4 pt-1"
+              role="status"
+            >
+              <p class="mb-0 me-auto">
+                <i class="bi bi-cup-hot me-1"></i>
+                <strong>Fim de semana:</strong> sem objetivo hoje. É altura de
+                ver como correu a semana.
+              </p>
+              <a routerLink="/progress" class="btn btn-sm btn-primary">
+                <i class="bi bi-graph-up me-1"></i>Ver o relatório da semana
               </a>
-            }
-          </div>
+            </div>
+          } @else {
+            <!-- Barra com os patamares -->
+            <div
+              class="goal-bar mt-4"
+              role="progressbar"
+              [attr.aria-valuenow]="p.today.count"
+              aria-valuemin="0"
+              [attr.aria-valuemax]="p.max"
+              [attr.aria-label]="
+                'Candidaturas de hoje: ' + p.today.count + ' de ' + p.max
+              "
+            >
+              <div class="goal-track">
+                <div
+                  class="goal-fill bg-{{
+                    p.today.tier ? color(p.today.tier) : 'secondary'
+                  }}"
+                  [style.width.%]="percent(p.today.count, p.max)"
+                ></div>
+              </div>
+              @for (t of p.goal.tiers; track t.tier) {
+                <div
+                  class="goal-mark"
+                  [style.left.%]="percent(t.target, p.max)"
+                  [class.reached]="p.today.count >= t.target"
+                >
+                  <span
+                    class="dot bg-{{
+                      p.today.count >= t.target
+                        ? color(t.tier)
+                        : 'body-secondary'
+                    }}"
+                  ></span>
+                  <span class="mark-label small">
+                    <strong>{{ t.target }}</strong>
+                    <!-- Em ecrãs estreitos os nomes não cabem; o selo e a mensagem já os dizem. -->
+                    <span class="d-none d-sm-inline">
+                      {{ labels[t.tier] }}</span
+                    >
+                  </span>
+                </div>
+              }
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-4 pt-1">
+              <p class="mb-0 me-auto" role="status">
+                @if (celebration(); as c) {
+                  <span class="celebrate fw-semibold text-{{ color(c) }}">
+                    <i class="bi bi-stars me-1"></i>Chegaste a {{ labels[c] }}!
+                  </span>
+                } @else if (!p.next) {
+                  <span class="fw-semibold text-success">
+                    <i class="bi bi-trophy me-1"></i>Objetivo máximo de hoje
+                    cumprido.
+                  </span>
+                } @else if (p.today.count === 0) {
+                  Começa com <strong>{{ p.next.missing }}</strong>
+                  {{ p.next.missing === 1 ? 'candidatura' : 'candidaturas' }}
+                  para chegar a <strong>{{ labels[p.next.tier] }}</strong
+                  >.
+                } @else {
+                  {{ p.next.missing === 1 ? 'Falta' : 'Faltam' }}
+                  <strong>{{ p.next.missing }}</strong> para
+                  <strong>{{ labels[p.next.tier] }}</strong
+                  >.
+                }
+              </p>
+              @if (showLink()) {
+                <a
+                  routerLink="/applications"
+                  class="btn btn-sm btn-outline-primary"
+                >
+                  <i class="bi bi-kanban me-1"></i>Ir para as candidaturas
+                </a>
+              }
+              <a
+                routerLink="/progress"
+                class="btn btn-sm btn-outline-secondary"
+              >
+                <i class="bi bi-graph-up me-1"></i>Semana
+              </a>
+            </div>
+          }
         </div>
       </section>
     }
@@ -186,6 +241,10 @@ const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
     .day {
       width: 14px;
       height: 14px;
+    }
+    .day.rest {
+      background: transparent !important;
+      border: 1px dashed var(--bs-border-color);
     }
     .day.today {
       outline: 2px solid var(--bs-body-color);

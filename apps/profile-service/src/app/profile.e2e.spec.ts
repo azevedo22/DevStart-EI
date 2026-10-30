@@ -252,6 +252,53 @@ describeDb('Profile & Skill Service (e2e)', () => {
     });
   });
 
+  describe('atividade dos projetos (relatório semanal)', () => {
+    const at = (id: string, created: string, updated: string) =>
+      app
+        .get(DataSource)
+        .query(
+          'UPDATE projects SET created_at = $2, updated_at = $3 WHERE id = $1',
+          [id, created, updated],
+        );
+    const week = (tz = 'Europe/Lisbon') =>
+      ana
+        .get(`/api/projects/activity?from=2026-10-26&to=2026-11-01&tz=${tz}`)
+        .expect(200);
+
+    it('criação e última atualização, cada uma no seu dia', async () => {
+      const { body: novo } = await ana
+        .post('/api/projects', { ...PROJECT, title: 'Novo' })
+        .expect(201);
+      const { body: antigo } = await ana
+        .post('/api/projects', { ...PROJECT, title: 'Antigo' })
+        .expect(201);
+      const { body: mesmoDia } = await ana
+        .post('/api/projects', { ...PROJECT, title: 'Mesmo dia' })
+        .expect(201);
+      await rui.post('/api/projects', PROJECT).expect(201);
+
+      await at(novo.id, '2026-10-27T10:00:00Z', '2026-10-27T10:00:00Z');
+      await at(antigo.id, '2026-09-01T10:00:00Z', '2026-10-29T18:00:00Z');
+      await at(mesmoDia.id, '2026-10-30T09:00:00Z', '2026-10-30T17:00:00Z');
+
+      expect((await week()).body).toEqual([
+        { date: '2026-10-27', kind: 'PROJECT_CREATED', subject: 'Novo' },
+        { date: '2026-10-29', kind: 'PROJECT_UPDATED', subject: 'Antigo' },
+        { date: '2026-10-30', kind: 'PROJECT_CREATED', subject: 'Mesmo dia' },
+      ]);
+    });
+
+    it('a data depende do fuso', async () => {
+      const { body: p } = await ana.post('/api/projects', PROJECT).expect(201);
+      await at(p.id, '2026-10-27T23:30:00Z', '2026-10-27T23:30:00Z');
+      expect((await week('Asia/Tokyo')).body[0].date).toBe('2026-10-28');
+    });
+
+    it('intervalo inválido: 400', async () => {
+      await ana.get('/api/projects/activity?from=2026-10-26').expect(400);
+    });
+  });
+
   describe('isolamento entre utilizadores', () => {
     it('ninguém vê, edita ou apaga projetos de outra pessoa', async () => {
       const { body: p } = await ana.post('/api/projects', PROJECT).expect(201);

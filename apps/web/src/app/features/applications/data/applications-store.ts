@@ -63,7 +63,8 @@ export class ApplicationsStore {
 
   // ── Objetivo diário ─────────────────────────────────────────
   /** O dia de hoje no fuso do utilizador; muda sozinho à meia-noite. */
-  private readonly today = signal(localDate());
+  private readonly _today = signal(localDate());
+  readonly today = this._today.asReadonly();
 
   /**
    * Progresso no objetivo de candidaturas de hoje. Calculado a partir do
@@ -116,7 +117,7 @@ export class ApplicationsStore {
     // À meia-noite o objetivo recomeça: confirma o dia uma vez por minuto.
     const timer = setInterval(() => {
       const now = localDate();
-      if (now !== this.today()) this.today.set(now);
+      if (now !== this._today()) this._today.set(now);
     }, 60_000);
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
   }

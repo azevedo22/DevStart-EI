@@ -1,5 +1,6 @@
 /**
- * Objetivos diários: metas pequenas para o utilizador voltar todos os dias.
+ * Objetivos diários: metas pequenas para o utilizador voltar todos os dias
+ * úteis. O fim de semana fica para olhar para trás (ver weekly-report.ts).
  *
  * Função pura, partilhada como o cálculo do skill gap: o frontend calcula o
  * progresso no instante em que uma candidatura é criada, e as regras ficam
@@ -27,24 +28,37 @@ export interface GoalDefinition {
   unit: { one: string; many: string };
   /** Patamares por ordem crescente; o último é o objetivo completo. */
   tiers: readonly { tier: GoalTier; target: number }[];
+  /** Dias da semana em que o objetivo conta (0 = domingo … 6 = sábado). */
+  activeWeekdays: readonly number[];
 }
 
-/** Candidatar-se a vagas: 3 é suficiente, 7 é bom, 10 é muito bom. */
+/** Segunda a sexta. */
+export const WORKDAYS: readonly number[] = [1, 2, 3, 4, 5];
+
+/**
+ * Candidatar-se a vagas nos dias úteis: 1 é suficiente, 2 é bom, 3 é muito
+ * bom. Pequeno de propósito: três candidaturas bem feitas por dia valem mais
+ * do que dez à pressa, e um objetivo que se cumpre mantém o hábito.
+ */
 export const DAILY_APPLICATIONS_GOAL: GoalDefinition = {
   id: 'daily-applications',
   title: 'Candidaturas de hoje',
   unit: { one: 'candidatura', many: 'candidaturas' },
   tiers: [
-    { tier: 'SUFFICIENT', target: 3 },
-    { tier: 'GOOD', target: 7 },
-    { tier: 'EXCELLENT', target: 10 },
+    { tier: 'SUFFICIENT', target: 1 },
+    { tier: 'GOOD', target: 2 },
+    { tier: 'EXCELLENT', target: 3 },
   ],
+  activeWeekdays: WORKDAYS,
 };
 
 export interface DayProgress {
   date: string; // AAAA-MM-DD
   count: number;
+  /** Patamar atingido; sempre null num dia sem objetivo (fim de semana). */
   tier: GoalTier | null;
+  /** Se o objetivo conta neste dia. */
+  active: boolean;
 }
 
 export interface DailyGoalProgress {
@@ -54,19 +68,22 @@ export interface DailyGoalProgress {
   max: number;
   /** O próximo patamar e quanto falta; null se já chegou ao máximo. */
   next: { tier: GoalTier; target: number; missing: number } | null;
-  /** Os últimos 7 dias, do mais antigo até hoje. */
+  /** Hoje não há objetivo (fim de semana): dia de reflexão. */
+  restDay: boolean;
+  /** A semana de hoje, de segunda a domingo. */
   week: DayProgress[];
   /**
-   * Dias seguidos com pelo menos o primeiro patamar. Se hoje ainda não chegou
-   * lá, a sequência conta até ontem: ainda dá para a manter hoje.
+   * Dias úteis seguidos com pelo menos o primeiro patamar; o fim de semana
+   * não parte nem soma. Se hoje ainda não chegou lá, a sequência conta até ao
+   * dia útil anterior: ainda dá para a manter hoje.
    */
   streak: number;
   /** Se hoje já conta para a sequência. */
   streakIncludesToday: boolean;
 }
 
-/** Até onde se olha para trás para contar a sequência. */
-const MAX_STREAK_DAYS = 365;
+/** Até onde se olha para trás para contar a sequência (dias de calendário). */
+const MAX_STREAK_LOOKBACK = 400;
 
 export function tierFor(
   count: number,
@@ -90,22 +107,30 @@ export function dailyGoalProgress(
 ): DailyGoalProgress {
   const perDay = new Map<string, number>();
   for (const d of dates) perDay.set(d, (perDay.get(d) ?? 0) + 1);
+  const isActive = (date: string) =>
+    goal.activeWeekdays.includes(weekday(date));
   const day = (date: string): DayProgress => {
     const count = perDay.get(date) ?? 0;
-    return { date, count, tier: tierFor(count, goal) };
+    const active = isActive(date);
+    return { date, count, tier: active ? tierFor(count, goal) : null, active };
   };
 
   const todayProgress = day(today);
-  const nextTier = goal.tiers.find((t) => todayProgress.count < t.target);
+  const nextTier = todayProgress.active
+    ? goal.tiers.find((t) => todayProgress.count < t.target)
+    : undefined;
 
-  const week = Array.from({ length: 7 }, (_, i) => day(addDays(today, i - 6)));
+  const monday = weekStart(today);
+  const week = Array.from({ length: 7 }, (_, i) => day(addDays(monday, i)));
 
+  // Sequência: só os dias úteis contam; os outros saltam-se.
   const streakIncludesToday = todayProgress.tier !== null;
   let streak = 0;
   let cursor = streakIncludesToday ? today : addDays(today, -1);
-  while (streak < MAX_STREAK_DAYS && tierFor(perDay.get(cursor) ?? 0, goal)) {
+  for (let i = 0; i < MAX_STREAK_LOOKBACK; i++, cursor = addDays(cursor, -1)) {
+    if (!isActive(cursor)) continue;
+    if (!tierFor(perDay.get(cursor) ?? 0, goal)) break;
     streak++;
-    cursor = addDays(cursor, -1);
   }
 
   return {
@@ -119,10 +144,22 @@ export function dailyGoalProgress(
           missing: nextTier.target - todayProgress.count,
         }
       : null,
+    restDay: !todayProgress.active,
     week,
     streak,
     streakIncludesToday,
   };
+}
+
+/** Dia da semana de uma data AAAA-MM-DD: 0 = domingo … 6 = sábado. */
+export function weekday(date: string): number {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/** A segunda-feira da semana de uma data (as semanas começam à segunda). */
+export function weekStart(date: string): string {
+  return addDays(date, -((weekday(date) + 6) % 7));
 }
 
 /** Data local (não UTC) no formato AAAA-MM-DD: "hoje" é o dia do utilizador. */

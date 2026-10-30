@@ -1,5 +1,10 @@
-import { Project } from '@devstart/shared-types';
 import {
+  ActivityEvent,
+  parseActivityRange,
+  Project,
+} from '@devstart/shared-types';
+import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,6 +15,7 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUserId, RequireUserGuard } from '@devstart/backend-common';
@@ -28,6 +34,19 @@ export class ProjectsController {
   @Get()
   list(@CurrentUserId() userId: string): Promise<Project[]> {
     return this.projects.list(userId);
+  }
+
+  /** Projetos criados e atualizados por dia, para o relatório semanal (?from=&to=&tz=). */
+  @Get('activity')
+  activity(
+    @CurrentUserId() userId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('tz') tz?: string,
+  ): Promise<ActivityEvent[]> {
+    const range = parseActivityRange({ from, to, tz });
+    if ('error' in range) throw new BadRequestException(range.error);
+    return this.projects.activity(userId, range);
   }
 
   @Get(':id')

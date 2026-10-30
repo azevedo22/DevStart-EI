@@ -131,18 +131,36 @@ os outros serviços: publica um evento `user.deleted` e cada serviço trata do q
   Service marca o utilizador como revogado no Redis durante 15 minutos (a validade do token) e o gateway
   recusa esses tokens. Sem isto, um token antigo podia voltar a criar dados para uma conta apagada.
 
-### Objetivo diário
+### Objetivo diário e relatório semanal
 
-Meta de candidaturas por dia, para dar ritmo à procura: **3 é suficiente, 7 é bom, 10 é muito bom**.
+**Nos dias úteis**, uma meta pequena de candidaturas: **1 é suficiente, 2 é bom, 3 é muito bom**.
 Aparece no topo das Candidaturas e na página inicial, com quanto falta para o próximo patamar, a
-sequência de dias seguidos com pelo menos 3, os últimos 7 dias e uma pequena celebração ao subir de
-patamar.
+sequência de dias úteis seguidos, a semana de segunda a domingo e uma pequena celebração ao subir de
+patamar. **Ao fim de semana não há objetivo:** o cartão aponta para o relatório.
 
-- **Regra partilhada e testada** (`libs/shared-types`, `dailyGoalProgress`): conta as candidaturas
-  com data de hoje no fuso do utilizador; a sequência sobrevive até ao fim do dia (se hoje ainda não
-  chegou a 3, conta até ontem). Novos tipos de objetivo são novas definições da mesma função.
-- **Instantâneo:** é calculado no browser a partir do quadro, por isso atualiza no momento em que se
-  cria uma candidatura, e recomeça sozinho à meia-noite.
+A página **Progresso** (`/progress`) é o relatório da semana:
+
+- **Gráfico dia a dia** (segunda a domingo): candidaturas, respostas positivas, rejeições,
+  entrevistas e projetos, com os números de cada dia ao passar o rato ou com o teclado.
+- **Lista por dia**, em texto: "Terça-feira: 2 candidaturas · 1 resposta positiva", com cada
+  evento (empresa, nova fase, 1.ª ou 2.ª entrevista do processo, projeto).
+- **Totais face à semana anterior**, **objetivos da semana** (15 candidaturas, objetivo diário nos
+  5 dias úteis, pelo menos um projeto novo ou atualizado) e, ao fim de semana ou em semanas
+  passadas, notas **para refletir**. Dá para recuar semana a semana.
+
+Como funciona:
+
+- **Respostas** são mudanças de coluna no Kanban, já registadas no histórico: sair de "Candidatado"
+  para uma fase de entrevista (ou passar de fase) é uma resposta positiva; "Proposta" e "Rejeitado"
+  contam à parte; voltar a "Candidatado" para corrigir um engano não conta.
+- **Cada serviço dá a sua parte.** `GET /applications/activity` (tracker) e `GET /projects/activity`
+  (profile) devolvem eventos de um intervalo, com o dia calculado no PostgreSQL no **fuso do
+  utilizador** (`AT TIME ZONE`): uma resposta às 23h30 conta nesse dia. O browser junta os dois e o
+  relatório é uma função pura partilhada e testada (`weeklyReport` em `libs/shared-types`).
+- **Projetos:** conta-se o dia em que foram criados e o da última atualização (só a última fica
+  guardada).
+- **O objetivo diário é instantâneo:** é calculado no browser a partir do quadro, por isso atualiza no
+  momento em que se cria uma candidatura, e recomeça sozinho à meia-noite.
 
 ### Importar o CV com IA
 
@@ -286,35 +304,37 @@ Para publicar num servidor com domínio e HTTPS, ver [docs/deploy.md](docs/deplo
 
 ## API (implementada até agora)
 
-| Método                | Endpoint                            | Descrição                                                                                               |
-| --------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `POST`                | `/api/v1/auth/register`             | Cria conta, devolve access token e define o cookie                                                      |
-| `POST`                | `/api/v1/auth/login`                | Inicia sessão                                                                                           |
-| `POST`                | `/api/v1/auth/demo`                 | Cria uma conta de demonstração com dados de exemplo                                                     |
-| `POST`                | `/api/v1/auth/refresh`              | Novo access token a partir do cookie (com rotação)                                                      |
-| `POST`                | `/api/v1/auth/logout`               | Revoga a sessão e limpa o cookie                                                                        |
-| `GET`                 | `/api/v1/auth/me`                   | Utilizador autenticado 🔒                                                                               |
-| `DELETE`              | `/api/v1/auth/me`                   | Apaga a conta e, por evento, os dados em todos os serviços (pede a password, exceto em demonstração) 🔒 |
-| `GET`                 | `/api/v1/profile`                   | Perfil com as competências declaradas 🔒                                                                |
-| `PUT`                 | `/api/v1/profile`                   | Atualiza título, instituição, ano e apresentação 🔒                                                     |
-| `POST`/`PUT`/`DELETE` | `/api/v1/profile/education[/:id]`   | Formação 🔒                                                                                             |
-| `POST`/`PUT`/`DELETE` | `/api/v1/profile/experience[/:id]`  | Experiência 🔒                                                                                          |
-| `PUT`                 | `/api/v1/profile/languages`         | Substitui a lista de línguas 🔒                                                                         |
-| `POST`                | `/api/v1/profile/cv/analyze`        | Lê o CV (multipart) e devolve um rascunho, sem gravar 🔒                                                |
-| `POST`                | `/api/v1/profile/cv/import`         | Grava o que o utilizador escolheu do rascunho 🔒                                                        |
-| `PUT`                 | `/api/v1/profile/competencies/:id`  | Declara uma competência ou muda o nível 🔒                                                              |
-| `DELETE`              | `/api/v1/profile/competencies/:id`  | Remove uma competência do perfil 🔒                                                                     |
-| `GET`                 | `/api/v1/projects`                  | Projetos do utilizador 🔒                                                                               |
-| `POST`                | `/api/v1/projects`                  | Cria um projeto 🔒                                                                                      |
-| `GET`/`PUT`/`DELETE`  | `/api/v1/projects/:id`              | Lê, substitui ou apaga um projeto 🔒                                                                    |
-| `GET`                 | `/api/v1/skill-gap?stackId=`        | Gap calculado com o perfil guardado 🔒                                                                  |
-| `GET`                 | `/api/v1/skill-gap/overview`        | Compatibilidade com todas as stacks, ordenada 🔒                                                        |
-| `GET`                 | `/api/v1/competencies?category=&q=` | Catálogo de competências (pesquisa em nome e aliases)                                                   |
-| `GET`                 | `/api/v1/competencies/:id`          | Detalhe de uma competência                                                                              |
-| `GET`                 | `/api/v1/stacks`                    | Stacks alvo                                                                                             |
-| `GET`                 | `/api/v1/stacks/:id`                | Detalhe de uma stack                                                                                    |
-| `POST`                | `/api/v1/skill-gap/preview`         | Calcula o gap sem perfil guardado                                                                       |
-| `GET`                 | `/api/health`                       | Estado de cada serviço (em cada porta)                                                                  |
+| Método                | Endpoint                                      | Descrição                                                                                               |
+| --------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `POST`                | `/api/v1/auth/register`                       | Cria conta, devolve access token e define o cookie                                                      |
+| `POST`                | `/api/v1/auth/login`                          | Inicia sessão                                                                                           |
+| `POST`                | `/api/v1/auth/demo`                           | Cria uma conta de demonstração com dados de exemplo                                                     |
+| `POST`                | `/api/v1/auth/refresh`                        | Novo access token a partir do cookie (com rotação)                                                      |
+| `POST`                | `/api/v1/auth/logout`                         | Revoga a sessão e limpa o cookie                                                                        |
+| `GET`                 | `/api/v1/auth/me`                             | Utilizador autenticado 🔒                                                                               |
+| `DELETE`              | `/api/v1/auth/me`                             | Apaga a conta e, por evento, os dados em todos os serviços (pede a password, exceto em demonstração) 🔒 |
+| `GET`                 | `/api/v1/profile`                             | Perfil com as competências declaradas 🔒                                                                |
+| `PUT`                 | `/api/v1/profile`                             | Atualiza título, instituição, ano e apresentação 🔒                                                     |
+| `POST`/`PUT`/`DELETE` | `/api/v1/profile/education[/:id]`             | Formação 🔒                                                                                             |
+| `POST`/`PUT`/`DELETE` | `/api/v1/profile/experience[/:id]`            | Experiência 🔒                                                                                          |
+| `PUT`                 | `/api/v1/profile/languages`                   | Substitui a lista de línguas 🔒                                                                         |
+| `POST`                | `/api/v1/profile/cv/analyze`                  | Lê o CV (multipart) e devolve um rascunho, sem gravar 🔒                                                |
+| `POST`                | `/api/v1/profile/cv/import`                   | Grava o que o utilizador escolheu do rascunho 🔒                                                        |
+| `PUT`                 | `/api/v1/profile/competencies/:id`            | Declara uma competência ou muda o nível 🔒                                                              |
+| `DELETE`              | `/api/v1/profile/competencies/:id`            | Remove uma competência do perfil 🔒                                                                     |
+| `GET`                 | `/api/v1/projects`                            | Projetos do utilizador 🔒                                                                               |
+| `POST`                | `/api/v1/projects`                            | Cria um projeto 🔒                                                                                      |
+| `GET`/`PUT`/`DELETE`  | `/api/v1/projects/:id`                        | Lê, substitui ou apaga um projeto 🔒                                                                    |
+| `GET`                 | `/api/v1/projects/activity?from=&to=&tz=`     | Projetos criados e atualizados por dia (relatório semanal) 🔒                                           |
+| `GET`                 | `/api/v1/applications/activity?from=&to=&tz=` | Candidaturas, respostas e entrevistas por dia (relatório semanal) 🔒                                    |
+| `GET`                 | `/api/v1/skill-gap?stackId=`                  | Gap calculado com o perfil guardado 🔒                                                                  |
+| `GET`                 | `/api/v1/skill-gap/overview`                  | Compatibilidade com todas as stacks, ordenada 🔒                                                        |
+| `GET`                 | `/api/v1/competencies?category=&q=`           | Catálogo de competências (pesquisa em nome e aliases)                                                   |
+| `GET`                 | `/api/v1/competencies/:id`                    | Detalhe de uma competência                                                                              |
+| `GET`                 | `/api/v1/stacks`                              | Stacks alvo                                                                                             |
+| `GET`                 | `/api/v1/stacks/:id`                          | Detalhe de uma stack                                                                                    |
+| `POST`                | `/api/v1/skill-gap/preview`                   | Calcula o gap sem perfil guardado                                                                       |
+| `GET`                 | `/api/health`                                 | Estado de cada serviço (em cada porta)                                                                  |
 
 🔒 exige `Authorization: Bearer <token>`. Tudo o que não está nesta tabela também é protegido por omissão.
 
@@ -348,7 +368,7 @@ apps/web/src/app/
 - [x] Análise de anúncios e filtro de vagas acessíveis a quem tem 0 anos de experiência
 - [x] Eventos entre serviços (Redis Streams + outbox) e eliminação de conta em todos os serviços
 - [x] Rate limiting partilhado em Redis, revogação de tokens e cache HTTP do catálogo
-- [x] Objetivo diário de candidaturas (3 / 7 / 10) com sequência de dias seguidos
+- [x] Objetivo diário nos dias úteis (1 / 2 / 3) e relatório semanal com gráfico por dia
 - [x] Importação do CV com IA local (Ollama) e ficha com formação, experiência, línguas e links
 - [x] Contas de demonstração temporárias, preenchidas por evento e apagadas ao fim de 24 horas
 

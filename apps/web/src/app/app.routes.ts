@@ -42,6 +42,15 @@ export const appRoutes: Routes = [
       ),
   },
   {
+    path: 'progress',
+    title: 'Progresso · DevStart EI',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/progress/pages/progress-page/progress-page').then(
+        (m) => m.ProgressPage,
+      ),
+  },
+  {
     path: 'account',
     title: 'A minha conta · DevStart EI',
     canActivate: [authGuard],

@@ -7,6 +7,7 @@ import {
   InterviewEntity,
   StatusHistoryEntity,
 } from './applications/application.entities';
+import { ActivityService } from './applications/activity.service';
 import { ApplicationsController } from './applications/applications.controller';
 import { ApplicationsService } from './applications/applications.service';
 import { validateEnv } from './config/env';
@@ -33,6 +34,7 @@ import { InterviewsService } from './interviews/interviews.service';
   controllers: [HealthController, ApplicationsController, InterviewsController],
   providers: [
     ApplicationsService,
+    ActivityService,
     InterviewsService,
     DemoApplicationsSeeder,
     UserEventsSubscriber,
