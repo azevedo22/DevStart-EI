@@ -108,6 +108,8 @@ export function normalizeCvExtraction(
     unmatchedSkills: dedupeBy(unmatched, (s) => s.toLowerCase()),
     projects,
     source: 'ai',
+    analyzedBy: null, // preenchido pelo CvService, que sabe que IA usou
+    sentToExternalService: false,
     warnings,
   };
 }
@@ -144,6 +146,8 @@ export function keywordOnlyDraft(
     unmatchedSkills: [],
     projects: [],
     source: 'keywords',
+    analyzedBy: null,
+    sentToExternalService: false,
     warnings: [
       `${reason} Sem a IA, só foram detetadas competências e links; o resto preenches à mão.`,
     ],

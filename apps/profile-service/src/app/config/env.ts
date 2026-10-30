@@ -19,6 +19,32 @@ export class Env {
   REDIS_URL = 'redis://localhost:6379';
 
   /**
+   * Que IA lê os CVs:
+   * - ollama: modelo local, gratuito, o CV não sai do computador.
+   * - xai: API da xAI (Grok), compatível com a da OpenAI. Mais rápida e melhor,
+   *   mas paga e o CV é enviado para a xAI.
+   */
+  @IsIn(['ollama', 'xai'])
+  LLM_PROVIDER: 'ollama' | 'xai' = 'ollama';
+
+  /** Chave da API da xAI. Fica só no .env (nunca no Git). */
+  @IsString()
+  XAI_API_KEY = '';
+
+  /** Modelo da xAI. A lista de modelos disponíveis está em GET {XAI_BASE_URL}/models. */
+  @IsString()
+  XAI_MODEL = 'grok-4-fast-non-reasoning';
+
+  @IsString()
+  XAI_BASE_URL = 'https://api.x.ai/v1';
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(5_000)
+  @Max(600_000)
+  XAI_TIMEOUT_MS = 60_000;
+
+  /**
    * Ollama (modelo de linguagem local) para ler CVs. Vazio desliga a IA: a
    * importação passa a detetar só competências e links por palavras-chave.
    */

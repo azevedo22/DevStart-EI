@@ -75,8 +75,7 @@ import { CvReviewModal } from '../cv-review-modal/cv-review-modal';
       <div [class]="prominent() ? 'px-4 pb-3' : 'mt-2'">
         @if (analyzing() && elapsed() >= 10) {
           <div class="small text-body-secondary" role="status">
-            A IA corre no teu computador; num CV longo pode demorar um minuto ou
-            mais.
+            Com uma IA local, num CV longo, pode demorar um minuto ou mais.
           </div>
         }
         @if (error(); as e) {

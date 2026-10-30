@@ -46,6 +46,10 @@ export interface CvDraft {
    * 'keywords': a IA não estava disponível; só se detetaram competências por palavras-chave.
    */
   source: 'ai' | 'keywords';
+  /** Quem leu o CV, ex.: "Ollama · qwen2.5:7b" ou "xAI · grok-…". null sem IA. */
+  analyzedBy: string | null;
+  /** true se o CV foi enviado para um serviço externo (IA na cloud). */
+  sentToExternalService: boolean;
   warnings: string[];
 }
 

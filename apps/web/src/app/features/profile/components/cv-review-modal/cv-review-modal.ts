@@ -74,6 +74,12 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
         <div class="small text-body-secondary">
           Escolhe o que entra no teu perfil. Podes corrigir o texto aqui ou
           editar tudo mais tarde.
+          @if (draft.analyzedBy) {
+            <span class="d-block"
+              ><i class="bi bi-stars me-1"></i>Lido por
+              {{ draft.analyzedBy }}</span
+            >
+          }
         </div>
       </div>
       <button
@@ -85,6 +91,13 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
     </div>
 
     <div class="modal-body vstack gap-4">
+      @if (draft.sentToExternalService) {
+        <div class="alert alert-info py-2 mb-0 small">
+          <i class="bi bi-cloud-arrow-up me-1"></i>O CV foi enviado para um
+          serviço de IA externo para ser lido. Os dados não ficam guardados no
+          DevStart EI até confirmares a importação.
+        </div>
+      }
       @for (w of draft.warnings; track w) {
         <div class="alert alert-warning py-2 mb-0 small">
           <i class="bi bi-exclamation-triangle me-1"></i>{{ w }}

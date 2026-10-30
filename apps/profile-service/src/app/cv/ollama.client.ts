@@ -1,29 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Env } from '../config/env';
-
-/** A IA não está disponível (desligada, Ollama parado, modelo em falta, timeout). */
-export class LlmUnavailableError extends Error {}
-
-export interface StructuredChatRequest {
-  system: string;
-  user: string;
-  /** JSON Schema da resposta: o Ollama obriga o modelo a respeitá-lo. */
-  schema: object;
-}
+import {
+  LlmUnavailableError,
+  StructuredChatRequest,
+  StructuredLlm,
+} from './llm';
 
 /**
  * Cliente mínimo da API do Ollama (POST /api/chat), com saída estruturada.
  * https://github.com/ollama/ollama/blob/main/docs/api.md
  */
 @Injectable()
-export class OllamaClient {
+export class OllamaClient implements StructuredLlm {
+  readonly remote = false;
+
   private readonly logger = new Logger(OllamaClient.name);
 
   constructor(private readonly config: ConfigService<Env, true>) {}
 
-  get enabled(): boolean {
-    return !!this.config.get('OLLAMA_URL', { infer: true });
+  get label(): string {
+    return `Ollama · ${this.model}`;
   }
 
   get model(): string {

@@ -35,6 +35,8 @@ const DRAFT: CvDraft = {
   unmatchedSkills: [],
   projects: [],
   source: 'ai',
+  analyzedBy: 'Ollama · teste',
+  sentToExternalService: false,
   warnings: [],
 };
 

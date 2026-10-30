@@ -7,6 +7,7 @@ import {
 import {
   ConflictException,
   HttpException,
+  Inject,
   HttpStatus,
   Injectable,
   Logger,
@@ -30,7 +31,7 @@ import { toProjectFields } from '../projects/projects.service';
 import { CV_EXTRACTION_SCHEMA, CV_SYSTEM_PROMPT } from './cv-extraction.schema';
 import { keywordOnlyDraft, normalizeCvExtraction } from './cv-normalize';
 import { extractCvText } from './cv-text';
-import { LlmUnavailableError, OllamaClient } from './ollama.client';
+import { LlmUnavailableError, STRUCTURED_LLM, StructuredLlm } from './llm';
 
 /**
  * Importação do CV.
@@ -49,7 +50,7 @@ export class CvService {
   private readonly analyzing = new Set<string>();
 
   constructor(
-    private readonly llm: OllamaClient,
+    @Inject(STRUCTURED_LLM) private readonly llm: StructuredLlm,
     private readonly catalog: CatalogService,
     private readonly background: BackgroundService,
     private readonly profile: ProfileService,
@@ -72,11 +73,19 @@ export class CvService {
           user: `CV:\n"""\n${text}\n"""`,
           schema: CV_EXTRACTION_SCHEMA,
         });
-        return normalizeCvExtraction(raw, text, COMPETENCIES);
+        return {
+          ...normalizeCvExtraction(raw, text, COMPETENCIES),
+          analyzedBy: this.llm.label,
+          sentToExternalService: this.llm.remote,
+        };
       } catch (err) {
         if (!(err instanceof LlmUnavailableError)) throw err;
         this.logger.warn(`CV analisado sem IA: ${err.message}`);
-        return keywordOnlyDraft(text, COMPETENCIES, err.message);
+        // Mesmo sem resposta útil, o CV pode ter sido enviado (ex.: chave errada).
+        return {
+          ...keywordOnlyDraft(text, COMPETENCIES, err.message),
+          sentToExternalService: this.llm.remote,
+        };
       }
     } finally {
       this.analyzing.delete(userId);
