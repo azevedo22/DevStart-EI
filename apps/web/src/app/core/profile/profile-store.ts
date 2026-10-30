@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import {
   CvDraft,
+  CvReaderInfo,
   Education,
   Experience,
   ImportCvRequest,
@@ -22,7 +23,18 @@ import {
   SaveProjectRequest,
   UpdateProfileRequest,
 } from '@devstart/shared-types';
-import { Observable, finalize, forkJoin, map, switchMap, tap } from 'rxjs';
+import {
+  Observable,
+  catchError,
+  defer,
+  finalize,
+  forkJoin,
+  map,
+  of,
+  shareReplay,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { API_BASE_URL } from '../config/api.config';
 import { ApiError } from '../http/error.interceptor';
@@ -164,6 +176,17 @@ export class ProfileStore {
   }
 
   // ── Importação do CV ────────────────────────────────────────
+
+  /**
+   * Que IA vai ler o CV (e se é um serviço externo). Pedido uma vez por sessão:
+   * só muda se o servidor for reconfigurado.
+   */
+  readonly cvReader$ = defer(() =>
+    this.http.get<CvReaderInfo>(`${this.base}/profile/cv/reader`),
+  ).pipe(
+    catchError(() => of(null)),
+    shareReplay({ bufferSize: 1, refCount: false }),
+  );
 
   /** Envia o CV para análise. Não grava nada: devolve o rascunho para rever. */
   analyzeCv(file: File): Observable<CvDraft> {

@@ -1,10 +1,16 @@
 /// <reference types="multer" />
-import { CV_LIMITS, CvDraft, Profile } from '@devstart/shared-types';
+import {
+  CV_LIMITS,
+  CvDraft,
+  CvReaderInfo,
+  Profile,
+} from '@devstart/shared-types';
 import { CurrentUserId, RequireUserGuard } from '@devstart/backend-common';
 import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -20,6 +26,12 @@ import { ImportCvDto } from './dto/import-cv.dto';
 @UseGuards(RequireUserGuard)
 export class CvController {
   constructor(private readonly cv: CvService) {}
+
+  /** Que IA vai ler o CV e se é um serviço externo: mostrado antes do envio. */
+  @Get('reader')
+  reader(): CvReaderInfo {
+    return this.cv.reader();
+  }
 
   /**
    * Recebe o CV (multipart, campo "file") e devolve o rascunho extraído.

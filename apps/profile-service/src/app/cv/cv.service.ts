@@ -1,5 +1,6 @@
 import {
   CvDraft,
+  CvReaderInfo,
   ImportCvRequest,
   PROFILE_LIMITS,
   Profile,
@@ -56,6 +57,14 @@ export class CvService {
     private readonly profile: ProfileService,
     @InjectDataSource() private readonly db: DataSource,
   ) {}
+
+  /** Quem lê o CV, para o frontend avisar antes do envio. */
+  reader(): CvReaderInfo {
+    return {
+      label: this.llm.label,
+      externalProvider: this.llm.remote ? this.llm.provider : null,
+    };
+  }
 
   async analyze(userId: string, file: Buffer): Promise<CvDraft> {
     if (this.analyzing.has(userId)) {

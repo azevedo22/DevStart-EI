@@ -63,6 +63,17 @@ export interface ImportCvRequest {
   projects?: SaveProjectRequest[];
 }
 
+/**
+ * Quem vai ler o CV, mostrado ANTES do envio, para o utilizador decidir
+ * informado (GET /profile/cv/reader).
+ */
+export interface CvReaderInfo {
+  /** Ex.: "Groq · openai/gpt-oss-20b" ou "Ollama · qwen2.5:7b". */
+  label: string;
+  /** Empresa do serviço externo (ex.: "Groq"); null se a IA é local. */
+  externalProvider: string | null;
+}
+
 export const CV_LIMITS = {
   maxFileBytes: 5 * 1024 * 1024,
   /** Texto enviado ao modelo: um CV longo raramente passa disto. */

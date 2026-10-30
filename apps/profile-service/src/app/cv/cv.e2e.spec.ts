@@ -138,6 +138,18 @@ describeDb('Importação do CV (e2e)', () => {
       .set('x-user-id', ANA)
       .attach('file', file, name);
 
+  it('GET /profile/cv/reader: com o Ollama, a IA é local', async () => {
+    const { body } = await http
+      .get('/api/profile/cv/reader')
+      .set('x-user-id', ANA)
+      .expect(200);
+    expect(body).toEqual({
+      label: 'Ollama · modelo-de-teste',
+      externalProvider: null,
+    });
+    await http.get('/api/profile/cv/reader').expect(401);
+  });
+
   describe('POST /profile/cv/analyze', () => {
     it('lê o PDF, envia o texto ao modelo com o esquema e devolve o rascunho', async () => {
       const { body } = await analyze(PDF).expect(200);

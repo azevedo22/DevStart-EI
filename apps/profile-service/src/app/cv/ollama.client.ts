@@ -14,6 +14,7 @@ import {
 @Injectable()
 export class OllamaClient implements StructuredLlm {
   readonly remote = false;
+  readonly provider = 'Ollama';
 
   private readonly logger = new Logger(OllamaClient.name);
 

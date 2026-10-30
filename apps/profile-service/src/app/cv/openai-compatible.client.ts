@@ -46,6 +46,10 @@ export class OpenAiCompatibleClient implements StructuredLlm {
     this.logger = new Logger(`IA:${s.name}`);
   }
 
+  get provider(): string {
+    return this.s.name;
+  }
+
   get label(): string {
     return `${this.s.name} · ${this.s.model}`;
   }

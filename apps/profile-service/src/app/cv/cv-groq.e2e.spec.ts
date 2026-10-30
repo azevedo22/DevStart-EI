@@ -104,6 +104,19 @@ describeDb('Leitura do CV com a Groq (e2e)', () => {
       .set('x-user-id', ANA)
       .attach('file', PDF, 'cv.pdf');
 
+  it('antes do envio, diz que o CV vai para um serviço externo (Groq)', async () => {
+    const { body } = await http
+      .get('/api/profile/cv/reader')
+      .set('x-user-id', ANA)
+      .expect(200);
+    expect(body).toEqual({
+      label: 'Groq · modelo-groq',
+      externalProvider: 'Groq',
+    });
+    // Nunca expõe a chave.
+    expect(JSON.stringify(body)).not.toContain('gsk_');
+  });
+
   it('lê o CV com o esquema estrito e diz que foi a Groq', async () => {
     const { body } = await analyze().expect(200);
     expect(formats).toEqual(['json_schema']);

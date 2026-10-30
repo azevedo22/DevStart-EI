@@ -18,6 +18,8 @@ export interface StructuredLlm {
   readonly label: string;
   /** true se o CV sai do computador (fornecedor na cloud). */
   readonly remote: boolean;
+  /** Nome do fornecedor, ex.: "Groq", "Ollama". */
+  readonly provider: string;
   chatJson(req: StructuredChatRequest): Promise<unknown>;
   /** Confirma que a IA está pronta (ligação, chave, modelo) sem enviar dados. */
   checkReady(): Promise<void>;

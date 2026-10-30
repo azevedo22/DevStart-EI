@@ -1,4 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Component, DestroyRef, inject, input, signal } from '@angular/core';
 import { CV_LIMITS } from '@devstart/shared-types';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
@@ -36,6 +37,9 @@ import { CvReviewModal } from '../cv-review-modal/cv-review-modal';
           </div>
           <ng-container *ngTemplateOutlet="action" />
         </div>
+        <div class="px-4 pb-3 mt-n2">
+          <ng-container *ngTemplateOutlet="notice" />
+        </div>
         <ng-container *ngTemplateOutlet="feedback" />
       </section>
     } @else {
@@ -46,8 +50,29 @@ import { CvReviewModal } from '../cv-review-modal/cv-review-modal';
         <span class="me-auto">Tens um CV mais recente?</span>
         <ng-container *ngTemplateOutlet="action" />
       </div>
+      <div class="mt-1">
+        <ng-container *ngTemplateOutlet="notice" />
+      </div>
       <ng-container *ngTemplateOutlet="feedback" />
     }
+
+    <!-- Aviso ANTES do envio: o utilizador sabe para onde vai o CV. -->
+    <ng-template #notice>
+      @if (reader(); as r) {
+        <p class="small mb-0 text-body-secondary">
+          @if (r.externalProvider) {
+            <i class="bi bi-cloud-arrow-up me-1"></i>O CV é enviado para a
+            <strong>{{ r.externalProvider }}</strong
+            >, um serviço de IA externo, para ser lido ({{ r.label }}). Nada
+            entra no teu perfil sem confirmares, e o ficheiro não fica guardado
+            no DevStart EI.
+          } @else {
+            <i class="bi bi-shield-lock me-1"></i>O CV é lido por uma IA no teu
+            computador ({{ r.label }}) e não é enviado para fora.
+          }
+        </p>
+      }
+    </ng-template>
 
     <ng-template #action>
       <button
@@ -120,6 +145,10 @@ export class CvImport {
   readonly prominent = input(false);
 
   protected readonly accept = CV_LIMITS.acceptedExtensions.join(',');
+  /** Que IA vai ler o CV, para o aviso antes do envio. */
+  protected readonly reader = toSignal(this.store.cvReader$, {
+    initialValue: null,
+  });
   protected readonly analyzing = signal(false);
   protected readonly elapsed = signal(0);
   protected readonly error = signal<string | null>(null);
