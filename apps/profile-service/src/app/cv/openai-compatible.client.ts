@@ -107,9 +107,14 @@ export class OpenAiCompatibleClient implements StructuredLlm {
     // Nunca se regista o corpo do pedido (tem o CV) nem a chave.
     this.logger.warn(`xAI respondeu ${res.status}: ${detail.slice(0, 300)}`);
 
-    if (res.status === 401 || res.status === 403) {
+    // A xAI responde 400 (e não 401) a uma chave errada: decide-se pelo texto.
+    if (
+      res.status === 401 ||
+      res.status === 403 ||
+      /api[ _-]?key|unauthori[sz]ed|authenticat/i.test(detail)
+    ) {
       return new LlmUnavailableError(
-        'A chave da xAI foi recusada. Confirma XAI_API_KEY no .env.',
+        'A chave da xAI foi recusada. Confirma XAI_API_KEY no .env (sem aspas nem espaços) ou gera uma nova em https://console.x.ai.',
       );
     }
     if (res.status === 429) {
@@ -129,7 +134,38 @@ export class OpenAiCompatibleClient implements StructuredLlm {
             : ' Define XAI_MODEL no .env.'),
       );
     }
-    return new LlmUnavailableError(`A xAI respondeu com erro ${res.status}.`);
+    return new LlmUnavailableError(
+      `A xAI respondeu com erro ${res.status}${providerMessage(detail)}.`,
+    );
+  }
+
+  /** Confirma a chave e o modelo sem enviar nenhum CV (usado no arranque). */
+  async checkReady(): Promise<void> {
+    const key = this.config.get('XAI_API_KEY', { infer: true });
+    if (!key) {
+      throw new LlmUnavailableError('falta XAI_API_KEY no .env.');
+    }
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/models`, {
+        headers: { authorization: `Bearer ${key}` },
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch {
+      throw new LlmUnavailableError(
+        `não foi possível ligar à API da xAI (${this.baseUrl}).`,
+      );
+    }
+    if (!res.ok) throw await this.explain(res, key);
+    const body = (await res.json()) as { data?: { id: string }[] };
+    const models = (body.data ?? []).map((m) => m.id);
+    if (models.length && !models.includes(this.model)) {
+      throw new LlmUnavailableError(
+        `o modelo "${this.model}" não existe na xAI. Modelos disponíveis: ${models
+          .slice(0, 12)
+          .join(', ')}. Define XAI_MODEL no .env.`,
+      );
+    }
   }
 
   private async listModels(key: string): Promise<string[]> {
@@ -164,4 +200,18 @@ export function toStrictSchema(schema: object): object {
     return out;
   };
   return visit(schema) as object;
+}
+
+/** A mensagem de erro do fornecedor, se vier no formato habitual ({ error }). */
+function providerMessage(detail: string): string {
+  try {
+    const body = JSON.parse(detail) as {
+      error?: string | { message?: string };
+    };
+    const text =
+      typeof body.error === 'string' ? body.error : body.error?.message;
+    return text ? `: ${text.slice(0, 200)}` : '';
+  } catch {
+    return '';
+  }
 }

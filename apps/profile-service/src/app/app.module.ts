@@ -12,6 +12,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { CvController } from './cv/cv.controller';
 import { CvService } from './cv/cv.service';
 import { STRUCTURED_LLM } from './cv/llm';
+import { LlmStartupCheck } from './cv/llm-startup-check';
 import { OllamaClient } from './cv/ollama.client';
 import { OpenAiCompatibleClient } from './cv/openai-compatible.client';
 import type { Env } from './config/env';
@@ -67,6 +68,7 @@ import { SkillGapController } from './skill-gap/skill-gap.controller';
     CvService,
     OllamaClient,
     OpenAiCompatibleClient,
+    LlmStartupCheck,
     // A IA que lê os CVs escolhe-se no .env (LLM_PROVIDER).
     {
       provide: STRUCTURED_LLM,

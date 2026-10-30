@@ -18,7 +18,7 @@ const ANA = '11111111-1111-4111-8111-111111111111';
 const PDF = readFileSync(join(__dirname, 'fixtures/cv-exemplo.pdf'));
 const KEY = 'xai-chave-de-teste';
 
-type Mode = 'ok' | 'bad-key' | 'unknown-model' | 'rate-limit';
+type Mode = 'ok' | 'bad-key' | 'bad-key-400' | 'unknown-model' | 'rate-limit';
 
 describeDb('Leitura do CV com a xAI (e2e)', () => {
   let app: INestApplication;
@@ -34,10 +34,23 @@ describeDb('Leitura do CV com a xAI (e2e)', () => {
       for await (const c of req) chunks.push(c as Buffer);
       res.setHeader('content-type', 'application/json');
 
-      if (req.url === '/v1/models') {
+      // Resposta real da xAI a uma chave errada: 400, não 401.
+      if (mode === 'bad-key-400') {
+        res.statusCode = 400;
         return res.end(
-          JSON.stringify({ data: [{ id: 'grok-a' }, { id: 'grok-b' }] }),
+          JSON.stringify({
+            code: 'invalid-argument',
+            error:
+              'Incorrect API key provided. You can obtain an API key from https://console.x.ai.',
+          }),
         );
+      }
+      if (req.url === '/v1/models') {
+        const ids =
+          mode === 'unknown-model'
+            ? ['grok-a', 'grok-b']
+            : ['grok-a', 'grok-b', 'grok-teste'];
+        return res.end(JSON.stringify({ data: ids.map((id) => ({ id })) }));
       }
       last = {
         path: req.url,
@@ -158,6 +171,11 @@ describeDb('Leitura do CV com a xAI (e2e)', () => {
   it.each([
     ['chave recusada', 'bad-key', /chave da xAI foi recusada/],
     [
+      'chave errada (a xAI responde 400)',
+      'bad-key-400',
+      /chave da xAI foi recusada/,
+    ],
+    [
       'limite ou falta de saldo',
       'rate-limit',
       /limite de utilização ou falta de saldo/,
@@ -177,5 +195,27 @@ describeDb('Leitura do CV com a xAI (e2e)', () => {
     expect(body.warnings[0]).toMatch(
       /"grok-teste" não existe.*grok-a, grok-b.*XAI_MODEL/,
     );
+  });
+
+  describe('verificação no arranque', () => {
+    const check = async () => {
+      const { LlmStartupCheck } = await import('./llm-startup-check');
+      return app.get(LlmStartupCheck).check();
+    };
+
+    it('chave e modelo certos: pronta', async () => {
+      expect(await check()).toBe(true);
+    });
+
+    it('modelo que a conta não tem: indisponível', async () => {
+      mode = 'unknown-model';
+      expect(await check()).toBe(false);
+    });
+
+    it('chave errada: indisponível, sem enviar nenhum CV', async () => {
+      mode = 'bad-key-400';
+      expect(await check()).toBe(false);
+      expect(last.path).toBeUndefined();
+    });
   });
 });

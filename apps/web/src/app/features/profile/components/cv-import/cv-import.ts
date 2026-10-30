@@ -84,8 +84,18 @@ import { CvReviewModal } from '../cv-review-modal/cv-review-modal';
           </div>
         }
         @if (done(); as d) {
-          <div class="alert alert-success py-2 small mb-0" role="status">
-            <i class="bi bi-check-circle me-1"></i>{{ d }}
+          <div
+            class="alert py-2 small mb-0"
+            [class.alert-success]="!withoutAi()"
+            [class.alert-warning]="withoutAi()"
+            role="status"
+          >
+            <i
+              class="bi me-1"
+              [class.bi-check-circle]="!withoutAi()"
+              [class.bi-exclamation-triangle]="withoutAi()"
+            ></i
+            >{{ d }}
           </div>
         }
       </div>
@@ -114,6 +124,8 @@ export class CvImport {
   protected readonly elapsed = signal(0);
   protected readonly error = signal<string | null>(null);
   protected readonly done = signal<string | null>(null);
+  /** A última importação foi feita sem IA (só palavras-chave). */
+  protected readonly withoutAi = signal(false);
 
   private timer: ReturnType<typeof setInterval> | null = null;
 
@@ -163,10 +175,15 @@ export class CvImport {
             this.store.projects(),
           );
           ref.result.then(
-            (count: number) =>
+            (count: number) => {
+              const items = `${count} ${count === 1 ? 'item' : 'itens'}`;
               this.done.set(
-                `Importado: ${count} ${count === 1 ? 'item' : 'itens'}. Revê o perfil abaixo.`,
-              ),
+                draft.source === 'ai'
+                  ? `Importado: ${items}. Revê o perfil abaixo.`
+                  : `Importado: ${items}, sem IA (só competências e links). ${draft.warnings[0] ?? ''}`,
+              );
+              this.withoutAi.set(draft.source !== 'ai');
+            },
             () => undefined,
           );
         },

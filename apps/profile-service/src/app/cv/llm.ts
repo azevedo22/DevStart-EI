@@ -19,6 +19,8 @@ export interface StructuredLlm {
   /** true se o CV sai do computador (fornecedor na cloud). */
   readonly remote: boolean;
   chatJson(req: StructuredChatRequest): Promise<unknown>;
+  /** Confirma que a IA está pronta (ligação, chave, modelo) sem enviar dados. */
+  checkReady(): Promise<void>;
 }
 
 export const STRUCTURED_LLM = Symbol('STRUCTURED_LLM');

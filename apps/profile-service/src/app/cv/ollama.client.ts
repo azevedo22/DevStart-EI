@@ -88,4 +88,31 @@ export class OllamaClient implements StructuredLlm {
       throw new LlmUnavailableError('A IA devolveu uma resposta inválida.');
     }
   }
+
+  /** Confirma que o Ollama responde e que o modelo está instalado. */
+  async checkReady(): Promise<void> {
+    const base = this.config.get('OLLAMA_URL', { infer: true });
+    if (!base)
+      throw new LlmUnavailableError('a IA está desligada (OLLAMA_URL vazio).');
+    let tags: { models?: { name: string }[] };
+    try {
+      const res = await fetch(`${base.replace(/\/$/, '')}/api/tags`, {
+        signal: AbortSignal.timeout(5_000),
+      });
+      tags = (await res.json()) as typeof tags;
+    } catch {
+      throw new LlmUnavailableError(`o Ollama não está a correr em ${base}.`);
+    }
+    const names = (tags.models ?? []).map((m) => m.name);
+    // "qwen2.5:7b" também pode estar instalado como "qwen2.5:7b-instruct...": aceita o prefixo.
+    const wanted = this.model.includes(':')
+      ? this.model
+      : `${this.model}:latest`;
+    if (!names.some((n) => n === wanted || n.startsWith(this.model))) {
+      throw new LlmUnavailableError(
+        `o modelo "${this.model}" não está instalado. Corre: ollama pull ${this.model}` +
+          (names.length ? ` (instalados: ${names.join(', ')})` : ''),
+      );
+    }
+  }
 }
