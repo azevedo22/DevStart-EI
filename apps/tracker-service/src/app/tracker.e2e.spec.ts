@@ -437,6 +437,43 @@ describeDb('Application Tracker Service (e2e)', () => {
     });
   });
 
+  describe('experiência pedida', () => {
+    it('guarda a lista sem linhas vazias e devolve-a', async () => {
+      const a = await create({
+        experienceRequirements: [
+          '  2 anos com APIs REST  ',
+          '',
+          'Trabalho em equipas Agile',
+        ],
+      });
+      expect(a.experienceRequirements).toEqual([
+        '2 anos com APIs REST',
+        'Trabalho em equipas Agile',
+      ]);
+      const { body } = await ana.get(`/api/applications/${a.id}`).expect(200);
+      expect(body.experienceRequirements).toHaveLength(2);
+    });
+
+    it('sem o campo, fica uma lista vazia', async () => {
+      expect((await create()).experienceRequirements).toEqual([]);
+    });
+
+    it('recusa itens demasiado longos ou demasiados itens', async () => {
+      await ana
+        .post('/api/applications', {
+          ...JOB,
+          experienceRequirements: ['x'.repeat(201)],
+        })
+        .expect(400);
+      await ana
+        .post('/api/applications', {
+          ...JOB,
+          experienceRequirements: Array.from({ length: 11 }, (_, i) => `e${i}`),
+        })
+        .expect(400);
+    });
+  });
+
   describe('atividade por dia (relatório semanal)', () => {
     const WEEK = '?from=2026-10-26&to=2026-11-01';
     const db = () => app.get(DataSource);

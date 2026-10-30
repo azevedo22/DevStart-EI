@@ -10,7 +10,7 @@ import {
   WORK_MODES,
   WorkMode,
 } from '@devstart/shared-types';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayUnique,
@@ -82,6 +82,24 @@ export class SaveApplicationDto implements SaveApplicationRequest {
   @Min(0)
   @Max(30)
   yearsRequired?: number | null;
+
+  /** Linhas vazias saem; espaços nas pontas também. */
+  @IsOptional()
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value
+          .map((v) => (typeof v === 'string' ? v.trim() : v))
+          .filter((v) => v !== '')
+      : value,
+  )
+  @IsArray()
+  @ArrayMaxSize(APPLICATION_LIMITS.experienceItems)
+  @IsString({ each: true })
+  @MaxLength(APPLICATION_LIMITS.experienceItem, {
+    each: true,
+    message: `Cada experiência pedida tem até ${APPLICATION_LIMITS.experienceItem} caracteres.`,
+  })
+  experienceRequirements?: string[];
 
   @IsIn(SENIORITIES, { message: 'Senioridade inválida.' })
   seniority!: Seniority;

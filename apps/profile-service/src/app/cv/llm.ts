@@ -1,6 +1,7 @@
 /**
- * Contrato comum aos fornecedores de IA que leem CVs (Ollama local, xAI...).
- * O CvService só conhece isto; o fornecedor escolhe-se com LLM_PROVIDER.
+ * Contrato comum aos fornecedores de IA (Ollama local, Groq, xAI) que leem
+ * CVs e anúncios de emprego. Os serviços só conhecem isto; o fornecedor
+ * escolhe-se com LLM_PROVIDER.
  */
 
 /** A IA não está disponível (desligada, parada, chave inválida, modelo em falta, timeout). */
@@ -11,6 +12,10 @@ export interface StructuredChatRequest {
   user: string;
   /** JSON Schema da resposta: o fornecedor obriga o modelo a respeitá-lo. */
   schema: object;
+  /** Nome do esquema (a API da OpenAI exige um), ex.: "cv_extraction". */
+  name: string;
+  /** O que se leu, para os registos: "CV", "anúncio". */
+  what: string;
 }
 
 export interface StructuredLlm {

@@ -49,6 +49,8 @@ export interface JobApplication {
   position: number; // ordem dentro da coluna (0 = topo)
   requiredCompetencyIds: string[]; // ids do catálogo do Profile Service
   yearsRequired: number | null;
+  /** Que experiência a vaga pede, por palavras do anúncio. */
+  experienceRequirements: string[];
   seniority: Seniority;
   /** Calculada pelo servidor a partir de yearsRequired e seniority; nunca enviada pelo cliente. */
   accessibility: Accessibility;
@@ -79,6 +81,7 @@ export interface SaveApplicationRequest {
   workMode: WorkMode;
   requiredCompetencyIds: string[];
   yearsRequired?: number | null;
+  experienceRequirements?: string[];
   seniority: Seniority;
   appliedAt: string;
   notes?: string | null;
@@ -161,6 +164,9 @@ export const APPLICATION_LIMITS = {
   url: 500,
   notes: 4000,
   competencies: 30,
+  /** Tipos de experiência pedidos ("2 anos com APIs REST", "trabalho em equipas Agile"). */
+  experienceItems: 10,
+  experienceItem: 200,
   applicationsPerUser: 500,
   interviewsPerApplication: 20,
   questions: 30,

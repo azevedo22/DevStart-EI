@@ -31,7 +31,7 @@ export class LlmStartupCheck implements OnApplicationBootstrap {
   async check(): Promise<boolean> {
     try {
       await this.llm.checkReady();
-      this.logger.log(`IA pronta para ler CVs: ${this.llm.label}.`);
+      this.logger.log(`IA pronta para ler CVs e anúncios: ${this.llm.label}.`);
       return true;
     } catch (err) {
       this.logger.warn(

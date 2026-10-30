@@ -62,6 +62,14 @@ export class ApplicationEntity {
   @Column({ name: 'years_required', type: 'smallint', nullable: true })
   yearsRequired!: number | null;
 
+  @Column({
+    name: 'experience_requirements',
+    type: 'text',
+    array: true,
+    default: () => "'{}'",
+  })
+  experienceRequirements!: string[];
+
   @Column({ type: 'varchar', length: 16 })
   seniority!: Seniority;
 

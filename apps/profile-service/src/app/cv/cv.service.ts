@@ -81,6 +81,8 @@ export class CvService {
           system: CV_SYSTEM_PROMPT,
           user: `CV:\n"""\n${text}\n"""`,
           schema: CV_EXTRACTION_SCHEMA,
+          name: 'cv_extraction',
+          what: 'CV',
         });
         return {
           ...normalizeCvExtraction(raw, text, COMPETENCIES),

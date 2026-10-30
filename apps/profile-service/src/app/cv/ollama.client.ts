@@ -81,7 +81,7 @@ export class OllamaClient implements StructuredLlm {
 
     const body = (await res.json()) as { message?: { content?: string } };
     this.logger.log(
-      `CV lido por ${this.model} em ${((Date.now() - started) / 1000).toFixed(1)} s.`,
+      `${req.what} lido por ${this.model} em ${((Date.now() - started) / 1000).toFixed(1)} s.`,
     );
     try {
       return JSON.parse(body.message?.content ?? '');

@@ -90,9 +90,7 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
           <dl class="row small mb-0">
             <dt class="col-5 text-body-secondary fw-normal">Senioridade</dt>
             <dd class="col-7 mb-1">{{ seniorityLabels[d.seniority] }}</dd>
-            <dt class="col-5 text-body-secondary fw-normal">
-              Experiência pedida
-            </dt>
+            <dt class="col-5 text-body-secondary fw-normal">Anos pedidos</dt>
             <dd class="col-7 mb-1">
               {{
                 d.yearsRequired === null
@@ -110,6 +108,16 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
             <dt class="col-5 text-body-secondary fw-normal">Candidatura</dt>
             <dd class="col-7 mb-1">{{ d.appliedAt | date: 'd MMM y' }}</dd>
           </dl>
+          @if (d.experienceRequirements.length) {
+            <div class="small">
+              <div class="text-body-secondary mb-1">Experiência pedida</div>
+              <ul class="mb-0 ps-3">
+                @for (e of d.experienceRequirements; track $index) {
+                  <li>{{ e }}</li>
+                }
+              </ul>
+            </div>
+          }
           @if (d.jobUrl) {
             <a
               [href]="d.jobUrl"

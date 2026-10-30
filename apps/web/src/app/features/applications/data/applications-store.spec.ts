@@ -29,6 +29,7 @@ const card = (
   position,
   requiredCompetencyIds: [],
   yearsRequired: null,
+  experienceRequirements: [],
   seniority: 'JUNIOR',
   accessibility: 'ENTRY_FRIENDLY',
   mislabeledJunior: false,

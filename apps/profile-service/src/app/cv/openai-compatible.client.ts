@@ -63,7 +63,7 @@ export class OpenAiCompatibleClient implements StructuredLlm {
     const strict = {
       type: 'json_schema',
       json_schema: {
-        name: 'cv_extraction',
+        name: req.name,
         strict: true,
         schema: toStrictSchema(req.schema),
       },
@@ -97,11 +97,11 @@ export class OpenAiCompatibleClient implements StructuredLlm {
     };
     const message = body.choices?.[0]?.message;
     this.logger.log(
-      `CV lido por ${this.s.model} (${body.usage?.prompt_tokens ?? '?'} + ` +
+      `${req.what} lido por ${this.s.model} (${body.usage?.prompt_tokens ?? '?'} + ` +
         `${body.usage?.completion_tokens ?? '?'} tokens).`,
     );
     if (message?.refusal) {
-      throw new LlmUnavailableError('A IA recusou-se a ler este documento.');
+      throw new LlmUnavailableError(`A IA recusou-se a ler este ${req.what}.`);
     }
     try {
       return JSON.parse(message?.content ?? '');

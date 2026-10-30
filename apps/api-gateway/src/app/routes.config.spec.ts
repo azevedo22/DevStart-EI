@@ -7,6 +7,7 @@ describe('gateway routes', () => {
     ['/api/v1/auth/login', 'auth-service'],
     ['/api/v1/stacks', 'profile-service'],
     ['/api/v1/skill-gap/preview', 'profile-service'],
+    ['/api/v1/jobs/analyze', 'profile-service'],
     ['/api/v1/applications/123/status', 'tracker-service'],
   ])('%s → %s', (path, service) => {
     expect(resolveRoute(path, routes)?.service).toBe(service);

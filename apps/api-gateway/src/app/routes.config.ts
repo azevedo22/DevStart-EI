@@ -22,7 +22,14 @@ export function buildRoutes(
     {
       service: 'profile-service',
       target: env['PROFILE_SERVICE_URL'] ?? 'http://localhost:3002',
-      prefixes: ['profile', 'projects', 'competencies', 'stacks', 'skill-gap'],
+      prefixes: [
+        'profile',
+        'projects',
+        'competencies',
+        'stacks',
+        'skill-gap',
+        'jobs',
+      ],
     },
     {
       service: 'tracker-service',

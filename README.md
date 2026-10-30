@@ -190,6 +190,27 @@ formação, experiência, línguas, competências e projetos.
 Para usar: com o Ollama, instalar o modelo (`ollama pull qwen2.5:7b`, ou outro definido em
 `OLLAMA_MODEL`); com a Groq ou a xAI, pôr `LLM_PROVIDER` e a respetiva chave (`GROQ_API_KEY`, `XAI_API_KEY`) no `.env`.
 
+### Analisar anúncios com IA
+
+Em _Nova candidatura_, o utilizador cola o texto do anúncio e carrega em **Analisar**. A mesma IA que
+lê os CVs preenche **empresa, título da vaga, senioridade, anos e tipos de experiência pedidos e
+competências**, e ainda a modalidade e a localização quando o anúncio as indica. Nada é gravado até
+carregar em guardar.
+
+- **`POST /jobs/analyze`** (Profile Service, que tem o catálogo): o texto vai com um JSON Schema
+  estrito e instruções para usar só o que está no anúncio. O texto do anúncio é tratado como dados, e a
+  resposta é validada e cortada (`job-normalize.ts`): senioridade e modalidade só de valores
+  permitidos, anos entre 0 e 30, experiência sem repetidos.
+- **Competências ligadas ao catálogo.** Cada tecnologia indicada pela IA é procurada no catálogo; as que
+  não existem lá aparecem à parte ("Também pede: Jira"). Não se junta a procura por palavras no texto
+  inteiro quando a IA respondeu, porque apanha falsos positivos (uma empresa chamada "Lumen Cloud"
+  não pede Cloud).
+- **Experiência pedida** é um campo novo da candidatura (lista de frases curtas), editável no formulário
+  e visível no detalhe.
+- **Funciona sem IA:** se a IA não responder, a análise segue pelas regras de palavras-chave de antes
+  (senioridade, anos e competências) e o formulário diz porquê, sem apagar o que já estava escrito.
+- **Aviso antes de enviar:** com a Groq ou a xAI, o formulário diz que o texto vai para esse serviço.
+
 ### Contas de demonstração
 
 O botão _Experimentar sem registo_ cria uma conta temporária por visitante, já preenchida, para quem
@@ -320,6 +341,7 @@ Para publicar num servidor com domínio e HTTPS, ver [docs/deploy.md](docs/deplo
 | `PUT`                 | `/api/v1/profile/languages`                   | Substitui a lista de línguas 🔒                                                                         |
 | `POST`                | `/api/v1/profile/cv/analyze`                  | Lê o CV (multipart) e devolve um rascunho, sem gravar 🔒                                                |
 | `POST`                | `/api/v1/profile/cv/import`                   | Grava o que o utilizador escolheu do rascunho 🔒                                                        |
+| `POST`                | `/api/v1/jobs/analyze`                        | Lê o texto de um anúncio com IA e devolve os campos da candidatura, sem gravar 🔒                       |
 | `PUT`                 | `/api/v1/profile/competencies/:id`            | Declara uma competência ou muda o nível 🔒                                                              |
 | `DELETE`              | `/api/v1/profile/competencies/:id`            | Remove uma competência do perfil 🔒                                                                     |
 | `GET`                 | `/api/v1/projects`                            | Projetos do utilizador 🔒                                                                               |
@@ -370,6 +392,7 @@ apps/web/src/app/
 - [x] Rate limiting partilhado em Redis, revogação de tokens e cache HTTP do catálogo
 - [x] Objetivo diário nos dias úteis (1 / 2 / 3) e relatório semanal com gráfico por dia
 - [x] Importação do CV com IA local (Ollama) e ficha com formação, experiência, línguas e links
+- [x] Análise de anúncios com IA: empresa, título, senioridade, experiência e competências
 - [x] Contas de demonstração temporárias, preenchidas por evento e apagadas ao fim de 24 horas
 
 ## Autor
