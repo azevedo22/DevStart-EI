@@ -61,3 +61,18 @@ body {
 .offcanvas.detail-panel {
   --bs-offcanvas-width: min(32rem, 100vw);
 }
+
+/*
+ * Modais com scroll (ng-bootstrap, scrollable: true). O Bootstrap só faz o
+ * corpo rolar quando cabeçalho, corpo e rodapé são filhos diretos de
+ * .modal-content. Nos nossos, estão dentro do componente e de um <form>:
+ * esses dois passam também a colunas flex que podem encolher, e assim o
+ * corpo rola e o rodapé (com o botão de guardar) fica sempre visível.
+ */
+.modal-dialog-scrollable .modal-content > *,
+.modal-dialog-scrollable .modal-content > * > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
