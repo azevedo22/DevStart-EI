@@ -21,28 +21,39 @@ export class Env {
   /**
    * Que IA lê os CVs:
    * - ollama: modelo local, gratuito, o CV não sai do computador.
-   * - xai: API da xAI (Grok), compatível com a da OpenAI. Mais rápida e melhor,
-   *   mas paga e o CV é enviado para a xAI.
+   * - groq: API da Groq (modelos abertos, muito rápida). Paga/limitada; o CV é enviado.
+   * - xai: API da xAI (Grok). Paga; o CV é enviado.
+   * Atenção: Groq (com q) e Grok (com k, da xAI) são coisas diferentes.
    */
-  @IsIn(['ollama', 'xai'])
-  LLM_PROVIDER: 'ollama' | 'xai' = 'ollama';
+  @IsIn(['ollama', 'groq', 'xai'])
+  LLM_PROVIDER: 'ollama' | 'groq' | 'xai' = 'ollama';
 
-  /** Chave da API da xAI. Fica só no .env (nunca no Git). */
+  /** Tempo máximo de resposta das IAs na cloud (Groq, xAI). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(5_000)
+  @Max(600_000)
+  CLOUD_LLM_TIMEOUT_MS = 60_000;
+
+  // Groq. As chaves começam por "gsk_". Modelos: GET {GROQ_BASE_URL}/models.
+  @IsString()
+  GROQ_API_KEY = '';
+
+  @IsString()
+  GROQ_MODEL = 'openai/gpt-oss-20b';
+
+  @IsString()
+  GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
+
+  // xAI (Grok). As chaves começam por "xai-". Modelos: GET {XAI_BASE_URL}/models.
   @IsString()
   XAI_API_KEY = '';
 
-  /** Modelo da xAI. A lista de modelos disponíveis está em GET {XAI_BASE_URL}/models. */
   @IsString()
   XAI_MODEL = 'grok-4-fast-non-reasoning';
 
   @IsString()
   XAI_BASE_URL = 'https://api.x.ai/v1';
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(5_000)
-  @Max(600_000)
-  XAI_TIMEOUT_MS = 60_000;
 
   /**
    * Ollama (modelo de linguagem local) para ler CVs. Vazio desliga a IA: a

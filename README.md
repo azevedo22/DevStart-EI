@@ -147,15 +147,17 @@ formação, experiência, línguas, competências e projetos.
   com temperatura 0. Mesmo assim, a resposta é tratada como texto não confiável: datas, anos, links e
   níveis são validados e normalizados (`cv-normalize.ts`), e as tecnologias são mapeadas para o
   catálogo com a mesma deteção por palavras-chave da análise de vagas.
-- **Dois fornecedores, escolhidos no `.env`.** `LLM_PROVIDER=ollama` (local, gratuito, o CV não sai
-  do computador) ou `LLM_PROVIDER=xai` (Grok, pela API compatível com a da OpenAI: mais rápido e
-  preciso, mas pago, e o CV é enviado para a xAI; a revisão avisa o utilizador). O resto do código
-  só conhece a interface `StructuredLlm`.
+- **Três fornecedores, escolhidos no `.env`.** `LLM_PROVIDER=ollama` (local, gratuito, o CV não sai
+  do computador), `groq` ou `xai` (APIs compatíveis com a da OpenAI: mais rápidas e precisas, mas o
+  CV é enviado; a revisão avisa o utilizador). Se um modelo não aceitar o esquema estrito, o cliente
+  repete em modo JSON simples. No arranque, o serviço confirma a chave e o modelo, e deteta chaves
+  trocadas entre fornecedores (Groq e Grok confundem-se muito). O resto do código só conhece a
+  interface `StructuredLlm`.
 - **Funciona sem IA.** Se o Ollama estiver parado ou o modelo não estiver instalado, a análise
   devolve o que as palavras-chave encontram (competências e links) e diz porquê.
 
 Para usar: com o Ollama, instalar o modelo (`ollama pull qwen2.5:7b`, ou outro definido em
-`OLLAMA_MODEL`); com a xAI, pôr `LLM_PROVIDER=xai` e `XAI_API_KEY` no `.env`.
+`OLLAMA_MODEL`); com a Groq ou a xAI, pôr `LLM_PROVIDER` e a respetiva chave (`GROQ_API_KEY`, `XAI_API_KEY`) no `.env`.
 
 ### Contas de demonstração
 

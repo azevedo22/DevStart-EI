@@ -111,6 +111,8 @@ services:
       REDIS_URL: redis://redis:6379
       # Ollama a correr no computador (fora do Docker), para ler CVs.
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
       XAI_API_KEY: ${XAI_API_KEY:-}
       XAI_MODEL: ${XAI_MODEL:-grok-4-fast-non-reasoning}
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}

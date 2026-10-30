@@ -1,83 +1,91 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Env } from '../config/env';
+import { Logger } from '@nestjs/common';
 import {
   LlmUnavailableError,
   StructuredChatRequest,
   StructuredLlm,
 } from './llm';
 
+/** Definições de um fornecedor compatível com a API da OpenAI. */
+export interface OpenAiCompatibleSettings {
+  /** Nome para mensagens, ex.: "xAI", "Groq". */
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  timeoutMs: number;
+  /** Variáveis do .env, para as mensagens de erro dizerem o que mudar. */
+  keyVar: string;
+  modelVar: string;
+  /** Onde se gera uma chave. */
+  consoleUrl: string;
+  /** Prefixo das chaves deste fornecedor (ex.: "xai-", "gsk_"), para detetar trocas. */
+  keyPrefix: string;
+}
+
+/** Prefixos conhecidos: uma chave de um fornecedor usada noutro é um erro comum. */
+const KNOWN_PREFIXES: Record<string, string> = {
+  'xai-': 'xAI (LLM_PROVIDER=xai, XAI_API_KEY)',
+  gsk_: 'Groq (LLM_PROVIDER=groq, GROQ_API_KEY)',
+  'sk-': 'OpenAI',
+};
+
 /**
  * Cliente para APIs compatíveis com a da OpenAI (POST /chat/completions), com
- * saída estruturada via response_format: json_schema. Usado para a xAI (Grok);
- * o mesmo código serve outros fornecedores compatíveis mudando o URL base.
+ * saída estruturada (response_format: json_schema, modo estrito). Serve a xAI
+ * (Grok) e a Groq; outro fornecedor compatível é só mais um conjunto de
+ * definições.
+ *
+ * Se o modelo não suportar json_schema, repete uma vez em modo json_object,
+ * com o esquema nas instruções: a resposta é validada depois na mesma.
  */
-@Injectable()
 export class OpenAiCompatibleClient implements StructuredLlm {
   readonly remote = true;
-  private readonly logger = new Logger(OpenAiCompatibleClient.name);
+  private readonly logger: Logger;
 
-  constructor(private readonly config: ConfigService<Env, true>) {}
-
-  get label(): string {
-    return `xAI · ${this.model}`;
+  constructor(private readonly s: OpenAiCompatibleSettings) {
+    this.logger = new Logger(`IA:${s.name}`);
   }
 
-  private get model(): string {
-    return this.config.get('XAI_MODEL', { infer: true });
+  get label(): string {
+    return `${this.s.name} · ${this.s.model}`;
   }
 
   private get baseUrl(): string {
-    return this.config.get('XAI_BASE_URL', { infer: true }).replace(/\/$/, '');
+    return this.s.baseUrl.replace(/\/$/, '');
   }
 
   async chatJson(req: StructuredChatRequest): Promise<unknown> {
-    const key = this.config.get('XAI_API_KEY', { infer: true });
-    if (!key) {
-      throw new LlmUnavailableError(
-        'Falta a chave da xAI: define XAI_API_KEY no .env.',
-      );
-    }
+    this.assertKey();
+    const strict = {
+      type: 'json_schema',
+      json_schema: {
+        name: 'cv_extraction',
+        strict: true,
+        schema: toStrictSchema(req.schema),
+      },
+    };
+    let res = await this.post(req.system, req.user, strict);
 
-    const started = Date.now();
-    let res: Response;
-    try {
-      res = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${key}`,
-        },
-        signal: AbortSignal.timeout(
-          this.config.get('XAI_TIMEOUT_MS', { infer: true }),
-        ),
-        body: JSON.stringify({
-          model: this.model,
-          temperature: 0,
-          messages: [
-            { role: 'system', content: req.system },
-            { role: 'user', content: req.user },
-          ],
-          response_format: {
-            type: 'json_schema',
-            json_schema: {
-              name: 'cv_extraction',
-              strict: true,
-              schema: toStrictSchema(req.schema),
-            },
-          },
-        }),
-      });
-    } catch (err) {
-      if ((err as Error).name === 'TimeoutError') {
-        throw new LlmUnavailableError('A xAI demorou demasiado a responder.');
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      if (
+        res.status === 400 &&
+        /json_schema|response_format|structured/i.test(detail)
+      ) {
+        this.logger.warn(
+          `${this.s.model} não aceita json_schema; a repetir em modo json_object.`,
+        );
+        const system = `${req.system}\n\nResponde APENAS com um objeto JSON que siga este JSON Schema:\n${JSON.stringify(req.schema)}`;
+        res = await this.post(system, req.user, { type: 'json_object' });
+        if (!res.ok)
+          throw await this.explain(
+            res.status,
+            await res.text().catch(() => ''),
+          );
+      } else {
+        throw await this.explain(res.status, detail);
       }
-      throw new LlmUnavailableError(
-        `Não foi possível ligar à API da xAI (${this.baseUrl}).`,
-      );
     }
-
-    if (!res.ok) throw await this.explain(res, key);
 
     const body = (await res.json()) as {
       choices?: { message?: { content?: string; refusal?: string } }[];
@@ -85,8 +93,8 @@ export class OpenAiCompatibleClient implements StructuredLlm {
     };
     const message = body.choices?.[0]?.message;
     this.logger.log(
-      `CV lido por ${this.model} em ${((Date.now() - started) / 1000).toFixed(1)} s ` +
-        `(${body.usage?.prompt_tokens ?? '?'} + ${body.usage?.completion_tokens ?? '?'} tokens).`,
+      `CV lido por ${this.s.model} (${body.usage?.prompt_tokens ?? '?'} + ` +
+        `${body.usage?.completion_tokens ?? '?'} tokens).`,
     );
     if (message?.refusal) {
       throw new LlmUnavailableError('A IA recusou-se a ler este documento.');
@@ -98,87 +106,139 @@ export class OpenAiCompatibleClient implements StructuredLlm {
     }
   }
 
+  /** Confirma a chave e o modelo sem enviar nenhum CV (usado no arranque). */
+  async checkReady(): Promise<void> {
+    this.assertKey();
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/models`, {
+        headers: { authorization: `Bearer ${this.s.apiKey}` },
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch {
+      throw new LlmUnavailableError(
+        `não foi possível ligar à API da ${this.s.name} (${this.baseUrl}).`,
+      );
+    }
+    if (!res.ok) {
+      throw await this.explain(res.status, await res.text().catch(() => ''));
+    }
+    const models = await this.modelsFrom(res);
+    if (models.length && !models.includes(this.s.model)) {
+      throw new LlmUnavailableError(
+        `o modelo "${this.s.model}" não existe na ${this.s.name}. ` +
+          `Modelos disponíveis: ${models.slice(0, 15).join(', ')}. Define ${this.s.modelVar} no .env.`,
+      );
+    }
+  }
+
+  // ── Auxiliares ──────────────────────────────────────────────
+
+  private post(system: string, user: string, responseFormat: object) {
+    return fetch(`${this.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${this.s.apiKey}`,
+      },
+      signal: AbortSignal.timeout(this.s.timeoutMs),
+      body: JSON.stringify({
+        model: this.s.model,
+        temperature: 0,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        response_format: responseFormat,
+      }),
+    }).catch((err: Error) => {
+      throw new LlmUnavailableError(
+        err.name === 'TimeoutError'
+          ? `A ${this.s.name} demorou demasiado a responder.`
+          : `Não foi possível ligar à API da ${this.s.name} (${this.baseUrl}).`,
+      );
+    });
+  }
+
+  /** Falta de chave, ou chave de outro fornecedor: erro claro antes de qualquer pedido. */
+  private assertKey(): void {
+    if (!this.s.apiKey) {
+      throw new LlmUnavailableError(
+        `falta a chave da ${this.s.name}: define ${this.s.keyVar} no .env.`,
+      );
+    }
+    if (!this.s.apiKey.startsWith(this.s.keyPrefix)) {
+      const owner = Object.entries(KNOWN_PREFIXES).find(([p]) =>
+        this.s.apiKey.startsWith(p),
+      )?.[1];
+      if (owner) {
+        throw new LlmUnavailableError(
+          `esta chave parece ser da ${owner}, não da ${this.s.name}. ` +
+            `As chaves da ${this.s.name} começam por "${this.s.keyPrefix}".`,
+        );
+      }
+    }
+  }
+
   /** Transforma a resposta de erro numa mensagem que diz o que fazer. */
   private async explain(
-    res: Response,
-    key: string,
+    status: number,
+    detail: string,
   ): Promise<LlmUnavailableError> {
-    const detail = await res.text().catch(() => '');
     // Nunca se regista o corpo do pedido (tem o CV) nem a chave.
-    this.logger.warn(`xAI respondeu ${res.status}: ${detail.slice(0, 300)}`);
+    this.logger.warn(`respondeu ${status}: ${detail.slice(0, 300)}`);
 
-    // A xAI responde 400 (e não 401) a uma chave errada: decide-se pelo texto.
+    // A xAI responde 400 (e não 401) a uma chave errada: decide-se também pelo texto.
     if (
-      res.status === 401 ||
-      res.status === 403 ||
+      status === 401 ||
+      status === 403 ||
       /api[ _-]?key|unauthori[sz]ed|authenticat/i.test(detail)
     ) {
       return new LlmUnavailableError(
-        'A chave da xAI foi recusada. Confirma XAI_API_KEY no .env (sem aspas nem espaços) ou gera uma nova em https://console.x.ai.',
+        `A chave da ${this.s.name} foi recusada. Confirma ${this.s.keyVar} no .env ` +
+          `(sem aspas nem espaços) ou gera uma nova em ${this.s.consoleUrl}.`,
       );
     }
-    if (res.status === 429) {
+    if (status === 429) {
       return new LlmUnavailableError(
-        'A xAI recusou o pedido por limite de utilização ou falta de saldo.',
+        `A ${this.s.name} recusou o pedido por limite de utilização ou falta de saldo.`,
       );
     }
     if (
       /model/i.test(detail) &&
-      /not (found|exist)|invalid|does not/i.test(detail)
+      /not (found|exist)|invalid|does not|decommissioned/i.test(detail)
     ) {
-      const models = await this.listModels(key);
+      const models = await this.listModels();
       return new LlmUnavailableError(
-        `O modelo "${this.model}" não existe na xAI.` +
+        `O modelo "${this.s.model}" não existe na ${this.s.name}.` +
           (models.length
-            ? ` Modelos disponíveis: ${models.join(', ')}. Define XAI_MODEL no .env.`
-            : ' Define XAI_MODEL no .env.'),
+            ? ` Modelos disponíveis: ${models.slice(0, 15).join(', ')}.`
+            : '') +
+          ` Define ${this.s.modelVar} no .env.`,
       );
     }
     return new LlmUnavailableError(
-      `A xAI respondeu com erro ${res.status}${providerMessage(detail)}.`,
+      `A ${this.s.name} respondeu com erro ${status}${providerMessage(detail)}.`,
     );
   }
 
-  /** Confirma a chave e o modelo sem enviar nenhum CV (usado no arranque). */
-  async checkReady(): Promise<void> {
-    const key = this.config.get('XAI_API_KEY', { infer: true });
-    if (!key) {
-      throw new LlmUnavailableError('falta XAI_API_KEY no .env.');
-    }
-    let res: Response;
-    try {
-      res = await fetch(`${this.baseUrl}/models`, {
-        headers: { authorization: `Bearer ${key}` },
-        signal: AbortSignal.timeout(10_000),
-      });
-    } catch {
-      throw new LlmUnavailableError(
-        `não foi possível ligar à API da xAI (${this.baseUrl}).`,
-      );
-    }
-    if (!res.ok) throw await this.explain(res, key);
-    const body = (await res.json()) as { data?: { id: string }[] };
-    const models = (body.data ?? []).map((m) => m.id);
-    if (models.length && !models.includes(this.model)) {
-      throw new LlmUnavailableError(
-        `o modelo "${this.model}" não existe na xAI. Modelos disponíveis: ${models
-          .slice(0, 12)
-          .join(', ')}. Define XAI_MODEL no .env.`,
-      );
-    }
-  }
-
-  private async listModels(key: string): Promise<string[]> {
+  private async listModels(): Promise<string[]> {
     try {
       const res = await fetch(`${this.baseUrl}/models`, {
-        headers: { authorization: `Bearer ${key}` },
+        headers: { authorization: `Bearer ${this.s.apiKey}` },
         signal: AbortSignal.timeout(10_000),
       });
-      const body = (await res.json()) as { data?: { id: string }[] };
-      return (body.data ?? []).map((m) => m.id).slice(0, 12);
+      return this.modelsFrom(res);
     } catch {
       return [];
     }
+  }
+
+  private async modelsFrom(res: Response): Promise<string[]> {
+    const body = (await res.json().catch(() => ({}))) as {
+      data?: { id: string }[];
+    };
+    return (body.data ?? []).map((m) => m.id).sort();
   }
 }
 

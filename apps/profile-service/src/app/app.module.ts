@@ -14,7 +14,7 @@ import { CvService } from './cv/cv.service';
 import { STRUCTURED_LLM } from './cv/llm';
 import { LlmStartupCheck } from './cv/llm-startup-check';
 import { OllamaClient } from './cv/ollama.client';
-import { OpenAiCompatibleClient } from './cv/openai-compatible.client';
+import { createLlm } from './cv/llm-factory';
 import type { Env } from './config/env';
 import { validateEnv } from './config/env';
 import { DatabaseModule } from './database/database.module';
@@ -67,18 +67,13 @@ import { SkillGapController } from './skill-gap/skill-gap.controller';
     BackgroundService,
     CvService,
     OllamaClient,
-    OpenAiCompatibleClient,
     LlmStartupCheck,
     // A IA que lê os CVs escolhe-se no .env (LLM_PROVIDER).
     {
       provide: STRUCTURED_LLM,
-      inject: [ConfigService, OllamaClient, OpenAiCompatibleClient],
-      useFactory: (
-        config: ConfigService<Env, true>,
-        ollama: OllamaClient,
-        xai: OpenAiCompatibleClient,
-      ) =>
-        config.get('LLM_PROVIDER', { infer: true }) === 'xai' ? xai : ollama,
+      inject: [ConfigService, OllamaClient],
+      useFactory: (config: ConfigService<Env, true>, ollama: OllamaClient) =>
+        createLlm(config, ollama),
     },
     ProjectsService,
     DemoProfileSeeder,
