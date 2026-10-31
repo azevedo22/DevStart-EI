@@ -6,6 +6,7 @@
  * (POST /api/chat) e regista o pedido, para se verificar o que lhe é enviado.
  * Corre com TEST_DATABASE_URL; sem ele, é ignorado.
  */
+import { configureApp } from '@devstart/backend-common';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { readFileSync } from 'node:fs';
@@ -107,7 +108,6 @@ describeDb('Importação do CV (e2e)', () => {
       OLLAMA_MODEL: 'modelo-de-teste',
     });
     const { AppModule } = await import('../app.module');
-    const { configureApp } = await import('@devstart/backend-common');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

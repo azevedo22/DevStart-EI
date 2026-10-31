@@ -8,7 +8,11 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { redisTestUrl } from '@devstart/backend-common';
+import {
+  EVENTS_STREAM,
+  redisTestUrl,
+  revokedUserKey,
+} from '@devstart/backend-common';
 
 const TEST_DATABASE_URL = process.env['TEST_DATABASE_URL'];
 const describeDb = TEST_DATABASE_URL ? describe : describe.skip;
@@ -278,7 +282,6 @@ describeDb('Auth Service (e2e)', () => {
       'publica o evento no Redis, marca-o como publicado e revoga os tokens',
       async () => {
         const { OutboxRelay } = await import('../outbox/outbox-relay');
-        const { EVENTS_STREAM } = await import('@devstart/backend-common');
         const Redis = (await import('ioredis')).default;
         const redis = new Redis(TEST_REDIS_URL);
         await redis.del(EVENTS_STREAM);
@@ -289,7 +292,6 @@ describeDb('Auth Service (e2e)', () => {
 
         const entries = await redis.xrange(EVENTS_STREAM, '-', '+');
         // Os access tokens já emitidos ficam revogados até expirarem.
-        const { revokedUserKey } = await import('@devstart/backend-common');
         const ttl = await redis.ttl(revokedUserKey(body.user.id));
         await redis.quit();
         expect(ttl).toBeGreaterThan(0);

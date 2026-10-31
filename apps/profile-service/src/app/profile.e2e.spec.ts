@@ -4,6 +4,7 @@
  *
  * A identidade chega no cabeçalho x-user-id, tal como o gateway a envia.
  */
+import { configureApp, createEvent } from '@devstart/backend-common';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -37,7 +38,6 @@ describeDb('Profile & Skill Service (e2e)', () => {
       REDIS_URL: '',
     });
     const { AppModule } = await import('./app.module');
-    const { configureApp } = await import('@devstart/backend-common');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -384,7 +384,6 @@ describeDb('Profile & Skill Service (e2e)', () => {
     const deleted = async (userId: string) => {
       const { UserEventsSubscriber } =
         await import('./events/user-events.subscriber');
-      const { createEvent } = await import('@devstart/backend-common');
       await app
         .get(UserEventsSubscriber)
         .onUserDeleted(createEvent('user.deleted', { userId }));
@@ -593,7 +592,6 @@ describeDb('Profile & Skill Service (e2e)', () => {
       });
       const { UserEventsSubscriber } =
         await import('./events/user-events.subscriber');
-      const { createEvent } = await import('@devstart/backend-common');
       await app
         .get(UserEventsSubscriber)
         .onUserDeleted(createEvent('user.deleted', { userId: ANA }));

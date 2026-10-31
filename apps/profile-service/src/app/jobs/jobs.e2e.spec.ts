@@ -3,6 +3,7 @@
  * leva o anúncio e um esquema estrito; a resposta é normalizada e ligada ao
  * catálogo; sem IA, a análise segue por palavras-chave.
  */
+import { configureApp } from '@devstart/backend-common';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createServer, IncomingMessage, Server } from 'node:http';
@@ -93,7 +94,6 @@ describeDb('Análise de anúncios com IA (e2e)', () => {
       GROQ_BASE_URL: `http://127.0.0.1:${port}/openai/v1`,
     });
     const { AppModule } = await import('../app.module');
-    const { configureApp } = await import('@devstart/backend-common');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

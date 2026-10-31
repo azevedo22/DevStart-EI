@@ -2,6 +2,7 @@
  * Vagas do ITJobs.pt: recolha (com um ITJobs e uma Groq falsos) e o feed de
  * cada utilizador, com filtros, compatibilidade com o perfil e vagas novas.
  */
+import { configureApp } from '@devstart/backend-common';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createServer, IncomingMessage, Server } from 'node:http';
@@ -169,7 +170,6 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
       JOB_SYNC_AI_PER_RUN: '10',
     });
     const { AppModule } = await import('../app.module');
-    const { configureApp } = await import('@devstart/backend-common');
     const { JobSyncService } = await import('./job-sync.service');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],

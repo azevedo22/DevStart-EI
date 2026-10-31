@@ -72,14 +72,16 @@ export class OutboxRelay implements OnApplicationBootstrap, OnModuleDestroy {
 
   /** Publica o que estiver pendente. Devolve quantos eventos publicou. */
   flush(): Promise<number> {
-    if (!this.publisher) return Promise.resolve(0);
+    const publisher = this.publisher;
+    if (!publisher) return Promise.resolve(0);
     // Um flush de cada vez nesta instância; o seguinte espera pelo atual.
-    this.flushing ??= this.doFlush().finally(() => (this.flushing = null));
+    this.flushing ??= this.doFlush(publisher).finally(
+      () => (this.flushing = null),
+    );
     return this.flushing;
   }
 
-  private async doFlush(): Promise<number> {
-    const publisher = this.publisher!;
+  private async doFlush(publisher: EventPublisher): Promise<number> {
     return this.db.transaction(async (em) => {
       const rows: PendingRow[] = await em.query(
         `SELECT id, type, payload, occurred_at FROM outbox_events

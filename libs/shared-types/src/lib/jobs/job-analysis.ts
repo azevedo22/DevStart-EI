@@ -197,10 +197,8 @@ export function detectYearsRequired(text: string): number | null {
   let max: number | null = null;
   for (const m of text.matchAll(YEARS)) {
     // Só conta quando fala de experiência por perto (evita "empresa com 20 anos").
-    const around = text.slice(
-      Math.max(0, m.index! - 60),
-      m.index! + m[0].length + 60,
-    );
+    const at = m.index ?? 0;
+    const around = text.slice(Math.max(0, at - 60), at + m[0].length + 60);
     if (
       !/experi[êe]nc|experience|working with|a trabalhar|in a similar/i.test(
         around,

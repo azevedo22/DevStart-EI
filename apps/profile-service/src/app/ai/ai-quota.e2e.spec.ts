@@ -3,6 +3,7 @@
  * Sem IA configurada (OLLAMA_URL vazio) a análise segue por palavras-chave,
  * mas conta na mesma: o que se limita são os pedidos de análise.
  */
+import { configureApp } from '@devstart/backend-common';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -32,7 +33,6 @@ describeDb('Quota de IA (e2e)', () => {
       AI_DAILY_LIMIT: '3',
     });
     const { AppModule } = await import('../app.module');
-    const { configureApp } = await import('@devstart/backend-common');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

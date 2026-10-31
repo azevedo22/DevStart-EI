@@ -57,6 +57,10 @@ jobs:
       # Em PRs só corre o que foi afetado pela alteração; no main corre tudo.
       - uses: nrwl/nx-set-shas@v4
 
+      # Avisos também falham: assim não se acumulam sem ninguém ver.
+      - name: Lint
+        run: npx nx affected -t lint --base=$NX_BASE --head=$NX_HEAD -- --max-warnings=0
+
       - name: Testes (unitários + e2e)
         run: npx nx affected -t test --base=$NX_BASE --head=$NX_HEAD
 

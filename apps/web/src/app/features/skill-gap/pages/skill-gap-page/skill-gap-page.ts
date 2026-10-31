@@ -75,16 +75,25 @@ export class SkillGapPage {
   /** Entrada do cálculo, conforme o modo: perfil guardado ou formulário. */
   private readonly input = computed(() => {
     if (this.mode() === 'profile') return this.store.gapInput();
-    const skills = (this.formValue().skills ?? []).filter(
-      (s) => !!s.competencyId,
+    // Só as linhas já preenchidas; uma linha nova começa em "Básico".
+    const skills = (this.formValue().skills ?? []).flatMap((s) =>
+      s.competencyId
+        ? [
+            {
+              competencyId: s.competencyId,
+              level: s.level ?? ('BASIC' as Level),
+              hasProject: !!s.hasProject,
+            },
+          ]
+        : [],
     );
     return {
-      competencies: skills.map((s) => ({
-        competencyId: s.competencyId!,
-        level: s.level!,
+      competencies: skills.map(({ competencyId, level }) => ({
+        competencyId,
+        level,
       })),
       withProjects: new Set(
-        skills.filter((s) => s.hasProject).map((s) => s.competencyId!),
+        skills.filter((s) => s.hasProject).map((s) => s.competencyId),
       ),
     };
   });

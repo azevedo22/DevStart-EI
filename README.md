@@ -358,6 +358,7 @@ Outros comandos:
 ```bash
 npm run start:backend  # só os serviços
 npm test               # testes de todos os projetos
+npm run lint           # ESLint em todos os projetos (avisos também falham)
 TEST_DATABASE_URL=postgres://devstart:devstart@localhost:5432/devstart_test \
 TEST_REDIS_URL=redis://localhost:6379 npm test
                        # inclui os testes e2e contra PostgreSQL e Redis (ignorados sem estas variáveis)

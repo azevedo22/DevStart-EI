@@ -2,6 +2,7 @@
  * Leitura do CV com LLM_PROVIDER=groq: o mesmo cliente compatível com a API da
  * OpenAI, com as definições da Groq. Servidor falso, como no teste da xAI.
  */
+import { configureApp } from '@devstart/backend-common';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { readFileSync } from 'node:fs';
@@ -78,7 +79,6 @@ describeDb('Leitura do CV com a Groq (e2e)', () => {
       GROQ_BASE_URL: `http://127.0.0.1:${port}/openai/v1`,
     });
     const { AppModule } = await import('../app.module');
-    const { configureApp } = await import('@devstart/backend-common');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

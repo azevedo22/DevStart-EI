@@ -2,6 +2,7 @@
  * Testes e2e do Application Tracker Service contra um PostgreSQL real.
  * Correm quando TEST_DATABASE_URL está definido; sem ele, são ignorados.
  */
+import { configureApp, createEvent } from '@devstart/backend-common';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ApplicationBoard, JobApplication } from '@devstart/shared-types';
@@ -53,7 +54,6 @@ describeDb('Application Tracker Service (e2e)', () => {
       REDIS_URL: '',
     });
     const { AppModule } = await import('./app.module');
-    const { configureApp } = await import('@devstart/backend-common');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -705,7 +705,6 @@ describeDb('Application Tracker Service (e2e)', () => {
     const deleted = async (userId: string) => {
       const { UserEventsSubscriber } =
         await import('./events/user-events.subscriber');
-      const { createEvent } = await import('@devstart/backend-common');
       await app
         .get(UserEventsSubscriber)
         .onUserDeleted(createEvent('user.deleted', { userId }));

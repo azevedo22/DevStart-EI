@@ -3,6 +3,7 @@
  * com a da OpenAI (POST /chat/completions). O servidor da xAI é falso: regista
  * o pedido e responde como a API verdadeira, incluindo os erros.
  */
+import { configureApp } from '@devstart/backend-common';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { readFileSync } from 'node:fs';
@@ -110,7 +111,6 @@ describeDb('Leitura do CV com a xAI (e2e)', () => {
       XAI_BASE_URL: `http://127.0.0.1:${port}/v1`,
     });
     const { AppModule } = await import('../app.module');
-    const { configureApp } = await import('@devstart/backend-common');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

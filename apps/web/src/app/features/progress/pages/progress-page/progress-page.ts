@@ -119,8 +119,9 @@ function typeLabel(e: ActivityEvent): string {
  */
 export function reflections(r: WeeklyReport): string[] {
   const out: string[] = [];
-  const apps = r.goals.find((g) => g.id === 'applications')!;
-  const days = r.goals.find((g) => g.id === 'goal-days')!;
+  const apps = r.goals.find((g) => g.id === 'applications');
+  const days = r.goals.find((g) => g.id === 'goal-days');
+  if (!apps || !days) return out;
 
   if (apps.done) {
     out.push(`Objetivo da semana cumprido: ${apps.value} candidaturas.`);

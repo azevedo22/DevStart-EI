@@ -1,4 +1,5 @@
 /** Foto de perfil: carregar, ler, trocar, apagar e o que se recusa. */
+import { configureApp } from '@devstart/backend-common';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -31,7 +32,6 @@ describeDb('Foto de perfil (e2e)', () => {
       REDIS_URL: '',
     });
     const { AppModule } = await import('../app.module');
-    const { configureApp } = await import('@devstart/backend-common');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

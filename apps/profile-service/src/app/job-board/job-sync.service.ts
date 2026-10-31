@@ -231,9 +231,7 @@ export class JobSyncService
         String(job.id),
         job.title.slice(0, 200),
         (job.company?.name ?? 'Empresa não indicada').slice(0, 160),
-        /^https:\/\//.test(job.company?.logo ?? '')
-          ? job.company!.logo!.slice(0, 500)
-          : null,
+        httpsOrNull(job.company?.logo, 500),
         jobUrl(job).slice(0, 500),
         (job.locations ?? []).map((l) => l.name),
         (job.locations ?? []).map((l) => l.id),
@@ -308,4 +306,12 @@ function parseDate(s: string | undefined): Date | null {
   if (!s || !/^\d{4}-\d{2}-\d{2}/.test(s)) return null;
   const d = new Date(s.replace(' ', 'T'));
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Só aceita endereços https (o logo vai para um <img> na página). */
+function httpsOrNull(
+  url: string | null | undefined,
+  max: number,
+): string | null {
+  return url && /^https:\/\//.test(url) ? url.slice(0, max) : null;
 }

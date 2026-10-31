@@ -196,13 +196,11 @@ export class CompetenciesPanel {
     return CATEGORY_ORDER.filter((cat) => byCategory.has(cat)).map((cat) => ({
       category: cat,
       label: CATEGORY_LABELS[cat],
-      items: byCategory
-        .get(cat)!
-        .sort((a, b) =>
-          this.catalog
-            .nameOf(a.competencyId)
-            .localeCompare(this.catalog.nameOf(b.competencyId)),
-        ),
+      items: (byCategory.get(cat) ?? []).sort((a, b) =>
+        this.catalog
+          .nameOf(a.competencyId)
+          .localeCompare(this.catalog.nameOf(b.competencyId)),
+      ),
     }));
   });
 
