@@ -6,6 +6,7 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { ApiError } from '../../../../core/http/error.interceptor';
 import { ProfileStore } from '../../../../core/profile/profile-store';
 import { FieldError } from '../../../../shared/forms/field-error';
+import { ProfilePhoto } from '../profile-photo/profile-photo';
 
 /** Só http(s): os links são mostrados como <a href> (nunca "javascript:"). */
 const URL_VALIDATORS = [
@@ -16,37 +17,47 @@ const URL_VALIDATORS = [
 /** Cabeçalho do perfil: nome, título, instituição, localização, links e apresentação. */
 @Component({
   selector: 'ds-profile-info',
-  imports: [ReactiveFormsModule, FieldError],
+  imports: [ReactiveFormsModule, FieldError, ProfilePhoto],
   template: `
     <section class="card border-0 shadow-sm">
       <div class="card-body p-4">
         @if (!editing()) {
           <div class="d-flex justify-content-between align-items-start gap-3">
-            <div>
-              <h1 class="h3 mb-1">{{ auth.user()?.fullName }}</h1>
-              <p
-                class="mb-1"
-                [class.text-body-secondary]="!profile()?.headline"
-              >
-                {{ profile()?.headline || 'Ainda sem título profissional' }}
-              </p>
-              <div class="d-flex flex-wrap gap-3 small text-body-secondary">
-                @if (educationLine(); as line) {
-                  <span><i class="bi bi-mortarboard me-1"></i>{{ line }}</span>
-                }
-                @if (profile()?.location; as location) {
-                  <span><i class="bi bi-geo-alt me-1"></i>{{ location }}</span>
-                }
-              </div>
-              @if (links().length) {
-                <div class="d-flex flex-wrap gap-3 small mt-2">
-                  @for (l of links(); track l.url) {
-                    <a [href]="l.url" target="_blank" rel="noopener noreferrer"
-                      ><i class="bi {{ l.icon }} me-1"></i>{{ l.label }}</a
+            <div class="d-flex flex-wrap align-items-start gap-4">
+              <ds-profile-photo />
+              <div>
+                <h1 class="h3 mb-1">{{ auth.user()?.fullName }}</h1>
+                <p
+                  class="mb-1"
+                  [class.text-body-secondary]="!profile()?.headline"
+                >
+                  {{ profile()?.headline || 'Ainda sem título profissional' }}
+                </p>
+                <div class="d-flex flex-wrap gap-3 small text-body-secondary">
+                  @if (educationLine(); as line) {
+                    <span
+                      ><i class="bi bi-mortarboard me-1"></i>{{ line }}</span
+                    >
+                  }
+                  @if (profile()?.location; as location) {
+                    <span
+                      ><i class="bi bi-geo-alt me-1"></i>{{ location }}</span
                     >
                   }
                 </div>
-              }
+                @if (links().length) {
+                  <div class="d-flex flex-wrap gap-3 small mt-2">
+                    @for (l of links(); track l.url) {
+                      <a
+                        [href]="l.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        ><i class="bi {{ l.icon }} me-1"></i>{{ l.label }}</a
+                      >
+                    }
+                  </div>
+                }
+              </div>
             </div>
             <button
               type="button"

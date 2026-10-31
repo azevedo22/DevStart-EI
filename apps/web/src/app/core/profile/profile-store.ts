@@ -54,12 +54,16 @@ export class ProfileStore {
   private readonly auth = inject(AuthService);
 
   private readonly _profile = signal<Profile | null>(null);
+  /** A foto como URL local (blob:): um <img> não envia o token de sessão. */
+  private readonly _photoUrl = signal<string | null>(null);
+  private photoFor: string | null = null;
   private readonly _projects = signal<Project[]>([]);
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
   private loadedFor: string | null = null;
 
   readonly profile = this._profile.asReadonly();
+  readonly photoUrl = this._photoUrl.asReadonly();
   readonly projects = this._projects.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
@@ -92,8 +96,46 @@ export class ProfileStore {
       const userId = this.auth.user()?.id ?? null;
       untracked(() => {
         if (userId !== this.loadedFor) this.reset();
+        // A foto aparece no menu: pede-se logo ao entrar na sessão.
+        if (userId !== this.photoFor) {
+          this.setPhoto(null);
+          this.photoFor = userId;
+          if (userId) this.loadPhoto();
+        }
       });
     });
+  }
+
+  // ── Foto de perfil ──────────────────────────────────────────
+
+  private loadPhoto(): void {
+    this.http
+      .get(`${this.base}/profile/photo`, { responseType: 'blob' })
+      .subscribe({
+        next: (blob) => this.setPhoto(blob),
+        error: () => this.setPhoto(null), // 404: ainda sem foto
+      });
+  }
+
+  /** Envia a foto já preparada (ver prepare-photo.ts). */
+  uploadPhoto(photo: Blob): Observable<void> {
+    const form = new FormData();
+    form.append('file', photo, 'foto.jpg');
+    return this.http
+      .put<void>(`${this.base}/profile/photo`, form)
+      .pipe(tap(() => this.setPhoto(photo)));
+  }
+
+  removePhoto(): Observable<void> {
+    return this.http
+      .delete<void>(`${this.base}/profile/photo`)
+      .pipe(tap(() => this.setPhoto(null)));
+  }
+
+  private setPhoto(blob: Blob | null): void {
+    const previous = this._photoUrl();
+    this._photoUrl.set(blob ? URL.createObjectURL(blob) : null);
+    if (previous) URL.revokeObjectURL(previous);
   }
 
   /** Carrega uma vez por sessão; `force` volta a pedir. */

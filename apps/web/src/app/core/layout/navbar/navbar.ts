@@ -3,6 +3,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgbCollapse, NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { JobFeedStore } from '../../../features/job-feed/data/job-feed-store';
 import { AuthService } from '../../auth/auth.service';
+import { ProfileStore } from '../../profile/profile-store';
 
 @Component({
   selector: 'ds-navbar',
@@ -56,10 +57,18 @@ import { AuthService } from '../../auth/auth.service';
                     class="btn btn-light btn-sm d-flex align-items-center gap-2"
                     ngbDropdownToggle
                   >
-                    <span
-                      class="avatar rounded-circle bg-primary text-white fw-semibold"
-                      >{{ initials() }}</span
-                    >
+                    @if (profile.photoUrl(); as url) {
+                      <img
+                        [src]="url"
+                        alt=""
+                        class="avatar rounded-circle object-fit-cover"
+                      />
+                    } @else {
+                      <span
+                        class="avatar rounded-circle bg-primary text-white fw-semibold"
+                        >{{ initials() }}</span
+                      >
+                    }
                     <span>{{ firstName() }}</span>
                   </button>
                   <div ngbDropdownMenu>
@@ -116,6 +125,8 @@ export class Navbar {
   protected readonly auth = inject(AuthService);
   /** Número de vagas novas desde a última visita à secção Vagas. */
   protected readonly jobs = inject(JobFeedStore);
+  /** Para a foto de perfil no menu. */
+  protected readonly profile = inject(ProfileStore);
   private readonly router = inject(Router);
 
   protected readonly collapsed = signal(true);

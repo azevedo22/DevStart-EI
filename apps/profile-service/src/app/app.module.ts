@@ -16,6 +16,7 @@ import { JobFeedController } from './job-board/job-feed.controller';
 import { JobFeedService } from './job-board/job-feed.service';
 import { JobSyncService } from './job-board/job-sync.service';
 import { JobsController } from './jobs/jobs.controller';
+import { ProfilePhotoController } from './profile/profile-photo.controller';
 import { JobsService } from './jobs/jobs.service';
 import { LlmStartupCheck } from './cv/llm-startup-check';
 import { OllamaClient } from './cv/ollama.client';
@@ -66,6 +67,7 @@ import { SkillGapController } from './skill-gap/skill-gap.controller';
     CvController,
     JobsController,
     JobFeedController,
+    ProfilePhotoController,
     ProjectsController,
     SkillGapController,
   ],

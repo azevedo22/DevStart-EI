@@ -169,3 +169,20 @@ export interface TargetStack {
   description: string;
   requirements: StackRequirement[];
 }
+
+// ── Foto de perfil ──────────────────────────────────────────────
+
+/**
+ * A foto é preparada no browser (recortada ao quadrado, reduzida e
+ * re-codificada em JPEG, o que também apaga os metadados EXIF, como a
+ * localização GPS) e só depois enviada.
+ */
+export const PROFILE_PHOTO_LIMITS = {
+  /** Lado da imagem guardada, em píxeis. */
+  size: 512,
+  /** Ficheiro escolhido pelo utilizador, antes de reduzido. */
+  maxInputBytes: 15 * 1024 * 1024,
+  /** O que o servidor aceita (uma foto de 512×512 tem 40–150 KB). */
+  maxUploadBytes: 1024 * 1024,
+  acceptedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+} as const;

@@ -162,6 +162,19 @@ Como funciona:
 - **O objetivo diário é instantâneo:** é calculado no browser a partir do quadro, por isso atualiza no
   momento em que se cria uma candidatura, e recomeça sozinho à meia-noite.
 
+### Foto de perfil
+
+No perfil, um clique na fotografia (ou nas iniciais) carrega uma foto, que aparece também no menu.
+
+- **Preparada no browser antes de sair do computador:** recortada ao centro em quadrado, reduzida para
+  512×512 e re-codificada em JPEG (`prepare-photo.ts`). Uma foto de telemóvel de vários MB fica com dezenas
+  de KB, e a re-codificação **apaga os metadados EXIF**, onde pode estar a localização GPS de onde foi tirada.
+- **Guardada no Profile Service** (`PUT`/`GET`/`DELETE /profile/photo`), numa tabela à parte para o perfil
+  não arrastar a imagem. O servidor aceita até 1 MB e só JPEG, PNG ou WebP, verificados pelos primeiros
+  bytes (não pelo nome nem pelo Content-Type), e serve-a com o tipo verificado, `nosniff` e sem cache partilhada.
+- **Só o próprio a vê.** Como um `<img>` não envia o token de sessão, o browser pede a foto com o token e
+  mostra-a a partir de um URL local (`blob:`). Apagar a conta apaga a foto.
+
 ### Frase do dia
 
 No topo da página inicial e do Kanban, uma frase por dia de pessoas que construíram a tecnologia e as
@@ -383,6 +396,7 @@ Para publicar num servidor com domínio e HTTPS, ver [docs/deploy.md](docs/deplo
 | `PUT`                 | `/api/v1/profile/languages`                                                    | Substitui a lista de línguas 🔒                                                                         |
 | `POST`                | `/api/v1/profile/cv/analyze`                                                   | Lê o CV (multipart) e devolve um rascunho, sem gravar 🔒                                                |
 | `POST`                | `/api/v1/profile/cv/import`                                                    | Grava o que o utilizador escolheu do rascunho 🔒                                                        |
+| `GET`/`PUT`/`DELETE`  | `/api/v1/profile/photo`                                                        | Foto de perfil (PUT multipart, campo "file"; até 1 MB, JPEG/PNG/WebP) 🔒                                |
 | `POST`                | `/api/v1/jobs/analyze`                                                         | Lê o texto de um anúncio com IA e devolve os campos da candidatura, sem gravar 🔒                       |
 | `GET`                 | `/api/v1/jobs/feed?locations=&remote=&contracts=&stackId=&includeUnrealistic=` | Vagas do ITJobs.pt filtradas e comparadas com o perfil 🔒                                               |
 | `GET`                 | `/api/v1/jobs/feed/new-count`                                                  | Vagas novas desde a última visita 🔒                                                                    |
@@ -441,6 +455,7 @@ apps/web/src/app/
 - [x] Análise de anúncios com IA: empresa, título, senioridade, experiência e competências
 - [x] Vagas do ITJobs.pt analisadas pela IA, com filtros, vagas novas e coluna "Por candidatar"
 - [x] Frase do dia de pessoas da tecnologia, com fonte, ajustada ao momento da procura
+- [x] Foto de perfil, preparada no browser (512×512, sem metadados GPS)
 - [x] Contas de demonstração temporárias, preenchidas por evento e apagadas ao fim de 24 horas
 
 ## Autor

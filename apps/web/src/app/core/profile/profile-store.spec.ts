@@ -61,10 +61,14 @@ describe('ProfileStore', () => {
   let auth: AuthService;
   let backend: HttpTestingController;
 
-  function signIn(userId: string) {
+  /** Ao entrar, o store pede a foto (para o menu); por omissão, ainda não há. */
+  function signIn(userId: string, photo: Blob | null = null) {
     auth.login({ email: 'x', password: 'y' }).subscribe();
     backend.expectOne('/api/v1/auth/login').flush(session(userId));
     TestBed.tick(); // corre os effects
+    const req = backend.expectOne('/api/v1/profile/photo');
+    if (photo) req.flush(photo);
+    else req.flush(new Blob(), { status: 404, statusText: 'Not Found' });
   }
 
   function load(p: Profile, projects: Project[] = []) {
@@ -72,6 +76,15 @@ describe('ProfileStore', () => {
     backend.expectOne('/api/v1/profile').flush(p);
     backend.expectOne('/api/v1/projects').flush(projects);
   }
+
+  let urls = 0;
+  beforeAll(() => {
+    // O jsdom não tem URL.createObjectURL.
+    Object.assign(URL, {
+      createObjectURL: jest.fn(() => `blob:foto-${++urls}`),
+      revokeObjectURL: jest.fn(),
+    });
+  });
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -181,6 +194,52 @@ describe('ProfileStore', () => {
 
       expect(store.competencies().map((c) => c.competencyId)).toEqual(['java']);
       expect(store.projects().map((p) => p.id)).toEqual(['novo']);
+    });
+  });
+
+  describe('foto de perfil', () => {
+    it('ao entrar, carrega a foto para o menu', () => {
+      signIn('ana', new Blob(['jpg'], { type: 'image/jpeg' }));
+      expect(store.photoUrl()).toMatch(/^blob:/);
+    });
+
+    it('sem foto, fica sem URL (404 não é erro)', () => {
+      signIn('ana');
+      expect(store.photoUrl()).toBeNull();
+    });
+
+    it('enviar: multipart no campo "file", e a foto aparece logo', () => {
+      signIn('ana');
+      const photo = new Blob(['jpg'], { type: 'image/jpeg' });
+      store.uploadPhoto(photo).subscribe();
+      const req = backend.expectOne('/api/v1/profile/photo');
+      expect(req.request.method).toBe('PUT');
+      expect((req.request.body as FormData).get('file')).toBeInstanceOf(Blob);
+      req.flush(null, { status: 204, statusText: 'No Content' });
+      expect(store.photoUrl()).toMatch(/^blob:/);
+    });
+
+    it('remover apaga a foto e liberta o URL antigo', () => {
+      signIn('ana', new Blob(['jpg']));
+      const old = store.photoUrl();
+      store.removePhoto().subscribe();
+      backend
+        .expectOne(
+          (r) => r.method === 'DELETE' && r.url === '/api/v1/profile/photo',
+        )
+        .flush(null, { status: 204, statusText: 'No Content' });
+      expect(store.photoUrl()).toBeNull();
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith(old);
+    });
+
+    it('outro utilizador no mesmo browser não vê a foto do anterior', () => {
+      signIn('ana', new Blob(['jpg']));
+      auth.logout().subscribe();
+      backend.expectOne('/api/v1/auth/logout').flush(null);
+      TestBed.tick();
+      expect(store.photoUrl()).toBeNull();
+      signIn('rui');
+      expect(store.photoUrl()).toBeNull();
     });
   });
 });
