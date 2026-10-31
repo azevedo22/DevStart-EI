@@ -13,6 +13,8 @@ import { ProgressApi } from '../../../progress/data/progress-api';
 import { ApplicationsStore } from '../../data/applications-store';
 
 const HIDDEN_KEY = 'devstart.dailyQuote.hiddenOn';
+/** Quem pediu a tradução continua a vê-la nos dias seguintes. */
+const LANG_KEY = 'devstart.dailyQuote.lang';
 /** "Recente" = hoje, ontem ou anteontem. */
 const RECENT_DAYS = 2;
 const INTERVIEW_KINDS: readonly ActivityKind[] = [
@@ -21,16 +23,25 @@ const INTERVIEW_KINDS: readonly ActivityKind[] = [
   'INTERVIEW',
 ];
 
-function readHidden(): string | null {
+function read(key: string): string | null {
   try {
-    return localStorage.getItem(HIDDEN_KEY);
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
+function write(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Sem armazenamento (ex.: janela privada): vale só nesta visita.
+  }
+}
+
 /**
- * Frase do dia, de pessoas da tecnologia, com fonte. Depois de uma rejeição
+ * Frase do dia, de pessoas da tecnologia, com fonte, no original (inglês);
+ * a tradução para português é a pedido, e a escolha fica lembrada. Depois de uma rejeição
  * ou com uma entrevista à porta, a frase acompanha o momento. Dá para
  * esconder até ao dia seguinte.
  */
@@ -52,8 +63,8 @@ function readHidden(): string | null {
               </div>
             }
             <blockquote class="mb-1 fs-6 fst-italic">
-              <p class="mb-0" [attr.lang]="showOriginal() ? 'en' : 'pt'">
-                {{ showOriginal() ? q.original : q.text }}
+              <p class="mb-0" [attr.lang]="translated() ? 'pt' : 'en'">
+                {{ translated() ? q.text : q.original }}
               </p>
             </blockquote>
             <figcaption class="small text-body-secondary mb-0">
@@ -70,9 +81,14 @@ function readHidden(): string | null {
               <button
                 type="button"
                 class="btn btn-link btn-sm p-0 align-baseline small"
-                (click)="showOriginal.set(!showOriginal())"
+                [attr.aria-pressed]="translated()"
+                (click)="toggleTranslation()"
               >
-                {{ showOriginal() ? 'ver tradução' : 'ver original' }}
+                @if (translated()) {
+                  ver original
+                } @else {
+                  <i class="bi bi-translate me-1"></i>traduzir para português
+                }
               </button>
             </figcaption>
           </div>
@@ -105,8 +121,9 @@ export class DailyQuote {
   private readonly progress = inject(ProgressApi);
 
   protected readonly contextLabels = QUOTE_CONTEXT_LABELS;
-  protected readonly showOriginal = signal(false);
-  private readonly hiddenOn = signal(readHidden());
+  /** Por omissão, a frase nas palavras de quem a disse; a tradução é a pedido. */
+  protected readonly translated = signal(read(LANG_KEY) === 'pt');
+  private readonly hiddenOn = signal(read(HIDDEN_KEY));
 
   protected readonly hidden = computed(
     () => this.hiddenOn() === this.store.today(),
@@ -144,10 +161,12 @@ export class DailyQuote {
   protected hide(): void {
     const today = this.store.today();
     this.hiddenOn.set(today);
-    try {
-      localStorage.setItem(HIDDEN_KEY, today);
-    } catch {
-      // Sem armazenamento (ex.: janela privada): fica escondida só nesta visita.
-    }
+    write(HIDDEN_KEY, today);
+  }
+
+  protected toggleTranslation(): void {
+    const next = !this.translated();
+    this.translated.set(next);
+    write(LANG_KEY, next ? 'pt' : 'original');
   }
 }

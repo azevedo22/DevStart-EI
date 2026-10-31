@@ -46,19 +46,32 @@ describe('DailyQuote', () => {
     activity.mockClear();
   });
 
-  it('mostra a frase do dia com autor e fonte', () => {
+  it('mostra a frase do dia no original, com autor e fonte', () => {
     const q = dailyQuote(FRIDAY);
     const { el, text } = render();
-    expect(text()).toContain(q.text);
+    expect(text()).toContain(q.original);
+    expect(text()).not.toContain(q.text);
+    expect(el.querySelector('blockquote p')!.getAttribute('lang')).toBe('en');
     expect(text()).toContain(q.author);
     expect(el.querySelector('a')!.getAttribute('href')).toBe(q.source.url);
   });
 
-  it('mostra o original em inglês a pedido', () => {
+  it('traduz para português a pedido e lembra a escolha', () => {
     const q = dailyQuote(FRIDAY);
     const { el, text } = render();
-    (el.querySelector('figcaption button') as HTMLButtonElement).click();
-    expect(text()).toContain(q.original);
+    const toggle = () =>
+      (el.querySelector('figcaption button') as HTMLButtonElement).click();
+    expect(text()).toContain('traduzir para português');
+    toggle();
+    expect(text()).toContain(q.text);
+    expect(text()).toContain('ver original');
+    TestBed.resetTestingModule();
+
+    // No dia seguinte (nova visita), continua traduzida.
+    const again = render();
+    expect(again.text()).toContain(q.text);
+    (again.el.querySelector('figcaption button') as HTMLButtonElement).click();
+    expect(again.text()).toContain(q.original);
   });
 
   it('depois de uma rejeição recente, escolhe uma frase para isso', () => {
@@ -68,14 +81,14 @@ describe('DailyQuote', () => {
     expect(activity).toHaveBeenCalledWith('2026-10-28', FRIDAY);
     const q = dailyQuote(FRIDAY, 'rejection');
     expect(text()).toContain('Para depois de um «não»');
-    expect(text()).toContain(q.text);
+    expect(text()).toContain(q.original);
   });
 
   it('com uma resposta positiva recente, frase para a próxima fase', () => {
     events = [ev('RESPONSE_POSITIVE')];
     const { text } = render();
     expect(text()).toContain('Para a próxima fase');
-    expect(text()).toContain(dailyQuote(FRIDAY, 'interview').text);
+    expect(text()).toContain(dailyQuote(FRIDAY, 'interview').original);
   });
 
   it('sem nada recente, num dia útil, não há rótulo', () => {
@@ -89,6 +102,6 @@ describe('DailyQuote', () => {
     (el.querySelector('.btn-close') as HTMLButtonElement).click();
     expect(text().trim()).toBe('');
     today.set('2026-10-31');
-    expect(text()).toContain(dailyQuote('2026-10-31', 'weekend').text);
+    expect(text()).toContain(dailyQuote('2026-10-31', 'weekend').original);
   });
 });

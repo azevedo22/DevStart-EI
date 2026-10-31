@@ -2,7 +2,8 @@
  * Frase do dia: uma por dia, de pessoas que construíram a tecnologia e as
  * empresas da área. Cada frase tem fonte verificável (discurso, entrevista,
  * livro): muitas citações que circulam na internet são inventadas, e a app
- * não as quer espalhar. As traduções são livres; o original vai junto.
+ * não as quer espalhar. Mostra-se o original (as palavras exatas de quem a
+ * disse); a tradução livre para português aparece a pedido.
  *
  * O contexto escolhe o conjunto: depois de uma rejeição, frases sobre
  * persistência; com uma entrevista à porta, sobre crescer e arriscar; ao fim
@@ -14,8 +15,9 @@ export type QuoteContext = 'rejection' | 'interview' | 'weekend';
 
 export interface DailyQuote {
   id: string;
-  /** Tradução livre em português de Portugal. */
+  /** Tradução livre em português de Portugal (mostrada a pedido). */
   text: string;
+  /** As palavras exatas, na língua em que foram ditas: é o que se mostra. */
   original: string;
   author: string;
   /** Quem é, em poucas palavras, e onde o disse. */

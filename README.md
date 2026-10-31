@@ -169,8 +169,9 @@ empresas da área (Steve Jobs, Jensen Huang, Grace Hopper, Linus Torvalds, Satya
 Perkins…), para quem está à procura da primeira oportunidade não desistir.
 
 - **Só frases com fonte verificável** (discurso, entrevista, livro), ligada na própria frase. Muitas
-  citações que circulam na internet são inventadas; estas foram confirmadas uma a uma. Tradução livre,
-  com o original a um clique.
+  citações que circulam na internet são inventadas; estas foram confirmadas uma a uma.
+- **No original, com tradução a pedido.** A frase aparece nas palavras exatas de quem a disse; "traduzir
+  para português" mostra uma tradução livre, e a escolha fica lembrada nos dias seguintes.
 - **Acompanha o momento:** depois de uma rejeição, frases sobre persistência; com uma resposta positiva
   ou entrevista marcada, sobre crescer e arriscar; ao fim de semana, para refletir. O contexto vem do
   histórico do Kanban dos últimos dias (o mesmo do relatório semanal), não da data de edição dos cartões.
