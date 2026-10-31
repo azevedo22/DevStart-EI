@@ -338,7 +338,8 @@ O catálogo de competências e stacks usa cache HTTP (`Cache-Control` + `ETag`):
 
 ## Como correr
 
-Requisitos: Node.js 22+ e Docker (para o PostgreSQL).
+Requisitos: Node.js 24 com npm 11 (a versão está em `.nvmrc`; com o nvm, `nvm use`) e Docker (para o
+PostgreSQL). O `npm install` recusa outras versões, para o `package-lock.json` não mudar de formato.
 
 ```bash
 npm install

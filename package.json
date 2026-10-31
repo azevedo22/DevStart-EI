@@ -12,6 +12,10 @@
     "format": "nx format:write"
   },
   "private": true,
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11"
+  },
   "devDependencies": {
     "@angular-devkit/core": "~22.2.0",
     "@angular-devkit/schematics": "~22.2.0",
@@ -55,7 +59,7 @@
     "webpack-cli": "^7.0.0",
     "webpack-dev-server": "^5.2.1"
   },
-  "packageManager": "npm@10.9.9",
+  "packageManager": "npm@11.21.1",
   "dependencies": {
     "@angular/cdk": "~22.2.0",
     "@angular/common": "~22.2.0",

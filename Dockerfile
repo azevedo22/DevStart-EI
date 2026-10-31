@@ -13,7 +13,8 @@
 #   web          → os ficheiros estáticos do Angular servidos pelo nginx, que também
 #                  encaminha /api para o gateway (mesma origem: sem CORS, cookies simples).
 
-ARG NODE_IMAGE=node:22-bookworm-slim
+# A mesma versão do .nvmrc (Node 24, com npm 11).
+ARG NODE_IMAGE=node:24-bookworm-slim
 ARG NGINX_IMAGE=nginx:1.27-alpine
 
 # ── 1. Dependências do monorepo (cache partilhada) ──────────────────────────
