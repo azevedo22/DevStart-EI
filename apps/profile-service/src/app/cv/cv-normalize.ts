@@ -19,6 +19,7 @@ import {
   YEAR_MONTH_PATTERN,
   detectCompetencies,
 } from '@devstart/shared-types';
+import { asArray, asObject, dedupeBy, oneOf, text } from '../ai/ai-output';
 
 /**
  * Converte a resposta do modelo num CvDraft válido.
@@ -321,30 +322,6 @@ export function findLinks(cvText: string): {
 
 // ── Valores primitivos ────────────────────────────────────────
 
-function asObject(v: unknown): Record<string, unknown> {
-  return v && typeof v === 'object' && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : {};
-}
-
-function asArray(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-
-/** Texto limpo e cortado ao limite; vazio, "null" ou "N/A" contam como ausente. */
-function text(v: unknown, max: number): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.replace(/\s+/g, ' ').trim();
-  if (!t || /^(null|n\/?a|none|-|—)$/i.test(t)) return null;
-  return t.slice(0, max).trim();
-}
-
-function oneOf<T extends string>(v: unknown, allowed: readonly T[]): T | null {
-  return typeof v === 'string' && (allowed as readonly string[]).includes(v)
-    ? (v as T)
-    : null;
-}
-
 function year(v: unknown): number | null {
   const n = typeof v === 'string' ? Number.parseInt(v, 10) : v;
   if (typeof n !== 'number' || !Number.isInteger(n)) return null;
@@ -383,14 +360,4 @@ function url(v: unknown, mustMatch?: RegExp): string | null {
   }
   if (mustMatch && !mustMatch.test(withProtocol)) return null;
   return withProtocol.replace(/\/$/, '');
-}
-
-function dedupeBy<T>(items: T[], key: (item: T) => string): T[] {
-  const seen = new Set<string>();
-  return items.filter((i) => {
-    const k = key(i);
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
 }

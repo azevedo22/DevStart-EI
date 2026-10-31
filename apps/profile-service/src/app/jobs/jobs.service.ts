@@ -12,7 +12,7 @@ import {
   LlmUnavailableError,
   STRUCTURED_LLM,
   StructuredLlm,
-} from '../cv/llm';
+} from '../ai/llm';
 import {
   JOB_EXTRACTION_SCHEMA,
   JOB_SYSTEM_PROMPT,

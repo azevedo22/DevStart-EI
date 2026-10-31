@@ -136,7 +136,7 @@ describeDb('Leitura do CV com a Groq (e2e)', () => {
   });
 
   it('verificação do arranque: pronta', async () => {
-    const { LlmStartupCheck } = await import('./llm-startup-check');
+    const { LlmStartupCheck } = await import('../ai/llm-startup-check');
     expect(await app.get(LlmStartupCheck).check()).toBe(true);
   });
 });
@@ -144,7 +144,7 @@ describeDb('Leitura do CV com a Groq (e2e)', () => {
 describe('chave de outro fornecedor', () => {
   it('uma chave da Groq com LLM_PROVIDER=xai é apanhada antes de qualquer pedido', async () => {
     const { OpenAiCompatibleClient } =
-      await import('./openai-compatible.client');
+      await import('../ai/openai-compatible.client');
     const xai = new OpenAiCompatibleClient({
       name: 'xAI',
       baseUrl: 'http://127.0.0.1:9', // nunca chega a ser chamado

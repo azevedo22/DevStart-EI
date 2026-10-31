@@ -11,6 +11,11 @@ import {
   detectSeniority,
   detectYearsRequired,
 } from '@devstart/shared-types';
+import { asArray, asObject, dedupeBy, oneOf, text } from '../ai/ai-output';
+
+/** Num anúncio, um texto cortado acaba em "…" para se ver que havia mais. */
+const ELLIPSIS = { ellipsis: true };
+const lower = (s: string) => s.toLowerCase();
 
 /**
  * Transforma a resposta da IA num rascunho seguro: cortes de tamanho, valores
@@ -23,7 +28,7 @@ export function normalizeJobExtraction(
   catalog: Competency[],
 ): JobPostingDraft {
   const r = asObject(raw);
-  const jobTitle = text(r['jobTitle'], APPLICATION_LIMITS.jobTitle);
+  const jobTitle = text(r['jobTitle'], APPLICATION_LIMITS.jobTitle, ELLIPSIS);
 
   const seniority: Seniority =
     oneOf(r['seniority'], SENIORITIES) ??
@@ -38,10 +43,11 @@ export function normalizeJobExtraction(
       ? years
       : detectYearsRequired(postingText);
 
-  const experience = dedupe(
+  const experience = dedupeBy(
     asArray(r['experience'])
-      .map((e) => text(e, APPLICATION_LIMITS.experienceItem))
+      .map((e) => text(e, APPLICATION_LIMITS.experienceItem, ELLIPSIS))
       .filter((e): e is string => e !== null),
+    lower,
   ).slice(0, APPLICATION_LIMITS.experienceItems);
 
   // Cada tecnologia indicada pela IA é ligada ao catálogo; o que não existe lá
@@ -50,7 +56,7 @@ export function normalizeJobExtraction(
   const ids: string[] = [];
   const other: string[] = [];
   for (const item of asArray(r['skills'])) {
-    const name = text(item, 60);
+    const name = text(item, 60, ELLIPSIS);
     if (!name) continue;
     const found = detectCompetencies(name, catalog);
     if (!found.length) other.push(name);
@@ -64,15 +70,19 @@ export function normalizeJobExtraction(
     analyzedBy: null, // preenchido pelo serviço, que sabe que IA usou
     sentToExternalService: false,
     warnings: [],
-    companyName: text(r['companyName'], APPLICATION_LIMITS.companyName),
+    companyName: text(
+      r['companyName'],
+      APPLICATION_LIMITS.companyName,
+      ELLIPSIS,
+    ),
     jobTitle,
     seniority,
     yearsRequired,
     experienceRequirements: experience,
     competencyIds: [...new Set(ids)].slice(0, APPLICATION_LIMITS.competencies),
-    otherSkills: dedupe(other).slice(0, 15),
+    otherSkills: dedupeBy(other, lower).slice(0, 15),
     workMode: oneOf<WorkMode>(r['workMode'], WORK_MODES),
-    location: text(r['location'], APPLICATION_LIMITS.location),
+    location: text(r['location'], APPLICATION_LIMITS.location, ELLIPSIS),
   };
 }
 
@@ -100,41 +110,4 @@ export function keywordJobDraft(
     workMode: null,
     location: null,
   };
-}
-
-// ── Auxiliares ──────────────────────────────────────────────────
-
-function asObject(v: unknown): Record<string, unknown> {
-  return v && typeof v === 'object' && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : {};
-}
-
-function asArray(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-
-/** Texto limpo e cortado; null se vazio ou se a IA escreveu "null"/"N/A". */
-function text(v: unknown, max: number): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.replace(/\s+/g, ' ').trim();
-  if (!t || /^(null|n\/a|none|desconhecid[oa]|não indicad[oa])$/i.test(t))
-    return null;
-  return t.length > max ? t.slice(0, max - 1).trimEnd() + '…' : t;
-}
-
-function oneOf<T extends string>(v: unknown, allowed: readonly T[]): T | null {
-  return typeof v === 'string' && (allowed as readonly string[]).includes(v)
-    ? (v as T)
-    : null;
-}
-
-function dedupe(items: string[]): string[] {
-  const seen = new Set<string>();
-  return items.filter((i) => {
-    const k = i.toLowerCase();
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
 }

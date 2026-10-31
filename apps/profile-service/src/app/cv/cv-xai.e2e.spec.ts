@@ -199,7 +199,7 @@ describeDb('Leitura do CV com a xAI (e2e)', () => {
 
   describe('verificação no arranque', () => {
     const check = async () => {
-      const { LlmStartupCheck } = await import('./llm-startup-check');
+      const { LlmStartupCheck } = await import('../ai/llm-startup-check');
       return app.get(LlmStartupCheck).check();
     };
 

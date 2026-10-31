@@ -32,7 +32,7 @@ import { toProjectFields } from '../projects/projects.service';
 import { CV_EXTRACTION_SCHEMA, CV_SYSTEM_PROMPT } from './cv-extraction.schema';
 import { keywordOnlyDraft, normalizeCvExtraction } from './cv-normalize';
 import { extractCvText } from './cv-text';
-import { LlmUnavailableError, STRUCTURED_LLM, StructuredLlm } from './llm';
+import { LlmUnavailableError, STRUCTURED_LLM, StructuredLlm } from '../ai/llm';
 
 /**
  * Importação do CV.
