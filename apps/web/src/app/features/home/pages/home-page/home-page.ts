@@ -2,11 +2,12 @@ import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { DailyGoal } from '../../../applications/components/daily-goal/daily-goal';
+import { DailyQuote } from '../../../applications/components/daily-quote/daily-quote';
 import { DemoButton } from '../../../demo/components/demo-button/demo-button';
 
 @Component({
   selector: 'ds-home-page',
-  imports: [RouterLink, DemoButton, DailyGoal],
+  imports: [RouterLink, DemoButton, DailyGoal, DailyQuote],
   template: `
     <div class="container py-5">
       @if (accountDeleted) {
@@ -28,6 +29,7 @@ import { DemoButton } from '../../../demo/components/demo-button/demo-button';
         </div>
       }
       @if (auth.isAuthenticated()) {
+        <ds-daily-quote class="d-block mb-3" />
         <ds-daily-goal [showLink]="true" class="d-block mb-5" />
       }
       <div class="row justify-content-center text-center">

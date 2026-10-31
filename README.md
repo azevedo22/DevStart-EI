@@ -162,6 +162,21 @@ Como funciona:
 - **O objetivo diário é instantâneo:** é calculado no browser a partir do quadro, por isso atualiza no
   momento em que se cria uma candidatura, e recomeça sozinho à meia-noite.
 
+### Frase do dia
+
+No topo da página inicial e do Kanban, uma frase por dia de pessoas que construíram a tecnologia e as
+empresas da área (Steve Jobs, Jensen Huang, Grace Hopper, Linus Torvalds, Satya Nadella, Melanie
+Perkins…), para quem está à procura da primeira oportunidade não desistir.
+
+- **Só frases com fonte verificável** (discurso, entrevista, livro), ligada na própria frase. Muitas
+  citações que circulam na internet são inventadas; estas foram confirmadas uma a uma. Tradução livre,
+  com o original a um clique.
+- **Acompanha o momento:** depois de uma rejeição, frases sobre persistência; com uma resposta positiva
+  ou entrevista marcada, sobre crescer e arriscar; ao fim de semana, para refletir. O contexto vem do
+  histórico do Kanban dos últimos dias (o mesmo do relatório semanal), não da data de edição dos cartões.
+- **Uma por dia, a mesma o dia todo,** e só se repete depois de passarem todas. Dá para esconder até ao
+  dia seguinte. Lista e regras em `libs/shared-types` (`daily-quote.ts`), testadas.
+
 ### Importar o CV com IA
 
 Uma conta nova começa pelo perfil, com um botão para importar o CV (PDF ou DOCX). Um modelo de
@@ -424,6 +439,7 @@ apps/web/src/app/
 - [x] Importação do CV com IA local (Ollama) e ficha com formação, experiência, línguas e links
 - [x] Análise de anúncios com IA: empresa, título, senioridade, experiência e competências
 - [x] Vagas do ITJobs.pt analisadas pela IA, com filtros, vagas novas e coluna "Por candidatar"
+- [x] Frase do dia de pessoas da tecnologia, com fonte, ajustada ao momento da procura
 - [x] Contas de demonstração temporárias, preenchidas por evento e apagadas ao fim de 24 horas
 
 ## Autor
