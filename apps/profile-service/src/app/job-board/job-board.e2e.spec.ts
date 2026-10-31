@@ -97,6 +97,9 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
   let itjobsStatus = 200;
   const keysSeen: string[] = [];
   let aiCalls: string[] = [];
+  /** Quantos pedidos à IA recusar com 429 ("try again in 0.2s") antes de responder. */
+  let rateLimited = 0;
+  let lastAiBody: Record<string, unknown> | null = null;
 
   beforeAll(async () => {
     itjobs = createServer((req: IncomingMessage, res) => {
@@ -125,6 +128,20 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
       if (req.url?.endsWith('/models'))
         return res.end(JSON.stringify({ data: [{ id: 'modelo-groq' }] }));
       const body = JSON.parse(Buffer.concat(chunks).toString());
+      lastAiBody = body;
+      if (rateLimited > 0) {
+        rateLimited--;
+        aiCalls.push('429');
+        res.statusCode = 429;
+        return res.end(
+          JSON.stringify({
+            error: {
+              message:
+                'Rate limit reached for model `openai/gpt-oss-20b` on tokens per minute (TPM): Limit 8000, Used 7055, Requested 2374. Please try again in 0.2s.',
+            },
+          }),
+        );
+      }
       const text: string = body.messages[1].content;
       const title = Object.keys(AI_ANSWERS).find((t) => text.includes(t));
       aiCalls.push(title ?? '?');
@@ -145,7 +162,7 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
       REDIS_URL: '',
       LLM_PROVIDER: 'groq',
       GROQ_API_KEY: 'gsk_teste',
-      GROQ_MODEL: 'modelo-groq',
+      GROQ_MODEL: 'openai/gpt-oss-20b',
       GROQ_BASE_URL: `http://127.0.0.1:${(groq.address() as AddressInfo).port}/openai/v1`,
       ITJOBS_API_KEY: KEY,
       ITJOBS_BASE_URL: `http://127.0.0.1:${(itjobs.address() as AddressInfo).port}`,
@@ -172,6 +189,7 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
     listed = [ANGULAR_JUNIOR, SENIOR, ESTAGIO];
     itjobsStatus = 200;
     aiCalls = [];
+    rateLimited = 0;
   });
 
   afterAll(async () => {
@@ -224,6 +242,24 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
           summary: 'Estágio profissional. Java, Docker & Git. Trabalho remoto.',
         }),
       ]);
+    });
+
+    it('limite por minuto da IA: espera o tempo pedido e continua', async () => {
+      rateLimited = 2;
+      expect(await sync.sync()).toMatchObject({ added: 3, analyzedByAi: 2 });
+      expect(aiCalls.filter((c) => c === '429')).toHaveLength(2);
+      // Os gpt-oss raciocinam pouco: poupa tokens por minuto.
+      expect(lastAiBody).toMatchObject({ reasoning_effort: 'low' });
+    });
+
+    it('se a IA continuar a recusar, as vagas ficam para a próxima recolha', async () => {
+      rateLimited = 99;
+      expect(await sync.sync()).toMatchObject({ added: 3, analyzedByAi: 0 });
+      // 1 pedido + 3 repetições, e depois desiste (não tenta as outras vagas).
+      expect(aiCalls).toHaveLength(4);
+      rateLimited = 0;
+      aiCalls = [];
+      expect(await sync.sync()).toMatchObject({ added: 0, analyzedByAi: 2 });
     });
 
     it('na recolha seguinte, só as vagas novas são analisadas', async () => {

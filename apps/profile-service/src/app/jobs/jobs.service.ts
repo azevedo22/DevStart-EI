@@ -7,7 +7,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { COMPETENCIES } from '../catalog/seed/competencies.seed';
-import { LlmUnavailableError, STRUCTURED_LLM, StructuredLlm } from '../cv/llm';
+import {
+  LlmRateLimitError,
+  LlmUnavailableError,
+  STRUCTURED_LLM,
+  StructuredLlm,
+} from '../cv/llm';
 import {
   JOB_EXTRACTION_SCHEMA,
   JOB_SYSTEM_PROMPT,
@@ -36,7 +41,8 @@ export class JobsService {
     }
     this.analyzing.add(userId);
     try {
-      return await this.read(text);
+      // Se a IA estiver ocupada (ex.: a recolha de vagas), espera um pouco uma vez.
+      return await this.read(text, { maxWaitMs: 20_000, maxRetries: 1 });
     } finally {
       this.analyzing.delete(userId);
     }
@@ -45,28 +51,48 @@ export class JobsService {
   /**
    * Lê um anúncio com a IA; se ela não responder, por palavras-chave.
    * Usado também pela recolha de vagas do ITJobs.
+   *
+   * Limite por minuto (HTTP 429 com "try again in Xs"): espera o tempo pedido
+   * e repete, até maxRetries vezes e se a espera não passar de maxWaitMs.
    */
-  async read(text: string): Promise<JobPostingDraft> {
-    try {
-      const raw = await this.llm.chatJson({
-        system: JOB_SYSTEM_PROMPT,
-        user: `Anúncio:\n"""\n${text}\n"""`,
-        schema: JOB_EXTRACTION_SCHEMA,
-        name: 'job_posting',
-        what: 'Anúncio',
-      });
-      return {
-        ...normalizeJobExtraction(raw, text, COMPETENCIES),
-        analyzedBy: this.llm.label,
-        sentToExternalService: this.llm.remote,
-      };
-    } catch (err) {
-      if (!(err instanceof LlmUnavailableError)) throw err;
-      this.logger.warn(`Anúncio analisado sem IA: ${err.message}`);
-      return {
-        ...keywordJobDraft(text, COMPETENCIES, err.message),
-        sentToExternalService: this.llm.remote,
-      };
+  async read(
+    text: string,
+    opts: { maxWaitMs?: number; maxRetries?: number } = {},
+  ): Promise<JobPostingDraft> {
+    const { maxWaitMs = 0, maxRetries = 0 } = opts;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const raw = await this.llm.chatJson({
+          system: JOB_SYSTEM_PROMPT,
+          user: `Anúncio:\n"""\n${text}\n"""`,
+          schema: JOB_EXTRACTION_SCHEMA,
+          name: 'job_posting',
+          what: 'Anúncio',
+        });
+        return {
+          ...normalizeJobExtraction(raw, text, COMPETENCIES),
+          analyzedBy: this.llm.label,
+          sentToExternalService: this.llm.remote,
+        };
+      } catch (err) {
+        if (!(err instanceof LlmUnavailableError)) throw err;
+        const wait = err instanceof LlmRateLimitError ? err.retryAfterMs : null;
+        if (wait !== null && wait <= maxWaitMs && attempt < maxRetries) {
+          // Meio segundo de folga: o limite reabre exatamente nesse instante.
+          this.logger.log(
+            `Limite por minuto da IA: a esperar ${((wait + 500) / 1000).toFixed(1)} s.`,
+          );
+          await sleep(wait + 500);
+          continue;
+        }
+        this.logger.warn(`Anúncio analisado sem IA: ${err.message}`);
+        return {
+          ...keywordJobDraft(text, COMPETENCIES, err.message),
+          sentToExternalService: this.llm.remote,
+        };
+      }
     }
   }
 }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

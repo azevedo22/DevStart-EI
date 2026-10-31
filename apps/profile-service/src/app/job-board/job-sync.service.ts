@@ -40,8 +40,16 @@ export const SEARCH_TERMS = [
 ];
 const PAGE_SIZE = 50;
 const MAX_PAGES = 3;
-/** O texto enviado à IA: um anúncio longo tem 5–8 mil caracteres. */
-const MAX_AI_TEXT = 12_000;
+/**
+ * O texto enviado à IA. Os requisitos vêm quase sempre no início; cortar
+ * poupa tokens, e o limite gratuito da Groq conta tokens por minuto.
+ */
+const MAX_AI_TEXT = 6_000;
+/**
+ * Em fundo, pode esperar que o limite por minuto reabra (a Groq diz quanto
+ * tempo). Ler 10 vagas pode levar alguns minutos: não faz mal.
+ */
+const AI_RATE_LIMIT = { maxWaitMs: 65_000, maxRetries: 3 };
 
 export interface SyncResult {
   fetched: number;
@@ -56,7 +64,8 @@ export interface SyncResult {
  * - Vagas novas: triagem por palavras-chave logo à entrada (grátis).
  * - IA: até JOB_SYNC_AI_PER_RUN vagas novas por recolha, as mais recentes e
  *   não excluídas pela triagem; as outras ficam para a recolha seguinte. Cada
- *   vaga é lida uma única vez, para todos os utilizadores.
+ *   vaga é lida uma única vez, para todos os utilizadores. Se o fornecedor
+ *   pedir para esperar (limite por minuto), espera e continua.
  * - Vagas que deixam de aparecer no ITJobs são marcadas como fechadas.
  *
  * Ao arrancar, só recolhe se a última recolha já tiver passado do intervalo:
@@ -264,8 +273,9 @@ export class JobSyncService
     let done = 0;
     for (const p of pending) {
       const text = `${p.title}\n\n${p.body}`.slice(0, MAX_AI_TEXT);
-      const d = await this.jobs.read(text);
-      if (d.source !== 'ai') break; // IA indisponível: fica para a próxima
+      const d = await this.jobs.read(text, AI_RATE_LIMIT);
+      // IA indisponível (ou limite diário): as restantes ficam para a próxima.
+      if (d.source !== 'ai') break;
       const verdict = classifyAccessibility({
         yearsRequired: d.yearsRequired,
         seniority: d.seniority,

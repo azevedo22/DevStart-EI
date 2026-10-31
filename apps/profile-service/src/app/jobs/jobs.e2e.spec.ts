@@ -153,6 +153,8 @@ describeDb('Análise de anúncios com IA (e2e)', () => {
       name: 'job_posting',
       strict: true,
     });
+    // reasoning_effort só vai para os gpt-oss (outros modelos podem recusá-lo).
+    expect(last!['reasoning_effort']).toBeUndefined();
     const messages = last!['messages'] as { role: string; content: string }[];
     expect(messages[1].content).toContain('Lumen Cloud');
   });

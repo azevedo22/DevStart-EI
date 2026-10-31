@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import {
+  LlmRateLimitError,
   LlmUnavailableError,
   StructuredChatRequest,
   StructuredLlm,
@@ -154,6 +155,11 @@ export class OpenAiCompatibleClient implements StructuredLlm {
           { role: 'user', content: user },
         ],
         response_format: responseFormat,
+        // Os gpt-oss raciocinam antes de responder, e o raciocínio conta para
+        // o limite de tokens por minuto. Para extrair dados, "low" chega.
+        ...(/^openai\/gpt-oss/.test(this.s.model) && {
+          reasoning_effort: 'low',
+        }),
       }),
     }).catch((err: Error) => {
       throw new LlmUnavailableError(
@@ -204,8 +210,9 @@ export class OpenAiCompatibleClient implements StructuredLlm {
       );
     }
     if (status === 429) {
-      return new LlmUnavailableError(
+      return new LlmRateLimitError(
         `A ${this.s.name} recusou o pedido por limite de utilização ou falta de saldo.`,
+        retryAfterMs(detail),
       );
     }
     if (
@@ -264,6 +271,21 @@ export function toStrictSchema(schema: object): object {
     return out;
   };
   return visit(schema) as object;
+}
+
+/**
+ * Quanto esperar, pela mensagem do fornecedor: "Please try again in 10.7175s",
+ * "in 1m2.5s" ou "in 450ms". null se não disser (ex.: falta de saldo).
+ */
+export function retryAfterMs(detail: string): number | null {
+  const m = /try again in\s+(?:(\d+)m(?!s))?\s*(?:([\d.]+)(ms|s))?/i.exec(
+    detail,
+  );
+  if (!m || (!m[1] && !m[2])) return null;
+  const minutes = Number(m[1] ?? 0);
+  const value = Number(m[2] ?? 0);
+  const ms = minutes * 60_000 + (m[3] === 'ms' ? value : value * 1000);
+  return Number.isFinite(ms) ? Math.ceil(ms) : null;
 }
 
 /** A mensagem de erro do fornecedor, se vier no formato habitual ({ error }). */

@@ -7,6 +7,20 @@
 /** A IA não está disponível (desligada, parada, chave inválida, modelo em falta, timeout). */
 export class LlmUnavailableError extends Error {}
 
+/**
+ * O fornecedor recusou por limite de utilização (HTTP 429). Se disser quanto
+ * esperar (limite por minuto), retryAfterMs tem esse tempo; se for falta de
+ * saldo ou limite diário, fica null e não vale a pena repetir já.
+ */
+export class LlmRateLimitError extends LlmUnavailableError {
+  constructor(
+    message: string,
+    readonly retryAfterMs: number | null,
+  ) {
+    super(message);
+  }
+}
+
 export interface StructuredChatRequest {
   system: string;
   user: string;
