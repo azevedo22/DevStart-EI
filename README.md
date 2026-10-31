@@ -194,7 +194,7 @@ Perkins…), para quem está à procura da primeira oportunidade não desistir.
 ### Importar o CV com IA
 
 Uma conta nova começa pelo perfil, com um botão para importar o CV (PDF ou DOCX). Um modelo de
-linguagem local ([Ollama](https://ollama.com)) lê o CV e preenche o perfil: título, localização, links,
+linguagem (local com o [Ollama](https://ollama.com), ou na cloud com a Groq ou a xAI) lê o CV e preenche o perfil: título, localização, links,
 formação, experiência, línguas, competências e projetos.
 
 - **Dois passos, nada gravado sem confirmação.** `POST /profile/cv/analyze` devolve um rascunho; o
@@ -203,8 +203,8 @@ formação, experiência, línguas, competências e projetos.
   e importar o mesmo CV duas vezes não duplica nada.
 - **O ficheiro não é guardado.** Fica em memória durante o pedido; o formato é verificado pelos
   primeiros bytes, não pela extensão.
-- **IA local, com saída estruturada.** O Ollama obriga o modelo a responder segundo um JSON Schema,
-  com temperatura 0. Mesmo assim, a resposta é tratada como texto não confiável: datas, anos, links e
+- **Saída estruturada.** O modelo é obrigado a responder segundo um JSON Schema, com
+  temperatura 0. Mesmo assim, a resposta é tratada como texto não confiável: datas, anos, links e
   níveis são validados e normalizados (`cv-normalize.ts`), e as tecnologias são mapeadas para o
   catálogo com a mesma deteção por palavras-chave da análise de vagas.
 - **Três fornecedores, escolhidos no `.env`.** `LLM_PROVIDER=ollama` (local, gratuito, o CV não sai
@@ -212,8 +212,8 @@ formação, experiência, línguas, competências e projetos.
   CV é enviado; a revisão avisa o utilizador). Se um modelo não aceitar o esquema estrito, o cliente
   repete em modo JSON simples. No arranque, o serviço confirma a chave e o modelo, e deteta chaves
   trocadas entre fornecedores (Groq e Grok confundem-se muito). O resto do código só conhece a
-  interface `StructuredLlm`.
-- **Funciona sem IA.** Se o Ollama estiver parado ou o modelo não estiver instalado, a análise
+  interface `StructuredLlm` (em `apps/profile-service/src/app/ai/`, partilhada com a análise de vagas).
+- **Funciona sem IA.** Se o fornecedor não responder (Ollama parado, modelo por instalar, chave errada), a análise
   devolve o que as palavras-chave encontram (competências e links) e diz porquê.
 
 Para usar: com o Ollama, instalar o modelo (`ollama pull qwen2.5:7b`, ou outro definido em
@@ -451,7 +451,7 @@ apps/web/src/app/
 - [x] Eventos entre serviços (Redis Streams + outbox) e eliminação de conta em todos os serviços
 - [x] Rate limiting partilhado em Redis, revogação de tokens e cache HTTP do catálogo
 - [x] Objetivo diário nos dias úteis (1 / 2 / 3) e relatório semanal com gráfico por dia
-- [x] Importação do CV com IA local (Ollama) e ficha com formação, experiência, línguas e links
+- [x] Importação do CV com IA (Ollama local, Groq ou xAI) e ficha com formação, experiência, línguas e links
 - [x] Análise de anúncios com IA: empresa, título, senioridade, experiência e competências
 - [x] Vagas do ITJobs.pt analisadas pela IA, com filtros, vagas novas e coluna "Por candidatar"
 - [x] Frase do dia de pessoas da tecnologia, com fonte, ajustada ao momento da procura
