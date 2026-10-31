@@ -370,15 +370,51 @@ export function toApplication(
                       >
                         Ver anúncio
                       </a>
+                    } @else if (confirming() === j.id) {
+                      <!-- Abrir o anúncio não é candidatar-se: só regista quando o utilizador confirma. -->
+                      <div
+                        class="confirm-box w-100 rounded-3 p-2 px-3 d-flex flex-wrap align-items-center gap-2"
+                        role="group"
+                        aria-label="Confirmar candidatura"
+                      >
+                        <span class="small me-auto">
+                          <i class="bi bi-question-circle me-1"></i>Concluíste a
+                          candidatura no ITJobs.pt?
+                        </span>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-success"
+                          [disabled]="busy().has(j.id)"
+                          (click)="confirmApplied(j)"
+                        >
+                          <i class="bi bi-check2 me-1"></i>Sim, regista
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          [disabled]="busy().has(j.id)"
+                          (click)="save(j)"
+                        >
+                          <i class="bi bi-bookmark me-1"></i>Guardar para depois
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-link text-body-secondary"
+                          (click)="confirming.set(null)"
+                        >
+                          Ainda não
+                        </button>
+                      </div>
                     } @else {
                       <button
                         type="button"
                         class="btn btn-sm btn-primary"
                         [disabled]="busy().has(j.id)"
-                        (click)="apply(j)"
-                        title="Abre o anúncio no ITJobs.pt e junta a candidatura ao quadro"
+                        (click)="openToApply(j)"
+                        title="Abre o anúncio no ITJobs.pt. Só fica no teu quadro quando confirmares que te candidataste."
                       >
-                        <i class="bi bi-send me-1"></i>Candidatar-me
+                        <i class="bi bi-box-arrow-up-right me-1"></i
+                        >Candidatar-me
                       </button>
                       <button
                         type="button"
@@ -416,6 +452,10 @@ export function toApplication(
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+    .confirm-box {
+      background: var(--bs-success-bg-subtle);
+      border: 1px solid var(--bs-success-border-subtle);
+    }
     .new-job {
       box-shadow:
         inset 3px 0 0 var(--bs-success),
@@ -448,6 +488,8 @@ export class JobsPage {
   protected readonly error = signal<string | null>(null);
   protected readonly actionError = signal<string | null>(null);
   protected readonly busy = signal<ReadonlySet<string>>(new Set());
+  /** A vaga cujo anúncio foi aberto e espera a confirmação da candidatura. */
+  protected readonly confirming = signal<string | null>(null);
   /**
    * As vagas novas na primeira lista desta visita. A visita fica registada logo
    * a seguir, por isso mudar de filtros já não as marcaria: guardam-se aqui.
@@ -553,9 +595,17 @@ export class JobsPage {
       });
   }
 
-  /** Abre o anúncio (no clique, para o browser não o bloquear) e junta ao quadro. */
-  protected apply(job: JobFeedItem): void {
+  /**
+   * Abre o anúncio no ITJobs.pt (no clique, para o browser não o bloquear) e
+   * pergunta se a candidatura foi feita. Abrir o anúncio não é candidatar-se:
+   * o utilizador pode ler e desistir. Só "Sim, regista" cria o cartão.
+   */
+  protected openToApply(job: JobFeedItem): void {
     window.open(job.url, '_blank', 'noopener');
+    this.confirming.set(job.id);
+  }
+
+  protected confirmApplied(job: JobFeedItem): void {
     this.addToBoard(job, 'APPLIED');
   }
 
@@ -578,6 +628,9 @@ export class JobsPage {
         ),
       )
       .subscribe({
+        next: () => {
+          if (this.confirming() === job.id) this.confirming.set(null);
+        },
         error: (e: ApiError) =>
           this.actionError.set(
             `Não foi possível juntar "${job.title}" ao quadro: ${e.message}`,
