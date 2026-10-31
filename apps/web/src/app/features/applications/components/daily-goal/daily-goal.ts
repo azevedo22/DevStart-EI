@@ -1,7 +1,6 @@
 import {
   Component,
   DestroyRef,
-  computed,
   effect,
   inject,
   input,
@@ -9,7 +8,13 @@ import {
   untracked,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { GOAL_TIERS, GOAL_TIER_LABELS, GoalTier } from '@devstart/shared-types';
+import {
+  GOAL_TIER_LABELS,
+  GoalTier,
+  WEEKDAY_SHORT,
+  weekday,
+} from '@devstart/shared-types';
+import { GOAL_TIER_COLOR } from '../../../../shared/ui/display';
 import { ApplicationsStore } from '../../data/applications-store';
 
 const TIER_RANK: Record<GoalTier, number> = {
@@ -17,15 +22,6 @@ const TIER_RANK: Record<GoalTier, number> = {
   GOOD: 2,
   EXCELLENT: 3,
 };
-
-/** Cor de cada patamar (classes do Bootstrap). */
-const TIER_COLOR: Record<GoalTier, string> = {
-  SUFFICIENT: 'info',
-  GOOD: 'primary',
-  EXCELLENT: 'success',
-};
-
-const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
 /**
  * Objetivo diário de candidaturas, só nos dias úteis: 1 é suficiente, 2 é
@@ -358,7 +354,7 @@ export class DailyGoal {
   }
 
   protected color(tier: GoalTier): string {
-    return TIER_COLOR[tier];
+    return GOAL_TIER_COLOR[tier];
   }
 
   protected percent(value: number, max: number): number {
@@ -366,7 +362,6 @@ export class DailyGoal {
   }
 
   protected weekday(date: string): string {
-    const [y, m, d] = date.split('-').map(Number);
-    return WEEKDAYS[new Date(y, m - 1, d).getDay()];
+    return WEEKDAY_SHORT[weekday(date)];
   }
 }

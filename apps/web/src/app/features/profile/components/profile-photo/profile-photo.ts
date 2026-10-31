@@ -7,6 +7,7 @@ import {
   preparePhoto,
 } from '../../../../core/profile/prepare-photo';
 import { ProfileStore } from '../../../../core/profile/profile-store';
+import { initialsOf } from '../../../../shared/ui/display';
 
 /** Foto de perfil, com carregar, trocar e remover. Sem foto, as iniciais. */
 @Component({
@@ -115,13 +116,7 @@ export class ProfilePhoto {
   protected readonly error = signal<string | null>(null);
 
   protected readonly initials = computed(() =>
-    (this.auth.user()?.fullName ?? '')
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((w) => w[0])
-      .filter((_, i, all) => i === 0 || i === all.length - 1)
-      .join('')
-      .toUpperCase(),
+    initialsOf(this.auth.user()?.fullName),
   );
 
   onFile(event: Event): void {

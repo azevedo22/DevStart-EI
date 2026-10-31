@@ -5,6 +5,7 @@ import {
   matchWithProfile,
 } from '@devstart/shared-types';
 import { ProfileStore } from '../../../../core/profile/profile-store';
+import { matchClass } from '../../../../shared/ui/display';
 import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
 
 /** Cartão de uma candidatura no Kanban. */
@@ -72,14 +73,9 @@ export class ApplicationCard {
     ),
   );
 
-  protected readonly matchClass = computed(() => {
-    const p = this.match().percentage ?? 0;
-    return p >= 70
-      ? 'text-success'
-      : p >= 40
-        ? 'text-warning-emphasis'
-        : 'text-danger';
-  });
+  protected readonly matchClass = computed(() =>
+    matchClass(this.match().percentage),
+  );
 
   protected readonly daysAgo = computed(() => {
     const days = Math.floor(

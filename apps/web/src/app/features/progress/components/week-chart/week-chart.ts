@@ -2,6 +2,7 @@ import { Component, computed, input, signal } from '@angular/core';
 import {
   REPORT_SERIES,
   ReportSeriesId,
+  WEEKDAY_SHORT,
   WeeklyReport,
 } from '@devstart/shared-types';
 
@@ -13,8 +14,6 @@ export const SERIES_COLORS: Record<ReportSeriesId, string> = {
   interviews: 'var(--series-4)',
   projects: 'var(--series-5)',
 };
-
-export const WEEKDAY_SHORT = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
 // Geometria do SVG (unidades do viewBox; o SVG estica para a largura).
 const W = 700;

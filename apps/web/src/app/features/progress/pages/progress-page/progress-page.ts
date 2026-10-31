@@ -4,7 +4,6 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   ActivityEvent,
   GOAL_TIER_LABELS,
-  GoalTier,
   InterviewType,
   REPORT_SERIES,
   ReportSeriesId,
@@ -30,12 +29,7 @@ import {
   WeekChart,
 } from '../../components/week-chart/week-chart';
 import { ProgressApi } from '../../data/progress-api';
-
-const TIER_COLOR: Record<GoalTier, string> = {
-  SUFFICIENT: 'info',
-  GOOD: 'primary',
-  EXCELLENT: 'success',
-};
+import { GOAL_TIER_COLOR } from '../../../../shared/ui/display';
 
 type LoadState =
   | { status: 'loading' }
@@ -416,7 +410,7 @@ export class ProgressPage {
 
   protected readonly series = REPORT_SERIES;
   protected readonly colors = SERIES_COLORS;
-  protected readonly tierColor = TIER_COLOR;
+  protected readonly tierColor = GOAL_TIER_COLOR;
   protected readonly tierLabels = GOAL_TIER_LABELS;
   protected readonly longDay = longDay;
   protected readonly shortDate = shortDate;

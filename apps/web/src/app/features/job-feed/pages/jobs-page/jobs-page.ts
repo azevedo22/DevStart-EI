@@ -20,6 +20,7 @@ import { ApiError } from '../../../../core/http/error.interceptor';
 import { AccessibilityBadge } from '../../../applications/components/accessibility-badge/accessibility-badge';
 import { ApplicationsStore } from '../../../applications/data/applications-store';
 import { JobFeedStore } from '../../data/job-feed-store';
+import { matchClass } from '../../../../shared/ui/display';
 
 /** Os distritos mais procurados aparecem primeiro na lista. */
 const MAIN_LOCATIONS = [18, 14, 4, 8, 1];
@@ -481,6 +482,7 @@ export class JobsPage {
   protected readonly contracts = JOB_CONTRACTS;
   protected readonly workModeLabels = WORK_MODE_LABELS;
   protected readonly ago = ago;
+  protected readonly matchClass = matchClass;
 
   protected readonly query = signal<JobFeedQuery>({});
   protected readonly data = signal<JobFeedResponse | null>(null);
@@ -653,14 +655,6 @@ export class JobsPage {
 
   protected statusLabel(s: ApplicationStatus): string {
     return s === 'SAVED' ? 'por candidatar' : 'já te candidataste';
-  }
-
-  protected matchClass(p: number): string {
-    return p >= 70
-      ? 'text-success'
-      : p >= 40
-        ? 'text-warning-emphasis'
-        : 'text-danger';
   }
 }
 

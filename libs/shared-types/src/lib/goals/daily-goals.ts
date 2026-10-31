@@ -151,6 +151,17 @@ export function dailyGoalProgress(
   };
 }
 
+/** Abreviaturas dos dias, pelo índice de weekday() (0 = domingo). */
+export const WEEKDAY_SHORT: readonly string[] = [
+  'dom',
+  'seg',
+  'ter',
+  'qua',
+  'qui',
+  'sex',
+  'sáb',
+];
+
 /** Dia da semana de uma data AAAA-MM-DD: 0 = domingo … 6 = sábado. */
 export function weekday(date: string): number {
   const [y, m, d] = date.split('-').map(Number);

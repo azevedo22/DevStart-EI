@@ -4,6 +4,7 @@ import { NgbCollapse, NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { JobFeedStore } from '../../../features/job-feed/data/job-feed-store';
 import { AuthService } from '../../auth/auth.service';
 import { ProfileStore } from '../../profile/profile-store';
+import { initialsOf } from '../../../shared/ui/display';
 
 @Component({
   selector: 'ds-navbar',
@@ -145,13 +146,9 @@ export class Navbar {
   protected readonly firstName = computed(
     () => this.auth.user()?.fullName.split(' ')[0] ?? '',
   );
-  protected readonly initials = computed(() => {
-    const parts = (this.auth.user()?.fullName ?? '').split(' ').filter(Boolean);
-    return (
-      (parts[0]?.[0] ?? '') +
-      (parts.length > 1 ? parts[parts.length - 1][0] : '')
-    ).toUpperCase();
-  });
+  protected readonly initials = computed(() =>
+    initialsOf(this.auth.user()?.fullName),
+  );
 
   logout(): void {
     this.collapsed.set(true);
