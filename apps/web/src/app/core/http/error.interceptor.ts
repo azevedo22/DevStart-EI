@@ -25,7 +25,8 @@ export function toApiError(err: HttpErrorResponse): ApiError {
   if (err.status === 0) {
     message =
       'Não foi possível contactar o servidor. Confirma que o API Gateway está a correr.';
-  } else if (err.status === 429) {
+  } else if (err.status === 429 && typeof raw !== 'string') {
+    // O servidor costuma explicar o limite (e quanto esperar); isto é o recurso.
     message = 'Demasiadas tentativas. Espera um minuto e tenta de novo.';
   } else if (details.length) {
     message = details[0];

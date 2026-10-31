@@ -102,6 +102,11 @@ Ajuda a responder a três perguntas:
   se estiver explicitamente na lista: esquecer uma entrada fecha, nunca abre.
 - **Proteção de credenciais.** Passwords com bcrypt, resposta igual para email inexistente e password
   errada (também no tempo de resposta), e limite de 10 tentativas por minuto no login e registo.
+- **Limites de pedidos em camadas.** O gateway aceita até 300 pedidos por minuto por pessoa (por
+  utilizador com sessão, por IP sem ela), contra scripts e ciclos no frontend. A IA tem uma quota à
+  parte, por causa do custo: 20 leituras (CV e anúncios) por hora por utilizador e 300 por dia no total,
+  porque as contas de demonstração se criam sem registo. Tudo é configurável no `.env` e o 429 diz
+  quanto falta esperar.
 - **Regras partilhadas.** As regras de password vêm de `libs/shared-types` e são validadas no formulário
   e no servidor com o mesmo critério.
 
@@ -291,11 +296,11 @@ Os dados de exemplo estão em `apps/profile-service/src/app/demo/demo-profile.da
 
 ### Redis: o que guarda e o que acontece se falhar
 
-| Uso                                                        | Se o Redis falhar                                                               |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Eventos entre serviços                                     | Ficam no outbox e são publicados quando o Redis voltar                          |
-| Contadores do rate limiting (partilhados entre instâncias) | Deixa passar e regista (_fail-open_): uma falha do Redis não bloqueia os logins |
-| Revogação de tokens                                        | Deixa passar: os tokens expiram sozinhos em 15 minutos                          |
+| Uso                                                                         | Se o Redis falhar                                                               |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Eventos entre serviços                                                      | Ficam no outbox e são publicados quando o Redis voltar                          |
+| Contadores do rate limiting e da quota de IA (partilhados entre instâncias) | Deixa passar e regista (_fail-open_): uma falha do Redis não bloqueia os logins |
+| Revogação de tokens                                                         | Deixa passar: os tokens expiram sozinhos em 15 minutos                          |
 
 O catálogo de competências e stacks usa cache HTTP (`Cache-Control` + `ETag`): o browser guarda-o
 5 minutos e depois revalida; sem alterações, a resposta é um `304` sem corpo.
@@ -325,7 +330,7 @@ O catálogo de competências e stacks usa cache HTTP (`Cache-Control` + `ETag`):
   própria origem.
 - **O IP real do cliente atravessa os proxies.** O rate limiting conta tentativas por IP. Atrás do nginx e
   do gateway, o auth-service lê o IP de `X-Forwarded-For` saltando o número certo de proxies
-  (`TRUST_PROXY_HOPS`). Com o valor errado, todos os pedidos pareceriam vir do nginx e 10 logins falhados
+  (`TRUST_PROXY_HOPS`); o gateway faz o mesmo, com um salto a menos. Com o valor errado, todos os pedidos pareceriam vir do nginx e 10 logins falhados
   de uma pessoa bloqueariam toda a gente. Um `X-Forwarded-For` forjado pelo cliente não muda nada.
 - **Smoke test na CI.** Um job constrói as imagens, arranca a stack inteira e percorre-a através do nginx
   (`tools/smoke-test.sh`): frontend, cabeçalhos, registo, os três serviços, eliminação da conta e revogação

@@ -181,6 +181,8 @@ services:
       AUTH_SERVICE_URL: http://auth-service:3001
       PROFILE_SERVICE_URL: http://profile-service:3002
       TRACKER_SERVICE_URL: http://tracker-service:3003
+      # O nginx está à frente: o IP real é o último do X-Forwarded-For.
+      TRUST_PROXY_HOPS: 1
       REDIS_URL: redis://redis:6379
     healthcheck:
       <<: *healthcheck

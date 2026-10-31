@@ -9,3 +9,4 @@ export * from './lib/events/event-subscriber';
 export * from './lib/events/redis';
 export * from './lib/events/redis-test-url';
 export * from './lib/events/revocation';
+export * from './lib/rate-limit';

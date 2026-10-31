@@ -11,6 +11,7 @@ import { BackgroundService } from './background/background.service';
 import { CatalogModule } from './catalog/catalog.module';
 import { CvController } from './cv/cv.controller';
 import { CvService } from './cv/cv.service';
+import { AiQuota } from './ai/ai-quota';
 import { STRUCTURED_LLM } from './ai/llm';
 import { JobFeedController } from './job-board/job-feed.controller';
 import { JobFeedService } from './job-board/job-feed.service';
@@ -80,6 +81,7 @@ import { SkillGapController } from './skill-gap/skill-gap.controller';
     JobFeedService,
     OllamaClient,
     LlmStartupCheck,
+    AiQuota,
     // A IA que lê os CVs escolhe-se no .env (LLM_PROVIDER).
     {
       provide: STRUCTURED_LLM,

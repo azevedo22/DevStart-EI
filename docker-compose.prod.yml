@@ -20,6 +20,8 @@ services:
   api-gateway:
     environment:
       WEB_ORIGIN: https://${DOMAIN:?Define DOMAIN no .env}
+      # Caddy + nginx à frente do gateway.
+      TRUST_PROXY_HOPS: 2
 
   caddy:
     image: caddy:2-alpine

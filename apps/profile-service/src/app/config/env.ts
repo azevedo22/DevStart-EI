@@ -94,6 +94,19 @@ export class Env {
   @Min(0)
   @Max(50)
   JOB_SYNC_AI_PER_RUN = 10;
+
+  // ── Limites da IA (custo) ──────────────────────────────────
+  /** Leituras com IA (CV e anúncios) por utilizador, por hora. 0 desliga. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  AI_USER_HOURLY_LIMIT = 20;
+
+  /** Leituras com IA de todos os utilizadores juntos, por dia. 0 desliga. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  AI_DAILY_LIMIT = 300;
 }
 
 export const validateEnv = createEnvValidator(Env, 'profile-service');

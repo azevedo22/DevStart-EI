@@ -27,6 +27,9 @@ import { HealthController } from './health.controller';
       useFactory: (redis: Redis | null) => {
         return {
           throttlers: [{ limit: 100, ttl: 60_000 }],
+          // O frontend mostra esta mensagem tal como vem.
+          errorMessage:
+            'Demasiadas tentativas. Espera um minuto e tenta de novo.',
           // Sem Redis, os contadores ficam em memória (só serve com uma instância).
           storage: redis ? new FailOpenRedisThrottlerStorage(redis) : undefined,
           // Desligável só nos testes: em qualquer outro ambiente a variável é ignorada.

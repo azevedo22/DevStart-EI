@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
+import { AiQuota } from '../ai/ai-quota';
 import { COMPETENCIES } from '../catalog/seed/competencies.seed';
 import {
   LlmRateLimitError,
@@ -30,7 +31,10 @@ export class JobsService {
   /** Uma análise de cada vez por utilizador. */
   private readonly analyzing = new Set<string>();
 
-  constructor(@Inject(STRUCTURED_LLM) private readonly llm: StructuredLlm) {}
+  constructor(
+    @Inject(STRUCTURED_LLM) private readonly llm: StructuredLlm,
+    private readonly quota: AiQuota,
+  ) {}
 
   async analyze(userId: string, text: string): Promise<JobPostingDraft> {
     if (this.analyzing.has(userId)) {
@@ -39,6 +43,7 @@ export class JobsService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
+    await this.quota.consume(userId);
     this.analyzing.add(userId);
     try {
       // Se a IA estiver ocupada (ex.: a recolha de vagas), espera um pouco uma vez.

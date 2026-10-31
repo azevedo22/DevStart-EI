@@ -3,22 +3,27 @@
  * 1. Valida o JWT (rotas protegidas) e passa a identidade aos serviços.
  * 2. Encaminha /api/v1/<recurso> para o microsserviço dono do recurso.
  */
-import { revokedUserKey } from '@devstart/backend-common';
+import { FixedWindowLimiter, revokedUserKey } from '@devstart/backend-common';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { AppModule } from './app/app.module';
 import { createAuthMiddleware } from './app/auth.middleware';
 import { DEV_JWT_SECRET, GatewayEnv } from './app/env';
 import { GATEWAY_REDIS } from './app/gateway-redis';
 import type Redis from 'ioredis';
+import { createRateLimitMiddleware } from './app/rate-limit.middleware';
 import { buildRoutes, rewritePath } from './app/routes.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get<ConfigService<GatewayEnv, true>>(ConfigService);
   const logger = new Logger('Gateway');
+  // IP real de quem pede, contado a partir da direita do X-Forwarded-For: um
+  // valor forjado pelo cliente fica à esquerda e não conta.
+  app.set('trust proxy', config.get('TRUST_PROXY_HOPS', { infer: true }));
 
   app.enableCors({
     origin: config.get('WEB_ORIGIN', { infer: true }),
@@ -48,6 +53,13 @@ async function bootstrap() {
           `Redis indisponível; revogação não verificada (${(err as Error).message}).`,
         );
       },
+    }),
+  );
+  // Depois da autenticação: com sessão, o limite é por utilizador.
+  app.use(
+    createRateLimitMiddleware({
+      limiter: new FixedWindowLimiter(redis),
+      perMinute: config.get('API_RATE_LIMIT_PER_MINUTE', { infer: true }),
     }),
   );
   app.enableShutdownHooks();

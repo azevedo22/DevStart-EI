@@ -3,6 +3,8 @@ import {
   IsIn,
   IsInt,
   IsString,
+  Max,
+  Min,
   MinLength,
   validateSync,
 } from 'class-validator';
@@ -36,6 +38,23 @@ export class GatewayEnv {
   /** Redis partilhado: o gateway lê daqui os utilizadores revogados. Vazio desliga. */
   @IsString()
   REDIS_URL = 'redis://localhost:6379';
+
+  /**
+   * Quantos proxies estão à frente do gateway, para saber o IP real de quem
+   * pede (rate limiting sem sessão). 0 = nenhum (desenvolvimento); 1 = nginx
+   * (docker compose); 2 = Caddy + nginx (produção).
+   */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(5)
+  TRUST_PROXY_HOPS = 0;
+
+  /** Pedidos à API por minuto, por utilizador (ou IP, sem sessão). 0 desliga. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  API_RATE_LIMIT_PER_MINUTE = 300;
 }
 
 export function validateGatewayEnv(raw: Record<string, unknown>): GatewayEnv {

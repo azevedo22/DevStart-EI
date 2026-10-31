@@ -32,6 +32,7 @@ import { toProjectFields } from '../projects/projects.service';
 import { CV_EXTRACTION_SCHEMA, CV_SYSTEM_PROMPT } from './cv-extraction.schema';
 import { keywordOnlyDraft, normalizeCvExtraction } from './cv-normalize';
 import { extractCvText } from './cv-text';
+import { AiQuota } from '../ai/ai-quota';
 import { LlmUnavailableError, STRUCTURED_LLM, StructuredLlm } from '../ai/llm';
 
 /**
@@ -55,6 +56,7 @@ export class CvService {
     private readonly catalog: CatalogService,
     private readonly background: BackgroundService,
     private readonly profile: ProfileService,
+    private readonly quota: AiQuota,
     @InjectDataSource() private readonly db: DataSource,
   ) {}
 
@@ -76,6 +78,8 @@ export class CvService {
     this.analyzing.add(userId);
     try {
       const text = await extractCvText(file);
+      // Conta só depois de o ficheiro se ler: um PDF inválido não gasta a quota.
+      await this.quota.consume(userId);
       try {
         const raw = await this.llm.chatJson({
           system: CV_SYSTEM_PROMPT,
