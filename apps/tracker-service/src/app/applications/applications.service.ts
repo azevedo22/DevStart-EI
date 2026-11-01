@@ -158,12 +158,14 @@ export class ApplicationsService {
     const total = rows.reduce((sum, r) => sum + r.count, 0) - saved;
 
     // "Responderam" = alguma vez saiu de APPLIED (incluindo rejeições depois de
-    // entrevista). Sair de "Por candidatar" é candidatar-se, não uma resposta.
+    // entrevista). Sair de "Por candidatar" é candidatar-se, não uma resposta;
+    // passar a "Sem resposta" é o contrário de uma resposta.
     const [{ responded }] = await this.db.query(
       `SELECT count(DISTINCT h.application_id)::int AS responded
          FROM application_status_history h JOIN applications a ON a.id = h.application_id
         WHERE a.user_id = $1 AND h.from_status IS NOT NULL
-          AND h.from_status NOT IN ('SAVED') AND a.status NOT IN ('SAVED')`,
+          AND h.from_status NOT IN ('SAVED') AND a.status NOT IN ('SAVED')
+          AND h.to_status NOT IN ('NO_RESPONSE', 'APPLIED')`,
       [userId],
     );
     const [{ interviews }] = await this.db.query(

@@ -35,6 +35,7 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
   TECHNICAL_INTERVIEW: 'border-primary',
   OFFER: 'border-success',
   REJECTED: 'border-danger',
+  NO_RESPONSE: 'border-secondary-subtle',
 };
 
 /** Módulo 3 — quadro Kanban das candidaturas. */

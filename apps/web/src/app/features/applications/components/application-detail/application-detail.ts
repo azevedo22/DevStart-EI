@@ -14,6 +14,7 @@ import {
   STATUS_LABELS,
   WORK_MODE_LABELS,
   matchWithProfile,
+  silenceOf,
 } from '@devstart/shared-types';
 import { NgbActiveOffcanvas, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { CatalogApiService } from '../../../../core/catalog/catalog-api.service';
@@ -24,6 +25,7 @@ import { ApplicationsStore } from '../../data/applications-store';
 import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
 import { ApplicationFormModal } from '../application-form-modal/application-form-modal';
 import { InterviewFormModal } from '../interview-form-modal/interview-form-modal';
+import { SilenceNotice } from '../silence-notice/silence-notice';
 
 /** Colunas que sugerem registar uma entrevista desse tipo ao entrar nelas. */
 const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
@@ -39,7 +41,13 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
  */
 @Component({
   selector: 'ds-application-detail',
-  imports: [DatePipe, FormsModule, RouterLink, AccessibilityBadge],
+  imports: [
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    AccessibilityBadge,
+    SilenceNotice,
+  ],
   template: `
     <div class="offcanvas-header border-bottom">
       <div class="min-w-0">
@@ -80,6 +88,15 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
             }
           </select>
         </section>
+
+        @if (silence(); as s) {
+          <ds-silence-notice
+            [application]="d"
+            [silence]="s"
+            [busy]="busy()"
+            (giveUp)="changeStatus('NO_RESPONSE')"
+          />
+        }
 
         <section class="vstack gap-2">
           <ds-accessibility-badge
@@ -322,6 +339,12 @@ export class ApplicationDetail {
   protected readonly error = signal<string | null>(null);
   protected readonly busy = signal(false);
   private id!: string;
+
+  /** À espera de resposta há tempo demais (14 dias: follow-up; 30: arquivar). */
+  protected readonly silence = computed(() => {
+    const d = this.detail();
+    return d ? silenceOf(d, this.store.today()) : null;
+  });
 
   protected readonly match = computed(() =>
     matchWithProfile(

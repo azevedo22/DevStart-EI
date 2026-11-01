@@ -10,6 +10,7 @@ export const APPLICATION_STATUSES = [
   'TECHNICAL_INTERVIEW',
   'OFFER',
   'REJECTED',
+  'NO_RESPONSE',
 ] as const;
 
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
@@ -22,6 +23,7 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   TECHNICAL_INTERVIEW: 'Entrevista Técnica',
   OFFER: 'Proposta',
   REJECTED: 'Rejeitado',
+  NO_RESPONSE: 'Sem resposta',
 };
 
 /**
@@ -35,10 +37,15 @@ export function isApplied(status: ApplicationStatus): boolean {
   return !NOT_APPLIED_STATUSES.includes(status);
 }
 
-/** Estados finais: o processo acabou, com ou sem sucesso. */
+/**
+ * Estados finais: o processo acabou, com ou sem sucesso. "Sem resposta" é o
+ * silêncio da empresa: não é uma rejeição (não conta como tal no relatório),
+ * mas também já não está ativo. Se a empresa responder, o cartão sai daqui.
+ */
 export const CLOSED_STATUSES: readonly ApplicationStatus[] = [
   'OFFER',
   'REJECTED',
+  'NO_RESPONSE',
 ];
 
 export type WorkMode = 'ONSITE' | 'HYBRID' | 'REMOTE';

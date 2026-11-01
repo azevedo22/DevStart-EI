@@ -3,9 +3,11 @@ import {
   JobApplication,
   WORK_MODE_LABELS,
   matchWithProfile,
+  silenceOf,
 } from '@devstart/shared-types';
 import { ProfileStore } from '../../../../core/profile/profile-store';
 import { matchClass } from '../../../../shared/ui/display';
+import { ApplicationsStore } from '../../data/applications-store';
 import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
 
 /** Cartão de uma candidatura no Kanban. */
@@ -55,16 +57,47 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
           >
         }
       </div>
+      @if (silence(); as s) {
+        <div
+          class="silence badge fw-normal mt-2"
+          [class.give-up]="s.stage === 'GIVE_UP'"
+          [title]="
+            s.stage === 'GIVE_UP'
+              ? 'Já poucas empresas respondem: podes arquivar em Sem resposta'
+              : 'Altura de um follow-up: abre para ver um rascunho'
+          "
+        >
+          <i class="bi bi-hourglass-split me-1"></i>Sem resposta há
+          {{ s.days }} dias
+        </div>
+      }
     </button>
+  `,
+  styles: `
+    .silence {
+      color: var(--bs-warning-text-emphasis);
+      background: var(--bs-warning-bg-subtle);
+      border: 1px solid var(--bs-warning-border-subtle);
+    }
+    .silence.give-up {
+      color: var(--bs-secondary-text-emphasis);
+      background: var(--bs-secondary-bg-subtle);
+      border-color: var(--bs-secondary-border-subtle);
+    }
   `,
 })
 export class ApplicationCard {
   private readonly profile = inject(ProfileStore);
+  private readonly store = inject(ApplicationsStore);
 
   readonly application = input.required<JobApplication>();
   readonly open = output<string>();
 
   protected readonly workModes = WORK_MODE_LABELS;
+
+  protected readonly silence = computed(() =>
+    silenceOf(this.application(), this.store.today()),
+  );
 
   protected readonly match = computed(() =>
     matchWithProfile(

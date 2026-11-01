@@ -8,7 +8,8 @@ import {
  * Candidaturas de exemplo das contas de demonstração. Empresas fictícias.
  *
  * Cobrem todas as colunas do Kanban e os três tipos de vaga do filtro de
- * acessibilidade, incluindo uma "júnior" que pede 3 anos de experiência.
+ * acessibilidade, incluindo uma "júnior" que pede 3 anos de experiência e uma
+ * candidatura sem resposta há mais de duas semanas (aviso de follow-up).
  */
 export interface DemoApplication {
   /** Há quantos dias foi a candidatura (as datas são sempre relativas a hoje). */
@@ -98,6 +99,22 @@ export const DEMO_APPLICATIONS: DemoApplication[] = [
       requiredCompetencyIds: ['angular', 'typescript', 'html-css', 'rxjs'],
       yearsRequired: null,
       seniority: 'UNKNOWN',
+      notes: null,
+    },
+    path: [],
+    interviews: [],
+  },
+  {
+    // Sem resposta há mais de duas semanas: mostra o aviso de follow-up.
+    daysAgo: 17,
+    application: {
+      companyName: 'Ribeira Tech',
+      jobTitle: 'Junior Backend Developer (Node.js)',
+      location: 'Porto',
+      workMode: 'HYBRID',
+      requiredCompetencyIds: ['nodejs', 'typescript', 'postgresql', 'git'],
+      yearsRequired: 0,
+      seniority: 'JUNIOR',
       notes: null,
     },
     path: [],

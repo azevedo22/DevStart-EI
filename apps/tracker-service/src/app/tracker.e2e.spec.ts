@@ -5,7 +5,11 @@
 import { configureApp, createEvent } from '@devstart/backend-common';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ApplicationBoard, JobApplication } from '@devstart/shared-types';
+import {
+  ApplicationBoard,
+  JobApplication,
+  silenceOf,
+} from '@devstart/shared-types';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 
@@ -437,6 +441,50 @@ describeDb('Application Tracker Service (e2e)', () => {
     });
   });
 
+  describe('"Sem resposta" (a empresa nunca respondeu)', () => {
+    it('não é uma rejeição nem uma resposta, e deixa de estar ativa', async () => {
+      const a = await create({
+        companyName: 'Silenciosa',
+        appliedAt: '2026-09-20',
+      });
+      await create({ companyName: 'Outra' });
+      await ana
+        .patch(`/api/applications/${a.id}/move`, {
+          status: 'NO_RESPONSE',
+          position: 0,
+        })
+        .expect(200);
+
+      const { body } = await ana.get('/api/applications/stats').expect(200);
+      expect(body).toMatchObject({
+        total: 2,
+        active: 1,
+        responseRate: 0,
+        byStatus: { NO_RESPONSE: 1, APPLIED: 1, REJECTED: 0 },
+      });
+      const today = new Date().toISOString().slice(0, 10);
+      const { body: activity } = await ana
+        .get(`/api/applications/activity?from=${today}&to=${today}`)
+        .expect(200);
+      expect(
+        activity.filter((e: { kind: string }) => e.kind !== 'APPLIED'),
+      ).toEqual([]);
+    });
+
+    it('se a empresa responder mais tarde, conta como resposta', async () => {
+      const a = await create({
+        companyName: 'Tardia',
+        appliedAt: '2026-09-20',
+      });
+      for (const status of ['NO_RESPONSE', 'HR_INTERVIEW'])
+        await ana
+          .patch(`/api/applications/${a.id}/move`, { status, position: 0 })
+          .expect(200);
+      const { body } = await ana.get('/api/applications/stats').expect(200);
+      expect(body).toMatchObject({ responseRate: 100, active: 1 });
+    });
+  });
+
   describe('"Por candidatar" (vagas guardadas)', () => {
     const stats = async () =>
       (await ana.get('/api/applications/stats').expect(200)).body;
@@ -770,12 +818,19 @@ describeDb('Application Tracker Service (e2e)', () => {
       for (const cards of Object.values(board)) {
         expect(cards.map((c) => c.position)).toEqual(cards.map((_, i) => i));
       }
+      // Uma candidatura à espera há mais de 14 dias, para se ver o aviso.
+      const today = new Date().toISOString().slice(0, 10);
+      expect(
+        board['APPLIED'].some(
+          (c) => silenceOf(c, today)?.stage === 'FOLLOW_UP',
+        ),
+      ).toBe(true);
     });
 
     it('a acessibilidade é calculada pelo servidor, incluindo a vaga "júnior" que pede 3 anos', async () => {
       await seed(ANA);
       const { body } = await ana.get('/api/applications/stats').expect(200);
-      expect(body.total).toBe(6);
+      expect(body.total).toBe(7);
       expect(body.byAccessibility.UNREALISTIC).toBe(1);
       expect(body.byAccessibility.STRETCH).toBe(1);
       expect(body.interviews).toBe(3);
