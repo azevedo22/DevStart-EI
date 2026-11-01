@@ -1,5 +1,11 @@
 import { ActivityEvent, weeklyReport } from '@devstart/shared-types';
-import { describeEvent, longDay, reflections } from './progress-page';
+import {
+  delta,
+  describeEvent,
+  longDay,
+  percent,
+  reflections,
+} from '../../progress.util';
 
 const MON = '2026-10-26';
 const ev = (
@@ -70,5 +76,26 @@ describe('reflections', () => {
     expect(reflections(weeklyReport([], MON, '2026-11-01'))[0]).toMatch(
       /Nenhuma candidatura esta semana/,
     );
+  });
+});
+
+describe('delta e percent', () => {
+  it('compara com a semana anterior', () => {
+    const r = weeklyReport([], '2026-10-26', '2026-10-29');
+    expect(delta(r, 'applications')).toBe('igual à semana anterior');
+    const more = {
+      ...r,
+      series: { ...r.series, applications: 3 },
+      previous: {
+        ...r.previous,
+        series: { ...r.previous.series, applications: 5 },
+      },
+    };
+    expect(delta(more, 'applications')).toBe('−2 face à semana anterior');
+  });
+
+  it('a barra nunca passa dos 100% nem divide por zero', () => {
+    expect(percent(20, 15)).toBe(100);
+    expect(percent(3, 0)).toBe(0);
   });
 });

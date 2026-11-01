@@ -3,14 +3,8 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   ActivityEvent,
-  GOAL_TIER_LABELS,
-  InterviewType,
-  REPORT_SERIES,
-  ReportSeriesId,
-  STATUS_LABELS,
   WeeklyReport,
   addDays,
-  describeDay,
   weekStart,
   weeklyReport,
 } from '@devstart/shared-types';
@@ -24,149 +18,34 @@ import {
 } from 'rxjs';
 import { ApiError } from '../../../../core/http/error.interceptor';
 import { ApplicationsStore } from '../../../applications/data/applications-store';
-import {
-  SERIES_COLORS,
-  WeekChart,
-} from '../../components/week-chart/week-chart';
+import { DayList } from '../../components/day-list/day-list';
+import { WeekChart } from '../../components/week-chart/week-chart';
+import { WeekGoals } from '../../components/week-goals/week-goals';
+import { WeekReflections } from '../../components/week-reflections/week-reflections';
+import { WeekTotals } from '../../components/week-totals/week-totals';
 import { ProgressApi } from '../../data/progress-api';
-import { GOAL_TIER_COLOR } from '../../../../shared/ui/display';
+import { shortDate } from '../../progress.util';
 
 type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'ok'; events: ActivityEvent[] };
 
-/** "segunda-feira, 26 de out." */
-export function longDay(date: string): string {
-  const text = new Intl.DateTimeFormat('pt-PT', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  }).format(new Date(`${date}T00:00:00Z`));
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-function shortDate(date: string): string {
-  return new Intl.DateTimeFormat('pt-PT', {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  }).format(new Date(`${date}T00:00:00Z`));
-}
-
-/** Uma linha por evento, para a lista do dia. */
-export function describeEvent(e: ActivityEvent): {
-  icon: string;
-  text: string;
-} {
-  const job = e.jobTitle ? ` (${e.jobTitle})` : '';
-  switch (e.kind) {
-    case 'APPLIED':
-      return { icon: 'bi-send', text: `Candidatura: ${e.subject}${job}` };
-    case 'RESPONSE_POSITIVE':
-      return {
-        icon: 'bi-hand-thumbs-up',
-        text: `Resposta positiva: ${e.subject} passou a ${e.status ? STATUS_LABELS[e.status] : 'outra fase'}`,
-      };
-    case 'OFFER':
-      return { icon: 'bi-trophy', text: `Proposta: ${e.subject}${job}` };
-    case 'REJECTED':
-      return { icon: 'bi-x-circle', text: `Rejeição: ${e.subject}${job}` };
-    case 'INTERVIEW_SCHEDULED': {
-      const when = e.at
-        ? new Intl.DateTimeFormat('pt-PT', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-          }).format(new Date(e.at))
-        : null;
-      return {
-        icon: 'bi-calendar-plus',
-        text: `Entrevista marcada: ${e.subject}${typeLabel(e)}${when ? `, ${when}` : ''}`,
-      };
-    }
-    case 'INTERVIEW':
-      return {
-        icon: 'bi-people',
-        text: `${e.round ? `${e.round}.ª entrevista` : 'Entrevista'}: ${e.subject}${typeLabel(e)}`,
-      };
-    case 'PROJECT_CREATED':
-      return { icon: 'bi-plus-square', text: `Projeto novo: ${e.subject}` };
-    case 'PROJECT_UPDATED':
-      return {
-        icon: 'bi-arrow-repeat',
-        text: `Projeto atualizado: ${e.subject}`,
-      };
-  }
-}
-
-const INTERVIEW_SHORT: Record<InterviewType, string> = {
-  HR: 'RH',
-  TECHNICAL: 'técnica',
-  TEST: 'teste técnico',
-};
-
-function typeLabel(e: ActivityEvent): string {
-  return e.interviewType ? ` (${INTERVIEW_SHORT[e.interviewType]})` : '';
-}
-
 /**
- * Pontos para refletir no fim da semana: frases curtas tiradas dos números,
- * sem julgamentos. A semana a decorrer só tem estas notas ao fim de semana.
+ * Progresso da semana: navegação entre semanas, carregamento da atividade e a
+ * disposição das peças (totais, gráfico, dia a dia, objetivos, reflexões).
+ * Os textos e contas estão em progress.util.ts.
  */
-export function reflections(r: WeeklyReport): string[] {
-  const out: string[] = [];
-  const apps = r.goals.find((g) => g.id === 'applications');
-  const days = r.goals.find((g) => g.id === 'goal-days');
-  if (!apps || !days) return out;
-
-  if (apps.done) {
-    out.push(`Objetivo da semana cumprido: ${apps.value} candidaturas.`);
-  } else if (apps.value > 0) {
-    const missing = apps.target - apps.value;
-    out.push(
-      `${apps.value} de ${apps.target} candidaturas: ${missing === 1 ? 'faltou 1' : `faltaram ${missing}`} para o objetivo da semana.`,
-    );
-  } else {
-    out.push(
-      'Nenhuma candidatura esta semana. Para a próxima, começa com 1 por dia útil.',
-    );
-  }
-
-  if (days.value > 0 && !days.done)
-    out.push(
-      `Cumpriste o objetivo diário em ${days.value} de ${days.target} dias úteis.`,
-    );
-
-  const best = r.days
-    .filter((d) => d.series.applications > 0)
-    .sort((a, b) => b.series.applications - a.series.applications)[0];
-  if (best && r.series.applications > 1)
-    out.push(
-      `O dia mais produtivo foi ${longDay(best.date).split(',')[0].toLowerCase()}, com ${best.series.applications} ${best.series.applications === 1 ? 'candidatura' : 'candidaturas'}.`,
-    );
-
-  if (r.series.positive > 0)
-    out.push(
-      `${r.series.positive === 1 ? 'Tiveste 1 resposta positiva' : `Tiveste ${r.series.positive} respostas positivas`}: prepara as próximas fases.`,
-    );
-  if (r.series.rejected > 0)
-    out.push(
-      `${r.series.rejected === 1 ? '1 rejeição' : `${r.series.rejected} rejeições`}: faz parte. Vê se há competências em comum nessas vagas.`,
-    );
-  if (r.series.projects === 0)
-    out.push(
-      'Nenhum projeto mexido: uma melhoria pequena num projeto também mostra trabalho.',
-    );
-  return out;
-}
-
 @Component({
   selector: 'ds-progress-page',
-  imports: [RouterLink, WeekChart],
+  imports: [
+    RouterLink,
+    WeekChart,
+    WeekTotals,
+    DayList,
+    WeekGoals,
+    WeekReflections,
+  ],
   template: `
     <div class="container py-4">
       <div
@@ -235,32 +114,7 @@ export function reflections(r: WeeklyReport): string[] {
         }
         @case ('ok') {
           @let r = report()!;
-          <!-- Totais e comparação -->
-          <div class="row g-3 mb-3">
-            @for (s of series; track s.id) {
-              <div class="col-6 col-md">
-                <div class="card border-0 shadow-sm h-100">
-                  <div class="card-body py-3">
-                    <div
-                      class="small text-body-secondary d-flex align-items-center gap-1"
-                    >
-                      <span
-                        class="swatch"
-                        [style.background]="colors[s.id]"
-                      ></span>
-                      {{ s.label }}
-                    </div>
-                    <div class="fs-3 fw-semibold lh-sm">
-                      {{ r.series[s.id] }}
-                    </div>
-                    <div class="small text-body-secondary">
-                      {{ delta(r, s.id) }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            }
-          </div>
+          <ds-week-totals [report]="r" />
 
           <div class="row g-3">
             <div class="col-lg-8">
@@ -273,111 +127,14 @@ export function reflections(r: WeeklyReport): string[] {
                 </div>
               </section>
 
-              <section class="card border-0 shadow-sm">
-                <ul class="list-group list-group-flush">
-                  @for (d of r.days; track d.date) {
-                    <li
-                      class="list-group-item py-3"
-                      [class.bg-body-tertiary]="!d.active"
-                    >
-                      <div class="d-flex flex-wrap align-items-center gap-2">
-                        <strong>{{ longDay(d.date) }}</strong>
-                        @if (d.goalTier; as t) {
-                          <span class="badge text-bg-{{ tierColor[t] }}">
-                            <i class="bi bi-award me-1"></i>{{ tierLabels[t] }}
-                          </span>
-                        }
-                        <span class="text-body-secondary small ms-auto">
-                          @if (d.future) {
-                            ainda não chegou
-                          } @else if (describe(d.kinds); as text) {
-                            {{ text }}
-                          } @else if (d.active) {
-                            sem atividade
-                          } @else {
-                            descanso
-                          }
-                        </span>
-                      </div>
-                      @if (d.events.length) {
-                        <ul class="list-unstyled small mb-0 mt-2 ms-1">
-                          @for (e of d.events; track $index) {
-                            @let x = describeEvent(e);
-                            <li class="d-flex gap-2 py-1">
-                              <i
-                                class="bi {{ x.icon }} text-body-secondary"
-                              ></i>
-                              <span>{{ x.text }}</span>
-                            </li>
-                          }
-                        </ul>
-                      }
-                    </li>
-                  }
-                </ul>
-              </section>
+              <ds-day-list [report]="r" />
             </div>
 
             <div class="col-lg-4">
-              <section class="card border-0 shadow-sm mb-3">
-                <div class="card-body p-4">
-                  <h2 class="h6 text-body-secondary text-uppercase small mb-3">
-                    <i class="bi bi-flag me-1"></i>Objetivos da semana
-                  </h2>
-                  @for (g of r.goals; track g.id) {
-                    <div class="mb-3">
-                      <div class="d-flex justify-content-between small mb-1">
-                        <span>
-                          @if (g.done) {
-                            <i
-                              class="bi bi-check-circle-fill text-success me-1"
-                            ></i>
-                          }
-                          {{ g.title }}
-                        </span>
-                        <span class="fw-semibold"
-                          >{{ g.value }} / {{ g.target }}</span
-                        >
-                      </div>
-                      <div
-                        class="progress"
-                        role="progressbar"
-                        style="height: 0.6rem"
-                        [attr.aria-label]="g.title"
-                        [attr.aria-valuenow]="g.value"
-                        aria-valuemin="0"
-                        [attr.aria-valuemax]="g.target"
-                      >
-                        <div
-                          class="progress-bar"
-                          [class.bg-success]="g.done"
-                          [style.width.%]="percent(g.value, g.target)"
-                        ></div>
-                      </div>
-                    </div>
-                  }
-                  <p class="small text-body-secondary mb-0">
-                    Objetivo diário nos dias úteis: 1 suficiente, 2 bom, 3 muito
-                    bom.
-                  </p>
-                </div>
-              </section>
+              <ds-week-goals [goals]="r.goals" />
 
               @if (!isCurrent() || weekend()) {
-                <section class="card border-0 shadow-sm mb-3">
-                  <div class="card-body p-4">
-                    <h2
-                      class="h6 text-body-secondary text-uppercase small mb-3"
-                    >
-                      <i class="bi bi-lightbulb me-1"></i>Para refletir
-                    </h2>
-                    <ul class="small mb-0 ps-3">
-                      @for (line of reflections(r); track $index) {
-                        <li class="mb-2">{{ line }}</li>
-                      }
-                    </ul>
-                  </div>
-                </section>
+                <ds-week-reflections [report]="r" />
               }
 
               <div class="d-grid gap-2">
@@ -394,14 +151,6 @@ export function reflections(r: WeeklyReport): string[] {
       }
     </div>
   `,
-  styles: `
-    .swatch {
-      display: inline-block;
-      width: 0.7rem;
-      height: 0.7rem;
-      border-radius: 2px;
-    }
-  `,
 })
 export class ProgressPage {
   private readonly route = inject(ActivatedRoute);
@@ -409,15 +158,7 @@ export class ProgressPage {
   private readonly api = inject(ProgressApi);
   private readonly applications = inject(ApplicationsStore);
 
-  protected readonly series = REPORT_SERIES;
-  protected readonly colors = SERIES_COLORS;
-  protected readonly tierColor = GOAL_TIER_COLOR;
-  protected readonly tierLabels = GOAL_TIER_LABELS;
-  protected readonly longDay = longDay;
   protected readonly shortDate = shortDate;
-  protected readonly describe = describeDay;
-  protected readonly describeEvent = describeEvent;
-  protected readonly reflections = reflections;
 
   protected readonly today = this.applications.today;
   protected readonly weekend = computed(() =>
@@ -473,16 +214,6 @@ export class ProgressPage {
 
   goToday(): void {
     void this.router.navigate([], { queryParams: { semana: null } });
-  }
-
-  protected delta(r: WeeklyReport, id: ReportSeriesId): string {
-    const diff = r.series[id] - r.previous.series[id];
-    if (diff === 0) return 'igual à semana anterior';
-    return `${diff > 0 ? '+' : '−'}${Math.abs(diff)} face à semana anterior`;
-  }
-
-  protected percent(value: number, target: number): number {
-    return target ? Math.min(100, (value / target) * 100) : 0;
   }
 
   private load(start: string) {
