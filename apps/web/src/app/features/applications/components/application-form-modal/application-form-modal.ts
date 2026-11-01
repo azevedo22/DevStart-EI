@@ -1,17 +1,8 @@
-import {
-  Component,
-  ElementRef,
-  computed,
-  inject,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   APPLICATION_LIMITS,
-  Competency,
-  JOB_POSTING_LIMITS,
   JobPostingDraft,
   JobApplication,
   SENIORITIES,
@@ -22,34 +13,37 @@ import {
   WORK_MODE_LABELS,
   WorkMode,
   classifyAccessibility,
-  matchWithProfile,
 } from '@devstart/shared-types';
-import { NgbActiveModal, NgbTypeahead } from '@ng-bootstrap/ng-bootstrap';
-import {
-  Observable,
-  debounceTime,
-  distinctUntilChanged,
-  finalize,
-  map,
-} from 'rxjs';
-import { CatalogApiService } from '../../../../core/catalog/catalog-api.service';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { finalize } from 'rxjs';
 import { ApiError } from '../../../../core/http/error.interceptor';
-import { ProfileStore } from '../../../../core/profile/profile-store';
 import { FieldError } from '../../../../shared/forms/field-error';
 import { ApplicationsStore } from '../../data/applications-store';
-import { JobPostingApi } from '../../data/job-posting-api';
 import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
+import { CompetencyPicker } from '../competency-picker/competency-picker';
+import { ExperienceListEditor } from '../experience-list-editor/experience-list-editor';
+import { JobPostingAnalyzer } from '../job-posting-analyzer/job-posting-analyzer';
+import { draftPatch, numberOrNull } from './application-form.util';
 
 const URL_PATTERN = /^https?:\/\/[^\s]+$/i;
 const today = () => new Date().toISOString().slice(0, 10);
 
 /**
- * Criar ou editar uma candidatura. O texto do anúncio pode ser lido por IA,
- * que preenche empresa, título, senioridade, experiência e competências.
+ * Criar ou editar uma candidatura. O texto do anúncio pode ser lido por IA
+ * (JobPostingAnalyzer), que preenche empresa, título, senioridade, experiência
+ * e competências; a experiência e as competências têm editores próprios.
+ * Aqui ficam o formulário, a acessibilidade calculada e o guardar.
  */
 @Component({
   selector: 'ds-application-form-modal',
-  imports: [ReactiveFormsModule, NgbTypeahead, FieldError, AccessibilityBadge],
+  imports: [
+    ReactiveFormsModule,
+    FieldError,
+    AccessibilityBadge,
+    JobPostingAnalyzer,
+    ExperienceListEditor,
+    CompetencyPicker,
+  ],
   template: `
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-header">
@@ -69,73 +63,10 @@ const today = () => new Date().toISOString().slice(0, 10);
           <div class="alert alert-danger py-2 mb-0">{{ e }}</div>
         }
 
-        <details class="border rounded-3 p-3" [open]="!application">
-          <summary class="fw-medium">
-            <i class="bi bi-stars me-1 text-primary"></i>Analisar o anúncio
-            <span class="small text-body-secondary fw-normal"
-              >(opcional: a IA preenche os campos abaixo)</span
-            >
-          </summary>
-          <textarea
-            class="form-control mt-2"
-            rows="6"
-            aria-label="Texto do anúncio"
-            placeholder="Cola aqui o anúncio completo: empresa, título, requisitos, anos de experiência, tecnologias…"
-            [value]="postingText()"
-            (input)="postingText.set($any($event.target).value)"
-            [maxLength]="postingLimits.maxText"
-          ></textarea>
-          @if (reader(); as r) {
-            <p class="small text-body-secondary mt-1 mb-0">
-              @if (r.externalProvider) {
-                <i class="bi bi-cloud-arrow-up me-1"></i>O texto é enviado para
-                a <strong>{{ r.externalProvider }}</strong> ({{ r.label }}) para
-                ser lido. Não fica guardado.
-              } @else {
-                <i class="bi bi-shield-lock me-1"></i>Lido por uma IA no teu
-                computador ({{ r.label }}).
-              }
-            </p>
-          }
-          <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-            <button
-              type="button"
-              class="btn btn-sm btn-primary"
-              [disabled]="analyzing()"
-              (click)="analyze()"
-            >
-              @if (analyzing()) {
-                <span
-                  class="spinner-border spinner-border-sm me-1"
-                  aria-hidden="true"
-                ></span>
-                A analisar…
-              } @else {
-                <i class="bi bi-stars me-1"></i>Analisar
-              }
-            </button>
-            @if (analysis(); as a) {
-              <span
-                class="small"
-                [class.text-success]="a.ok"
-                [class.text-warning-emphasis]="!a.ok"
-                role="status"
-              >
-                <i
-                  class="bi me-1"
-                  [class.bi-check-circle]="a.ok"
-                  [class.bi-exclamation-triangle]="!a.ok"
-                ></i
-                >{{ a.text }}
-              </span>
-            }
-          </div>
-          @if (otherSkills().length) {
-            <p class="small text-body-secondary mt-2 mb-0">
-              Também pede (fora do catálogo): {{ otherSkills().join(', ') }}.
-            </p>
-          }
-        </details>
+        <ds-job-posting-analyzer
+          [open]="!application"
+          (analyzed)="applyDraft($event)"
+        />
 
         <div class="row g-3">
           <div class="col-sm-6">
@@ -195,48 +126,12 @@ const today = () => new Date().toISOString().slice(0, 10);
         </div>
 
         <div>
-          <label for="experienceInput" class="form-label"
-            >Experiência pedida</label
-          >
-          @if (experience().length) {
-            <ul class="list-group mb-2">
-              @for (e of experience(); track $index) {
-                <li
-                  class="list-group-item d-flex align-items-center gap-2 py-1 small"
-                >
-                  <span class="me-auto">{{ e }}</span>
-                  <button
-                    type="button"
-                    class="btn-close"
-                    style="font-size: 0.6rem"
-                    [attr.aria-label]="'Remover ' + e"
-                    (click)="removeExperience($index)"
-                  ></button>
-                </li>
-              }
-            </ul>
-          }
-          @if (experience().length < limits.experienceItems) {
-            <div class="input-group input-group-sm">
-              <input
-                #experienceInput
-                id="experienceInput"
-                class="form-control"
-                placeholder="Ex.: 1 ano a desenvolver APIs REST"
-                [maxLength]="limits.experienceItem"
-                (keydown.enter)="
-                  addExperience(experienceInput); $event.preventDefault()
-                "
-              />
-              <button
-                type="button"
-                class="btn btn-outline-secondary"
-                (click)="addExperience(experienceInput)"
-              >
-                Adicionar
-              </button>
-            </div>
-          }
+          <ds-experience-list-editor
+            [items]="experience()"
+            (itemsChange)="
+              form.controls.experienceRequirements.setValue($event)
+            "
+          />
         </div>
 
         <div class="d-flex flex-wrap align-items-center gap-2 small">
@@ -252,56 +147,10 @@ const today = () => new Date().toISOString().slice(0, 10);
         </div>
 
         <div>
-          <label for="competencySearch" class="form-label"
-            >Competências pedidas</label
-          >
-          <input
-            #competencySearch
-            id="competencySearch"
-            type="search"
-            class="form-control"
-            placeholder="Procurar e adicionar…"
-            [ngbTypeahead]="suggest"
-            [inputFormatter]="emptyFormatter"
-            [resultFormatter]="nameFormatter"
-            [editable]="false"
-            (selectItem)="addCompetency($event.item); $event.preventDefault()"
+          <ds-competency-picker
+            [ids]="competencyIds()"
+            (idsChange)="form.controls.requiredCompetencyIds.setValue($event)"
           />
-          <div class="d-flex flex-wrap gap-2 mt-2">
-            @for (id of competencyIds(); track id) {
-              @let have = profile.declaredIds().has(id);
-              <span
-                class="badge rounded-pill fw-normal d-inline-flex align-items-center gap-1"
-                [class.text-bg-success]="have"
-                [class.text-bg-light]="!have"
-                [class.border]="!have"
-                [title]="
-                  have ? 'Está no teu perfil' : 'Ainda não está no teu perfil'
-                "
-              >
-                @if (have) {
-                  <i class="bi bi-check2"></i>
-                }
-                {{ catalog.nameOf(id) }}
-                <button
-                  type="button"
-                  class="btn-close ms-1"
-                  style="font-size: 0.55rem"
-                  [class.btn-close-white]="have"
-                  [attr.aria-label]="'Remover ' + catalog.nameOf(id)"
-                  (click)="removeCompetency(id)"
-                ></button>
-              </span>
-            }
-          </div>
-          @if (match().percentage !== null) {
-            <div class="form-text">
-              Tens {{ match().matched.length }} de
-              {{ competencyIds().length }} no perfil ({{
-                match().percentage
-              }}%).
-            </div>
-          }
         </div>
 
         <div class="row g-3">
@@ -387,10 +236,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 })
 export class ApplicationFormModal {
   protected readonly modal = inject(NgbActiveModal);
-  protected readonly catalog = inject(CatalogApiService);
-  protected readonly profile = inject(ProfileStore);
   private readonly store = inject(ApplicationsStore);
-  private readonly jobs = inject(JobPostingApi);
   private readonly fb = inject(FormBuilder).nonNullable;
 
   application: JobApplication | null = null;
@@ -403,21 +249,6 @@ export class ApplicationFormModal {
 
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
-  protected readonly limits = APPLICATION_LIMITS;
-  protected readonly postingLimits = JOB_POSTING_LIMITS;
-  protected readonly postingText = signal('');
-  protected readonly analyzing = signal(false);
-  /** Resultado da última análise: ok = a IA leu; senão, aviso. */
-  protected readonly analysis = signal<{ ok: boolean; text: string } | null>(
-    null,
-  );
-  protected readonly otherSkills = signal<string[]>([]);
-  /** Que IA lê o anúncio (a mesma que lê os CVs), para o aviso. */
-  protected readonly reader = toSignal(this.profile.cvReader$, {
-    initialValue: null,
-  });
-  private readonly searchInput =
-    viewChild.required<ElementRef<HTMLInputElement>>('competencySearch');
 
   protected readonly form = this.fb.group({
     companyName: [
@@ -471,9 +302,6 @@ export class ApplicationFormModal {
       seniority: this.value().seniority ?? 'UNKNOWN',
     }),
   );
-  protected readonly match = computed(() =>
-    matchWithProfile(this.competencyIds(), this.profile.declaredIds()),
-  );
 
   init(application: JobApplication | null): void {
     this.application = application;
@@ -494,124 +322,16 @@ export class ApplicationFormModal {
     }
   }
 
-  analyze(): void {
-    const text = this.postingText().trim();
-    if (text.length < JOB_POSTING_LIMITS.minText) {
-      this.analysis.set({
-        ok: false,
-        text: 'Cola primeiro o texto completo do anúncio.',
-      });
-      return;
-    }
-    this.analyzing.set(true);
-    this.analysis.set(null);
-    this.jobs
-      .analyze(text)
-      .pipe(finalize(() => this.analyzing.set(false)))
-      .subscribe({
-        next: (draft) => this.apply(draft),
-        error: (e: ApiError) =>
-          this.analysis.set({ ok: false, text: e.message }),
-      });
-  }
-
   /**
    * Preenche o formulário com o que a análise encontrou. Só muda os campos
-   * para os quais há resposta; competências e experiência juntam-se às que lá
-   * estavam. Nada é gravado até carregar em guardar.
+   * para os quais há resposta; nada é gravado até carregar em guardar.
    */
-  private apply(d: JobPostingDraft): void {
-    const filled: string[] = [];
-    const patch: Partial<ReturnType<typeof this.form.getRawValue>> = {};
-    if (d.companyName) {
-      patch.companyName = d.companyName;
-      filled.push('empresa');
-    }
-    if (d.jobTitle) {
-      patch.jobTitle = d.jobTitle;
-      filled.push('título');
-    }
-    if (d.seniority !== 'UNKNOWN') {
-      patch.seniority = d.seniority;
-      filled.push('senioridade');
-    }
-    if (d.yearsRequired !== null) {
-      patch.yearsRequired = d.yearsRequired;
-      filled.push('anos');
-    }
-    if (d.experienceRequirements.length) {
-      patch.experienceRequirements = mergeUnique(
-        this.experience(),
-        d.experienceRequirements,
-      ).slice(0, APPLICATION_LIMITS.experienceItems);
-      filled.push('experiência');
-    }
-    if (d.competencyIds.length) {
-      patch.requiredCompetencyIds = [
-        ...new Set([...this.competencyIds(), ...d.competencyIds]),
-      ].slice(0, APPLICATION_LIMITS.competencies);
-      filled.push(
-        `${d.competencyIds.length} ${d.competencyIds.length === 1 ? 'competência' : 'competências'}`,
-      );
-    }
-    if (d.workMode) patch.workMode = d.workMode;
-    if (d.location) patch.location = d.location;
-    this.form.patchValue(patch);
-    this.otherSkills.set(d.otherSkills);
-
-    if (d.source === 'ai') {
-      this.analysis.set({
-        ok: true,
-        text: filled.length
-          ? `Preenchido: ${filled.join(', ')}. Confirma e ajusta se for preciso.`
-          : 'A IA não encontrou dados neste texto. Confirma se é o anúncio certo.',
-      });
-    } else {
-      this.analysis.set({
-        ok: false,
-        text: d.warnings[0] ?? 'Analisado sem IA, só por palavras-chave.',
-      });
-    }
-  }
-
-  addExperience(input: HTMLInputElement): void {
-    const value = input.value.replace(/\s+/g, ' ').trim();
-    if (!value) return;
-    this.form.controls.experienceRequirements.setValue(
-      mergeUnique(this.experience(), [value]).slice(
-        0,
-        APPLICATION_LIMITS.experienceItems,
-      ),
-    );
-    input.value = '';
-  }
-
-  removeExperience(index: number): void {
-    this.form.controls.experienceRequirements.setValue(
-      this.experience().filter((_, i) => i !== index),
-    );
-  }
-
-  protected readonly suggest = (text$: Observable<string>) =>
-    text$.pipe(
-      debounceTime(150),
-      distinctUntilChanged(),
-      map((term) => this.catalog.search(term, new Set(this.competencyIds()))),
-    );
-  protected readonly nameFormatter = (c: Competency) => c.name;
-  protected readonly emptyFormatter = () => '';
-
-  addCompetency(c: Competency): void {
-    const ids = this.competencyIds();
-    if (ids.includes(c.id) || ids.length >= APPLICATION_LIMITS.competencies)
-      return;
-    this.form.controls.requiredCompetencyIds.setValue([...ids, c.id]);
-    queueMicrotask(() => (this.searchInput().nativeElement.value = ''));
-  }
-
-  removeCompetency(id: string): void {
-    this.form.controls.requiredCompetencyIds.setValue(
-      this.competencyIds().filter((x) => x !== id),
+  protected applyDraft(d: JobPostingDraft): void {
+    this.form.patchValue(
+      draftPatch(d, {
+        experience: this.experience(),
+        competencyIds: this.competencyIds(),
+      }),
     );
   }
 
@@ -635,23 +355,4 @@ export class ApplicationFormModal {
       error: (e: ApiError) => this.error.set(e.message),
     });
   }
-}
-
-/** Junta listas de texto sem repetir (ignora maiúsculas). */
-function mergeUnique(current: string[], extra: string[]): string[] {
-  const seen = new Set(current.map((x) => x.toLowerCase()));
-  const out = [...current];
-  for (const x of extra) {
-    if (seen.has(x.toLowerCase())) continue;
-    seen.add(x.toLowerCase());
-    out.push(x);
-  }
-  return out;
-}
-
-/** Um <input type="number"> vazio pode chegar como null, "" ou NaN. */
-function numberOrNull(v: unknown): number | null {
-  return v === null || v === undefined || v === '' || Number.isNaN(Number(v))
-    ? null
-    : Number(v);
 }
