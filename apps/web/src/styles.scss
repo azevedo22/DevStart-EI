@@ -14,6 +14,23 @@
   --ds-surface: #f6f7fb;
 }
 
+/* Paleta das séries do relatório semanal (ordem fixa, validada para
+   daltonismo). Global para valer no gráfico e nos cartões dos totais. */
+:root {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+}
+[data-bs-theme='dark'] {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+}
+
 body {
   background-color: var(--ds-surface);
 }

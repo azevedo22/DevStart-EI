@@ -6,7 +6,10 @@ import {
   WeeklyReport,
 } from '@devstart/shared-types';
 
-/** Cor de cada série: ordem fixa da paleta categórica (validada para daltonismo). */
+/**
+ * Cor de cada série: ordem fixa da paleta categórica (validada para
+ * daltonismo). As cores estão em styles.scss, para valerem em toda a página.
+ */
 export const SERIES_COLORS: Record<ReportSeriesId, string> = {
   applications: 'var(--series-1)',
   positive: 'var(--series-2)',
@@ -149,20 +152,6 @@ interface Bar {
     </div>
   `,
   styles: `
-    .viz-root {
-      --series-1: #2a78d6;
-      --series-2: #eb6834;
-      --series-3: #1baf7a;
-      --series-4: #eda100;
-      --series-5: #e87ba4;
-    }
-    :host-context([data-bs-theme='dark']) .viz-root {
-      --series-1: #3987e5;
-      --series-2: #d95926;
-      --series-3: #199e70;
-      --series-4: #c98500;
-      --series-5: #d55181;
-    }
     .swatch {
       display: inline-block;
       width: 0.7rem;
