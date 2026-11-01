@@ -35,11 +35,12 @@ import { DemoButton } from '../../../demo/components/demo-button/demo-button';
       <div class="row justify-content-center text-center">
         <div class="col-lg-8">
           <h1 class="display-6 fw-semibold">
-            Da licenciatura ao primeiro emprego
+            Passo a passo, até ao primeiro «sim».
           </h1>
           <p class="lead text-body-secondary mt-3">
-            Descobre o que te falta para a stack que procuras, mostra o que já
-            sabes com projetos e acompanha as tuas candidaturas num só sítio.
+            Para estudantes e recém-formados em informática. Descobre o que te
+            falta, mostra o que já sabes com projetos e acompanha cada
+            candidatura, com objetivos diários que te mantêm em movimento.
           </p>
           <div
             class="d-flex flex-wrap justify-content-center align-items-start gap-2 mt-3"

@@ -1,7 +1,9 @@
 # DevStart EI
 
-Plataforma web para recém-formados em Engenharia Informática que estão a procurar o primeiro emprego.
-Ajuda a responder a três perguntas:
+**Passo a passo, até ao primeiro «sim».**
+
+Plataforma web para estudantes e recém-formados em informática (licenciatura ou mestrado) à procura do
+primeiro emprego. Ajuda a manter a procura organizada e a motivação em dia, e a responder a três perguntas:
 
 1. **O que me falta para a vaga que procuro?** Diagnóstico de _skill gap_ face a uma stack júnior.
 2. **Como provo o que sei sem experiência comercial?** Cada competência liga-se a projetos (_Proof of Work_).
