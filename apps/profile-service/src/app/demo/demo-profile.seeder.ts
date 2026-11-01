@@ -3,6 +3,11 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { CatalogService } from '../catalog/catalog.service';
 import {
+  EducationEntity,
+  ExperienceEntity,
+  LanguageEntity,
+} from '../background/background.entities';
+import {
   ProfileCompetencyEntity,
   ProfileEntity,
 } from '../profile/profile.entities';
@@ -10,6 +15,9 @@ import { ProjectEntity } from '../projects/project.entities';
 import { toProjectFields } from '../projects/projects.service';
 import {
   DEMO_COMPETENCIES,
+  DEMO_EDUCATION,
+  DEMO_EXPERIENCE,
+  DEMO_LANGUAGES,
   DEMO_PROFILE,
   DEMO_PROJECTS,
 } from './demo-profile.data';
@@ -68,6 +76,18 @@ export class DemoProfileSeeder {
           [saved.id, new Date(now - i * 86_400_000)],
         );
       }
+      await em.insert(
+        EducationEntity,
+        DEMO_EDUCATION.map((e) => ({ userId, ...e })),
+      );
+      await em.insert(
+        ExperienceEntity,
+        DEMO_EXPERIENCE.map((e) => ({ userId, ...e })),
+      );
+      await em.insert(
+        LanguageEntity,
+        DEMO_LANGUAGES.map((l, position) => ({ userId, ...l, position })),
+      );
       await em.insert(ProfileEntity, { userId, ...DEMO_PROFILE });
       return true;
     });

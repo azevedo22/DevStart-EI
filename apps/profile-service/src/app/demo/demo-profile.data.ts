@@ -1,8 +1,13 @@
 import {
   DeclareCompetencyRequest,
+  LanguageSkill,
+  SaveEducationRequest,
+  SaveExperienceRequest,
   SaveProjectRequest,
   UpdateProfileRequest,
 } from '@devstart/shared-types';
+
+const YEAR = new Date().getFullYear();
 
 /**
  * Perfil de exemplo das contas de demonstração ("Experimentar sem registo").
@@ -16,7 +21,7 @@ import {
 export const DEMO_PROFILE: UpdateProfileRequest = {
   headline: 'Recém-licenciado em Engenharia Informática · Full-stack júnior',
   university: 'Universidade Exemplo',
-  graduationYear: new Date().getFullYear(),
+  graduationYear: YEAR,
   bio:
     'Gosto de construir aplicações web do princípio ao fim. Procuro a primeira ' +
     'oportunidade numa equipa onde possa aprender com pessoas mais experientes. ' +
@@ -90,4 +95,41 @@ export const DEMO_PROJECTS: SaveProjectRequest[] = [
     competencyIds: ['python', 'fastapi', 'llm-integration', 'git'],
     practices: ['API_DOCS'],
   },
+];
+
+/** Formação, experiência e línguas: o topo do perfil não fica vazio na demonstração. */
+export const DEMO_EDUCATION: SaveEducationRequest[] = [
+  {
+    institution: 'Universidade Exemplo',
+    degree: 'Licenciatura em Engenharia Informática',
+    fieldOfStudy: null,
+    startYear: YEAR - 3,
+    endYear: YEAR,
+  },
+];
+
+export const DEMO_EXPERIENCE: SaveExperienceRequest[] = [
+  {
+    organization: 'Serviços de Informática da Universidade Exemplo',
+    role: 'Estagiário de desenvolvimento web',
+    kind: 'INTERNSHIP',
+    startDate: `${YEAR}-02`,
+    endDate: `${YEAR}-06`,
+    description:
+      'Formulários em Angular para o portal dos estudantes e testes com Jest.',
+  },
+  {
+    organization: 'Núcleo de Estudantes de Informática',
+    role: 'Organização de workshops',
+    kind: 'VOLUNTEER',
+    startDate: `${YEAR - 2}-10`,
+    endDate: `${YEAR - 1}-06`,
+    description: 'Workshops de Git e de introdução à programação web.',
+  },
+];
+
+export const DEMO_LANGUAGES: LanguageSkill[] = [
+  { language: 'Português', level: 'NATIVE' },
+  { language: 'Inglês', level: 'C1' },
+  { language: 'Espanhol', level: 'B1' },
 ];

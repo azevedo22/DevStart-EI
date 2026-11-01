@@ -436,6 +436,12 @@ describeDb('Profile & Skill Service (e2e)', () => {
       const { body: profile } = await ana.get('/api/profile').expect(200);
       expect(profile.headline).toMatch(/Engenharia Informática/);
       expect(profile.competencies.length).toBeGreaterThanOrEqual(10);
+      // O topo do perfil também vem preenchido.
+      expect(profile.education).toHaveLength(1);
+      expect(profile.experience).toHaveLength(2);
+      expect(
+        profile.languages.map((l: { language: string }) => l.language),
+      ).toEqual(['Português', 'Inglês', 'Espanhol']);
 
       const { body: projects } = await ana.get('/api/projects').expect(200);
       expect(projects.map((p: { title: string }) => p.title)[0]).toBe(
@@ -462,6 +468,8 @@ describeDb('Profile & Skill Service (e2e)', () => {
       await seed(ANA);
       const { body: projects } = await ana.get('/api/projects').expect(200);
       expect(projects).toHaveLength(3);
+      const { body: profile } = await ana.get('/api/profile').expect(200);
+      expect(profile.experience).toHaveLength(2);
     });
 
     it('não toca nos dados de outros utilizadores', async () => {
