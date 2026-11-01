@@ -8,7 +8,8 @@ primeiro emprego. Ajuda a manter a procura organizada e a motivação em dia, e 
 1. **O que me falta para a vaga que procuro?** Diagnóstico de _skill gap_ face a uma stack júnior.
 2. **Como provo o que sei sem experiência comercial?** Cada competência liga-se a projetos (_Proof of Work_).
 3. **Em que ponto estão as minhas candidaturas?** Quadro Kanban do envio do CV até à proposta, com vagas
-   reais ordenadas pelo perfil, objetivo diário e relatório semanal.
+   reais ordenadas pelo perfil, objetivo diário, relatório semanal e uma frase do dia de pessoas da
+   tecnologia, que acompanha o momento da procura.
 
 ![Os ecrãs principais em sequência: página inicial, perfil, skill gap, quadro de candidaturas, detalhe de uma candidatura, vagas e progresso da semana](docs/screenshots/demo.gif)
 
