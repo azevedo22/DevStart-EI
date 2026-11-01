@@ -6,7 +6,8 @@ import { of } from 'rxjs';
 import { CatalogApiService } from '../../../../core/catalog/catalog-api.service';
 import { ApplicationsStore } from '../../../applications/data/applications-store';
 import { JobFeedStore, toParams } from '../../data/job-feed-store';
-import { JobsPage, ago, toApplication } from './jobs-page';
+import { ago, toApplication } from '../../job-feed.util';
+import { JobsPage } from './jobs-page';
 
 const JOB: JobFeedItem = {
   id: 'j1',
