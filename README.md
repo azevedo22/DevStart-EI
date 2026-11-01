@@ -5,14 +5,44 @@ Ajuda a responder a três perguntas:
 
 1. **O que me falta para a vaga que procuro?** Diagnóstico de _skill gap_ face a uma stack júnior.
 2. **Como provo o que sei sem experiência comercial?** Cada competência liga-se a projetos (_Proof of Work_).
-3. **Em que ponto estão as minhas candidaturas?** Quadro Kanban do envio do CV até à proposta.
+3. **Em que ponto estão as minhas candidaturas?** Quadro Kanban do envio do CV até à proposta, com vagas
+   reais ordenadas pelo perfil, objetivo diário e relatório semanal.
 
-> Estado: os três módulos funcionam de ponta a ponta (autenticação, perfil com projetos, diagnóstico de
-> skill gap e quadro de candidaturas), com eventos entre serviços. A aplicação inteira corre em contentores
-> com um comando, e está pronta a publicar num servidor com HTTPS ([guia de deploy](docs/deploy.md)).
->
+![Percurso pela aplicação com a conta de demonstração: skill gap, quadro de candidaturas, detalhe de uma candidatura, vagas e progresso da semana](docs/screenshots/demo.gif)
+
 > **Para experimentar sem criar conta:** botão _Experimentar sem registo_ na página inicial. Cria uma
 > conta só tua, já com perfil, projetos e candidaturas de exemplo, que se apaga sozinha ao fim de 24 horas.
+> A aplicação inteira corre em contentores com um comando (`docker compose --profile app up`) e está pronta
+> a publicar num servidor com HTTPS ([guia de deploy](docs/deploy.md)).
+
+## Em imagens
+
+Capturas com a conta de demonstração. As pessoas, empresas e vagas são fictícias.
+
+![Quadro Kanban com candidaturas por fase, match com o perfil e se a vaga é acessível sem experiência](docs/screenshots/candidaturas.png)
+
+**Candidaturas.** Kanban do "por candidatar" à proposta. Cada cartão mostra o match com o perfil e se a vaga
+é realista para quem não tem experiência.
+
+|                                                                                                                                              |                                                                                                                                                                |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Vagas para ti: vagas de entrada ordenadas pelo perfil, com as competências que a pessoa já tem a verde](docs/screenshots/vagas.png)        | ![Diagnóstico de skill gap: compatibilidade com cada stack e o que falta aprender, por importância](docs/screenshots/skill-gap.png)                            |
+| **Vagas para ti.** Vagas de entrada lidas pela IA e ordenadas pelo perfil. As vagas "júnior" que pedem anos de experiência ficam escondidas. | **Skill gap.** Compatibilidade com cada stack júnior e o que falta, por ordem de importância.                                                                  |
+| ![Progresso da semana: totais com comparação, gráfico por dia, objetivos e reflexões](docs/screenshots/progresso.png)                        | ![Revisão da importação do CV: dados, competências com nível, formação e experiência lidos pela IA](docs/screenshots/importar-cv.png)                          |
+| **Progresso.** Relatório semanal com objetivo diário (só nos dias úteis), comparação com a semana anterior e reflexões.                      | **Importar o CV.** A IA lê o CV e o utilizador escolhe o que entra no perfil. Nada é gravado sem confirmação, e o que já existe não é substituído por omissão. |
+
+## Destaques técnicos
+
+- **Microsserviços em NestJS** (auth, perfil, candidaturas) atrás de um API Gateway, cada um com a sua base
+  de dados PostgreSQL, e eventos entre serviços com _outbox_ e Redis Streams.
+- **Frontend em Angular 22** com Standalone Components, Signals e Reactive Forms. As regras de negócio
+  (skill gap, objetivos, relatório semanal) são funções puras partilhadas com o backend em `libs/shared-types`.
+- **IA com os pés no chão:** saída estruturada com JSON Schema, a resposta tratada como texto não confiável e
+  validada, alternativa por palavras-chave quando a IA falha, e quota de custo por utilizador e por dia.
+- **Segurança:** JWT validado no gateway, revogação de sessões, limites de pedidos em camadas, uploads
+  verificados pelos bytes e cabeçalhos de segurança no nginx.
+- **Qualidade:** mais de 500 testes (unitários e e2e contra PostgreSQL e Redis reais), testes no browser com
+  Playwright, ESLint sem avisos e CI no GitHub Actions que constrói as imagens Docker e testa a stack inteira.
 
 ## Arquitetura
 
