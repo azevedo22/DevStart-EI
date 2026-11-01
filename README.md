@@ -9,7 +9,8 @@ primeiro emprego. Ajuda a manter a procura organizada e a motivação em dia, e 
 2. **Como provo o que sei sem experiência comercial?** Cada competência liga-se a projetos (_Proof of Work_).
 3. **Em que ponto estão as minhas candidaturas?** Quadro Kanban do envio do CV até à proposta, com vagas
    reais ordenadas pelo perfil, objetivo diário, relatório semanal e uma frase do dia de pessoas da
-   tecnologia, que acompanha o momento da procura.
+   tecnologia, que acompanha o momento da procura. Quando uma empresa responde, cola-se o email e a app
+   propõe a mudança no quadro; quando não responde, lembra o follow-up.
 
 ![Os ecrãs principais em sequência: página inicial, perfil, skill gap, quadro de candidaturas, detalhe de uma candidatura, vagas e progresso da semana](docs/screenshots/demo.gif)
 
@@ -205,6 +206,18 @@ Como funciona:
   guardada).
 - **O objetivo diário é instantâneo:** é calculado no browser a partir do quadro, por isso atualiza no
   momento em que se cria uma candidatura, e recomeça sozinho à meia-noite.
+
+### Respostas das empresas e silêncio
+
+- **"Recebi uma resposta":** a pessoa cola o email; a IA diz se é rejeição, entrevista, teste técnico ou
+  proposta, de que candidatura (só entre as que estão à espera, enviadas com o pedido) e para quando.
+  O id que a IA devolve tem de ser um dos enviados, a data tem de existir e cair num intervalo plausível;
+  senão, a candidatura vem pelo nome da empresa no texto ou fica para a pessoa escolher. Sem IA, segue por
+  palavras-chave (PT e EN). Nada muda sem "Aplicar", e o texto não fica guardado.
+- **Silêncio:** sem resposta há 14 dias, a candidatura mostra um follow-up pronto (PT/EN) para copiar ou
+  abrir no email; aos 30 dias, propõe arquivá-la como "Sem resposta". Os prazos partem da mediana de
+  ~1 semana até à primeira resposta e da recomendação habitual de esperar 1 a 2 semanas pelo follow-up.
+  "Sem resposta" não conta como rejeição na taxa de resposta, e uma resposta tardia tira o cartão de lá.
 
 ### Foto de perfil
 

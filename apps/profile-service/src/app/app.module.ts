@@ -39,6 +39,8 @@ import {
   ProjectEntity,
 } from './projects/project.entities';
 import { ProjectsController } from './projects/projects.controller';
+import { RepliesController } from './replies/replies.controller';
+import { RepliesService } from './replies/replies.service';
 import { ProjectsService } from './projects/projects.service';
 import { SkillGapController } from './skill-gap/skill-gap.controller';
 
@@ -67,6 +69,7 @@ import { SkillGapController } from './skill-gap/skill-gap.controller';
     BackgroundController,
     CvController,
     JobsController,
+    RepliesController,
     JobFeedController,
     ProfilePhotoController,
     ProjectsController,
@@ -77,6 +80,7 @@ import { SkillGapController } from './skill-gap/skill-gap.controller';
     BackgroundService,
     CvService,
     JobsService,
+    RepliesService,
     JobSyncService,
     JobFeedService,
     OllamaClient,

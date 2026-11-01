@@ -26,6 +26,8 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
 import { ApplicationFormModal } from '../application-form-modal/application-form-modal';
 import { InterviewFormModal } from '../interview-form-modal/interview-form-modal';
 import { SilenceNotice } from '../silence-notice/silence-notice';
+import { ReplyModal } from '../reply-modal/reply-modal';
+import { awaitsReply } from '../reply-modal/reply-modal.util';
 
 /** Colunas que sugerem registar uma entrevista desse tipo ao entrar nelas. */
 const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
@@ -96,6 +98,17 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
             [busy]="busy()"
             (giveUp)="changeStatus('NO_RESPONSE')"
           />
+        }
+
+        @if (awaitsReply(d.status)) {
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary align-self-start"
+            [disabled]="busy()"
+            (click)="receivedReply()"
+          >
+            <i class="bi bi-envelope-open me-1"></i>Recebi uma resposta
+          </button>
         }
 
         <section class="vstack gap-2">
@@ -329,6 +342,7 @@ export class ApplicationDetail {
   private readonly modals = inject(NgbModal);
 
   protected readonly statuses = APPLICATION_STATUSES;
+  protected readonly awaitsReply = awaitsReply;
   protected readonly statusLabels = STATUS_LABELS;
   protected readonly seniorityLabels = SENIORITY_LABELS;
   protected readonly workModeLabels = WORK_MODE_LABELS;
@@ -377,6 +391,19 @@ export class ApplicationDetail {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  receivedReply(): void {
+    const ref = this.modals.open(ReplyModal, {
+      size: 'lg',
+      scrollable: true,
+      backdrop: 'static',
+    });
+    (ref.componentInstance as ReplyModal).init(this.id);
+    ref.result.then(
+      () => this.reload(),
+      () => undefined,
+    );
   }
 
   openInterview(

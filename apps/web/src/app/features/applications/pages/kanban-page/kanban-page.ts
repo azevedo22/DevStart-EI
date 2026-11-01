@@ -19,6 +19,10 @@ import {
   STATUS_LABELS,
 } from '@devstart/shared-types';
 import { NgbModal, NgbOffcanvas } from '@ng-bootstrap/ng-bootstrap';
+import {
+  ReplyApplied,
+  ReplyModal,
+} from '../../components/reply-modal/reply-modal';
 import { ProfileStore } from '../../../../core/profile/profile-store';
 import { EmptyState } from '../../../../shared/components/empty-state/empty-state';
 import { ApplicationCard } from '../../components/application-card/application-card';
@@ -64,13 +68,22 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
             Arrasta os cartões entre colunas à medida que o processo avança.
           </p>
         </div>
-        <button
-          type="button"
-          class="btn btn-primary"
-          (click)="newApplication()"
-        >
-          <i class="bi bi-plus-lg me-1"></i>Nova candidatura
-        </button>
+        <div class="d-flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            (click)="receivedReply()"
+          >
+            <i class="bi bi-envelope-open me-1"></i>Recebi uma resposta
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="newApplication()"
+          >
+            <i class="bi bi-plus-lg me-1"></i>Nova candidatura
+          </button>
+        </div>
       </header>
 
       @if (store.error(); as e) {
@@ -299,6 +312,20 @@ export class KanbanPage {
       backdrop: 'static',
     });
     (ref.componentInstance as ApplicationFormModal).init(null);
+  }
+
+  receivedReply(): void {
+    const ref = this.modals.open(ReplyModal, {
+      size: 'lg',
+      scrollable: true,
+      backdrop: 'static',
+    });
+    (ref.componentInstance as ReplyModal).init(null);
+    // Depois de aplicar, abre a candidatura para se ver o que mudou.
+    ref.result.then(
+      (r: ReplyApplied) => this.openDetail(r.applicationId),
+      () => undefined,
+    );
   }
 
   openDetail(id: string): void {
