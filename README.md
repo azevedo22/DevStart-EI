@@ -10,7 +10,7 @@ primeiro emprego. Ajuda a manter a procura organizada e a motivação em dia, e 
 3. **Em que ponto estão as minhas candidaturas?** Quadro Kanban do envio do CV até à proposta, com vagas
    reais ordenadas pelo perfil, objetivo diário e relatório semanal.
 
-![Os ecrãs principais em sequência: página inicial, skill gap, quadro de candidaturas, detalhe de uma candidatura, vagas e progresso da semana](docs/screenshots/demo.gif)
+![Os ecrãs principais em sequência: página inicial, perfil, skill gap, quadro de candidaturas, detalhe de uma candidatura, vagas e progresso da semana](docs/screenshots/demo.gif)
 
 > **Para experimentar sem criar conta:** botão _Experimentar sem registo_ na página inicial. Cria uma
 > conta só tua, já com perfil, projetos e candidaturas de exemplo, que se apaga sozinha ao fim de 24 horas.
@@ -25,6 +25,12 @@ Capturas com a conta de demonstração. As pessoas, empresas e vagas são fictí
 
 **Candidaturas.** Kanban do "por candidatar" à proposta. Cada cartão mostra o match com o perfil e se a vaga
 é realista para quem não tem experiência.
+
+![Perfil com formação, experiência, línguas e quantas competências já têm um projeto que as demonstra](docs/screenshots/perfil.png)
+
+**Perfil e projetos.** Formação, experiência e línguas (à mão ou importadas do CV), e cada competência ligada
+aos projetos que a demonstram. O resumo diz quantas já têm prova e quais são o caminho mais rápido para
+reforçar o portfólio.
 
 |                                                                                                                                              |                                                                                                                                                                |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
