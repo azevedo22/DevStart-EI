@@ -57,3 +57,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Playwright (resultados e relatório dos testes ponta a ponta)
+/e2e/results
+/e2e/report

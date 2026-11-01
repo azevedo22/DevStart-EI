@@ -335,6 +335,10 @@ O catálogo de competências e stacks usa cache HTTP (`Cache-Control` + `ETag`):
 - **Smoke test na CI.** Um job constrói as imagens, arranca a stack inteira e percorre-a através do nginx
   (`tools/smoke-test.sh`): frontend, cabeçalhos, registo, os três serviços, eliminação da conta e revogação
   do token.
+- **Testes no browser (Playwright) na CI.** No mesmo job, contra a mesma stack, um browser faz três
+  percursos de uma pessoa real: experimentar a demonstração e terminá-la, criar uma candidatura e
+  mudá-la de coluna, e editar o perfil. Cada teste cria a sua conta; se algum falhar, a CI guarda o
+  relatório com capturas e o trace.
 
 ## Como correr
 
@@ -359,6 +363,7 @@ Outros comandos:
 npm run start:backend  # só os serviços
 npm test               # testes de todos os projetos
 npm run lint           # ESLint em todos os projetos (avisos também falham)
+npm run e2e            # testes no browser (Playwright) contra a app já a correr em :8080
 TEST_DATABASE_URL=postgres://devstart:devstart@localhost:5432/devstart_test \
 TEST_REDIS_URL=redis://localhost:6379 npm test
                        # inclui os testes e2e contra PostgreSQL e Redis (ignorados sem estas variáveis)
