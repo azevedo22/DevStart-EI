@@ -35,7 +35,7 @@ import { DemoButton } from '../../../demo/components/demo-button/demo-button';
       <div class="row justify-content-center text-center">
         <div class="col-lg-8">
           <h1 class="display-6 fw-semibold">
-            Passo a passo, até ao primeiro «sim».
+            Passo a passo, até ao primeiro sim!
           </h1>
           <p class="lead text-body-secondary mt-3">
             Para estudantes e recém-formados em informática. Descobre o que te

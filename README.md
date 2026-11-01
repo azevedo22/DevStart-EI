@@ -1,6 +1,6 @@
 # DevStart EI
 
-**Passo a passo, até ao primeiro «sim».**
+**Passo a passo, até ao primeiro sim!**
 
 Plataforma web para estudantes e recém-formados em informática (licenciatura ou mestrado) à procura do
 primeiro emprego. Ajuda a manter a procura organizada e a motivação em dia, e a responder a três perguntas:
@@ -10,7 +10,7 @@ primeiro emprego. Ajuda a manter a procura organizada e a motivação em dia, e 
 3. **Em que ponto estão as minhas candidaturas?** Quadro Kanban do envio do CV até à proposta, com vagas
    reais ordenadas pelo perfil, objetivo diário e relatório semanal.
 
-![Percurso pela aplicação com a conta de demonstração: skill gap, quadro de candidaturas, detalhe de uma candidatura, vagas e progresso da semana](docs/screenshots/demo.gif)
+![Os ecrãs principais em sequência: página inicial, skill gap, quadro de candidaturas, detalhe de uma candidatura, vagas e progresso da semana](docs/screenshots/demo.gif)
 
 > **Para experimentar sem criar conta:** botão _Experimentar sem registo_ na página inicial. Cria uma
 > conta só tua, já com perfil, projetos e candidaturas de exemplo, que se apaga sozinha ao fim de 24 horas.
