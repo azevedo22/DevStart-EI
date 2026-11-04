@@ -60,12 +60,25 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
           {{ detail()?.jobTitle }}
         </div>
       </div>
-      <button
-        type="button"
-        class="btn-close"
-        aria-label="Fechar"
-        (click)="offcanvas.dismiss()"
-      ></button>
+      <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
+        @if (detail()) {
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            title="Editar a candidatura"
+            aria-label="Editar a candidatura"
+            (click)="edit()"
+          >
+            <i class="bi bi-pencil"></i>
+          </button>
+        }
+        <button
+          type="button"
+          class="btn-close"
+          aria-label="Fechar"
+          (click)="offcanvas.dismiss()"
+        ></button>
+      </div>
     </div>
 
     <div class="offcanvas-body vstack gap-4">

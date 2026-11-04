@@ -80,6 +80,19 @@ body {
 }
 
 /*
+ * Painéis laterais (ng-bootstrap): o mesmo problema dos modais abaixo. O
+ * cabeçalho e o corpo estão dentro do componente, por isso o componente passa
+ * a coluna flex que pode encolher; assim o corpo rola quando é mais alto do
+ * que o ecrã, e o cabeçalho fica sempre à vista.
+ */
+.offcanvas > * {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
  * Modais com scroll (ng-bootstrap, scrollable: true). O Bootstrap só faz o
  * corpo rolar quando cabeçalho, corpo e rodapé são filhos diretos de
  * .modal-content. Nos nossos, estão dentro do componente e de um <form>:
