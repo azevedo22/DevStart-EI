@@ -32,7 +32,8 @@ export class ProjectsService {
   /**
    * Para o relatório semanal: o dia em que cada projeto foi criado e, se foi
    * mexido noutro dia, o da última atualização (só se guarda a última). Datas
-   * no fuso do utilizador.
+   * no fuso do utilizador. Os importados do CV já existiam: a criação não
+   * conta, só as atualizações feitas depois.
    */
   async activity(
     userId: string,
@@ -43,11 +44,13 @@ export class ProjectsService {
         `WITH p AS (
            SELECT title,
                   (created_at AT TIME ZONE $4)::date AS created_day,
-                  (updated_at AT TIME ZONE $4)::date AS updated_day
+                  (updated_at AT TIME ZONE $4)::date AS updated_day,
+                  imported
              FROM projects WHERE user_id = $1
          )
          SELECT created_day::text AS date, 'PROJECT_CREATED' AS kind, title AS subject
-           FROM p WHERE created_day BETWEEN $2::date AND $3::date
+           FROM p WHERE NOT imported
+            AND created_day BETWEEN $2::date AND $3::date
          UNION ALL
          SELECT updated_day::text, 'PROJECT_UPDATED', title
            FROM p WHERE updated_day > created_day

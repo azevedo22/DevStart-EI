@@ -69,6 +69,10 @@ export class ProjectEntity {
   @Column({ type: 'varchar', length: 8, default: 'manual' })
   source!: EntrySource;
 
+  /** Entrou por uma importação do CV (não muda ao editar): a criação não conta como atividade. */
+  @Column({ type: 'boolean', default: false })
+  imported!: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

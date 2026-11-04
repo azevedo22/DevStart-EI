@@ -194,6 +194,7 @@ export class CvService {
           em.create(ProjectEntity, {
             userId,
             source: 'cv',
+            imported: true,
             ...toProjectFields(p),
           }),
         );

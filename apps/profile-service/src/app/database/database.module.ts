@@ -21,6 +21,7 @@ import { CreateProfileTables1730150000000 } from './migrations/1730150000000-cre
 import { AddJobBoard1730220000000 } from './migrations/1730220000000-add-job-board';
 import { AddProfilePhoto1730230000000 } from './migrations/1730230000000-add-profile-photo';
 import { AddEntrySource1730250000000 } from './migrations/1730250000000-add-entry-source';
+import { AddProjectImported1730260000000 } from './migrations/1730260000000-add-project-imported';
 
 /** Entidades e migrações listadas explicitamente: globs não funcionam com o bundle do webpack. */
 export const ENTITIES = [
@@ -38,6 +39,7 @@ export const MIGRATIONS = [
   AddJobBoard1730220000000,
   AddProfilePhoto1730230000000,
   AddEntrySource1730250000000,
+  AddProjectImported1730260000000,
 ];
 
 @Module({

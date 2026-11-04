@@ -29,7 +29,9 @@ interface Row {
  * Respostas: só os movimentos que contam como notícia. Sair de "Candidatado"
  * para uma fase de entrevista, ou passar de uma fase para outra, é positivo;
  * entrar em "Proposta" ou "Rejeitado" é proposta ou rejeição. Voltar a
- * "Candidatado" (correção de um engano) não conta. As vagas em "Por candidatar"
+ * "Candidatado" (correção de um engano) não conta, e o movimento desfeito
+ * também não: ir para uma coluna e voltar logo a seguir para onde estava é um
+ * engano, não uma notícia. As vagas em "Por candidatar"
  * ainda não são candidaturas: não contam, e sair dessa coluna também não.
  */
 const ACTIVITY_SQL = `
@@ -44,6 +46,14 @@ const ACTIVITY_SQL = `
       FROM interviews i
       JOIN applications a ON a.id = i.application_id
      WHERE a.user_id = $1
+  ),
+  hist AS (
+    SELECT h.*, lead(h.to_status) OVER (
+             PARTITION BY h.application_id ORDER BY h.changed_at, h.id
+           ) AS next_to
+      FROM application_status_history h
+      JOIN applications a ON a.id = h.application_id
+     WHERE a.user_id = $1 AND h.from_status IS NOT NULL -- só movimentos, não a criação
   )
   SELECT a.applied_at::text AS date, 'APPLIED' AS kind, a.company_name AS subject,
          a.job_title, NULL AS status, NULL AS interview_type, NULL::int AS round,
@@ -58,10 +68,11 @@ const ACTIVITY_SQL = `
                           WHEN 'REJECTED' THEN 'REJECTED'
                           ELSE 'RESPONSE_POSITIVE' END,
          a.company_name, a.job_title, h.to_status, NULL, NULL, NULL
-    FROM application_status_history h
+    FROM hist h
     JOIN applications a ON a.id = h.application_id
-   WHERE a.user_id = $1
-     AND h.from_status IS NOT NULL
+   WHERE h.from_status IS NOT NULL
+     -- Desfeito no movimento seguinte (voltou para onde estava): não conta.
+     AND h.next_to IS DISTINCT FROM h.from_status
      AND h.from_status <> h.to_status
      AND h.from_status <> 'SAVED' AND h.to_status <> 'SAVED'
      AND (

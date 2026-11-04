@@ -288,6 +288,28 @@ describeDb('Profile & Skill Service (e2e)', () => {
       ]);
     });
 
+    it('importado do CV: a criação não conta; uma edição depois conta', async () => {
+      const { body: profile } = await ana
+        .post('/api/profile/cv/import', {
+          projects: [{ ...PROJECT, title: 'Do CV' }],
+        })
+        .expect(200);
+      expect(profile).toBeDefined();
+      const [{ id }] = await app
+        .get(DataSource)
+        .query(`SELECT id FROM projects WHERE title = 'Do CV'`);
+      await at(id, '2026-10-27T10:00:00Z', '2026-10-27T10:00:00Z');
+      expect((await week()).body).toEqual([]);
+
+      await ana
+        .put(`/api/projects/${id}`, { ...PROJECT, title: 'Do CV' })
+        .expect(200);
+      await at(id, '2026-10-27T10:00:00Z', '2026-10-29T10:00:00Z');
+      expect((await week()).body).toEqual([
+        { date: '2026-10-29', kind: 'PROJECT_UPDATED', subject: 'Do CV' },
+      ]);
+    });
+
     it('a data depende do fuso', async () => {
       const { body: p } = await ana.post('/api/projects', PROJECT).expect(201);
       await at(p.id, '2026-10-27T23:30:00Z', '2026-10-27T23:30:00Z');

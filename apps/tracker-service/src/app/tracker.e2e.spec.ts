@@ -731,7 +731,7 @@ describeDb('Application Tracker Service (e2e)', () => {
       expect(await dayIn('Asia/Tokyo')).toBe('2026-10-28');
     });
 
-    it('voltar a "Candidatado" ou reordenar não conta como resposta', async () => {
+    it('um movimento desfeito (ir e voltar logo) não conta, nem o regresso', async () => {
       const a = await create({ appliedAt: '2026-10-26' });
       await move(a.id, 'REJECTED');
       await move(a.id, 'APPLIED');
@@ -744,9 +744,24 @@ describeDb('Application Tracker Service (e2e)', () => {
       const { body } = await ana
         .get(`/api/applications/activity${WEEK}`)
         .expect(200);
+      expect(body.map((e: { kind: string }) => e.kind)).toEqual(['APPLIED']);
+    });
+
+    it('desfeito e feito outra vez: conta uma vez', async () => {
+      const a = await create({ appliedAt: '2026-10-26' });
+      for (const status of ['HR_INTERVIEW', 'APPLIED', 'HR_INTERVIEW'])
+        await move(a.id, status);
+      await db().query(
+        `UPDATE application_status_history SET changed_at = '2026-10-28T10:00:00Z'
+          WHERE application_id = $1`,
+        [a.id],
+      );
+      const { body } = await ana
+        .get(`/api/applications/activity${WEEK}`)
+        .expect(200);
       expect(body.map((e: { kind: string }) => e.kind)).toEqual([
         'APPLIED',
-        'REJECTED',
+        'RESPONSE_POSITIVE',
       ]);
     });
 
