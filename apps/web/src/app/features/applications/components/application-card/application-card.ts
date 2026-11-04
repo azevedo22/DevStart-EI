@@ -16,62 +16,94 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
   imports: [AccessibilityBadge],
   template: `
     @let a = application();
-    <button
-      type="button"
-      class="card-body text-start w-100 border-0 bg-transparent p-3"
-      (click)="open.emit(a.id)"
-      [attr.aria-label]="'Abrir ' + a.jobTitle + ' em ' + a.companyName"
-    >
-      <div class="d-flex justify-content-between gap-2">
-        <span class="fw-semibold text-truncate">{{ a.companyName }}</span>
-        @if (match().percentage !== null) {
-          <span
-            class="small fw-semibold flex-shrink-0"
-            [class]="matchClass()"
-            title="Competências da vaga que tens no perfil"
-          >
-            {{ match().percentage }}%
-          </span>
-        }
-      </div>
-      <div class="small text-body-secondary text-truncate mb-2">
-        {{ a.jobTitle }}
-      </div>
-      <ds-accessibility-badge
-        [value]="a.accessibility"
-        [mislabeled]="a.mislabeledJunior"
-        [years]="a.yearsRequired"
-      />
-      <div class="d-flex flex-wrap gap-2 small text-body-secondary mt-2">
-        <span
-          ><i class="bi bi-geo-alt me-1"></i
-          >{{ a.location ? a.location + ' · ' : ''
-          }}{{ workModes[a.workMode] }}</span
-        >
-        <span title="Data da candidatura"
-          ><i class="bi bi-calendar3 me-1"></i>{{ daysAgo() }}</span
-        >
-        @if (a.interviewCount) {
-          <span
-            ><i class="bi bi-chat-dots me-1"></i>{{ a.interviewCount }}</span
-          >
-        }
-      </div>
-      @if (silence(); as s) {
-        <div
-          class="silence badge fw-normal mt-2"
-          [class.give-up]="s.stage === 'GIVE_UP'"
-          [title]="
-            s.stage === 'GIVE_UP'
-              ? 'Já poucas empresas respondem: podes arquivar em Sem resposta'
-              : 'Altura de um follow-up: abre para ver um rascunho'
-          "
-        >
-          <i class="bi bi-hourglass-split me-1"></i>Sem resposta há
-          {{ s.days }} dias
+    @if (compact()) {
+      <button
+        type="button"
+        class="card-body text-start w-100 border-0 bg-transparent px-2 py-1"
+        (click)="open.emit(a.id)"
+        [attr.aria-label]="'Abrir ' + a.jobTitle + ' em ' + a.companyName"
+      >
+        <div class="d-flex justify-content-between gap-2 small">
+          <span class="fw-semibold text-truncate">{{ a.companyName }}</span>
+          @if (match().percentage !== null) {
+            <span class="fw-semibold flex-shrink-0" [class]="matchClass()"
+              >{{ match().percentage }}%</span
+            >
+          }
         </div>
-      }
-    </button>
+        <div
+          class="d-flex justify-content-between gap-2 small text-body-secondary"
+        >
+          <span class="text-truncate">{{ a.jobTitle }}</span>
+          <span class="flex-shrink-0">
+            @if (silence(); as s) {
+              <i
+                class="bi bi-hourglass-split text-warning-emphasis me-1"
+                [title]="'Sem resposta há ' + s.days + ' dias'"
+              ></i>
+            }
+            {{ daysAgo() }}
+          </span>
+        </div>
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="card-body text-start w-100 border-0 bg-transparent p-3"
+        (click)="open.emit(a.id)"
+        [attr.aria-label]="'Abrir ' + a.jobTitle + ' em ' + a.companyName"
+      >
+        <div class="d-flex justify-content-between gap-2">
+          <span class="fw-semibold text-truncate">{{ a.companyName }}</span>
+          @if (match().percentage !== null) {
+            <span
+              class="small fw-semibold flex-shrink-0"
+              [class]="matchClass()"
+              title="Competências da vaga que tens no perfil"
+            >
+              {{ match().percentage }}%
+            </span>
+          }
+        </div>
+        <div class="small text-body-secondary text-truncate mb-2">
+          {{ a.jobTitle }}
+        </div>
+        <ds-accessibility-badge
+          [value]="a.accessibility"
+          [mislabeled]="a.mislabeledJunior"
+          [years]="a.yearsRequired"
+        />
+        <div class="d-flex flex-wrap gap-2 small text-body-secondary mt-2">
+          <span
+            ><i class="bi bi-geo-alt me-1"></i
+            >{{ a.location ? a.location + ' · ' : ''
+            }}{{ workModes[a.workMode] }}</span
+          >
+          <span title="Data da candidatura"
+            ><i class="bi bi-calendar3 me-1"></i>{{ daysAgo() }}</span
+          >
+          @if (a.interviewCount) {
+            <span
+              ><i class="bi bi-chat-dots me-1"></i>{{ a.interviewCount }}</span
+            >
+          }
+        </div>
+        @if (silence(); as s) {
+          <div
+            class="silence badge fw-normal mt-2"
+            [class.give-up]="s.stage === 'GIVE_UP'"
+            [title]="
+              s.stage === 'GIVE_UP'
+                ? 'Já poucas empresas respondem: podes arquivar em Sem resposta'
+                : 'Altura de um follow-up: abre para ver um rascunho'
+            "
+          >
+            <i class="bi bi-hourglass-split me-1"></i>Sem resposta há
+            {{ s.days }} dias
+          </div>
+        }
+      </button>
+    }
   `,
   styles: `
     .silence {
@@ -91,6 +123,8 @@ export class ApplicationCard {
   private readonly store = inject(ApplicationsStore);
 
   readonly application = input.required<JobApplication>();
+  /** Uma linha por candidatura: cabem muitas mais na coluna. */
+  readonly compact = input(false);
   readonly open = output<string>();
 
   protected readonly workModes = WORK_MODE_LABELS;

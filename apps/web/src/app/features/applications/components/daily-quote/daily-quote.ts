@@ -68,7 +68,7 @@ function write(key: string, value: string): void {
               </p>
             </blockquote>
             <figcaption class="small text-body-secondary mb-0">
-              — <strong class="text-body">{{ q.author }}</strong
+              <strong class="text-body">{{ q.author }}</strong
               >, {{ q.role }}
               ·
               <a

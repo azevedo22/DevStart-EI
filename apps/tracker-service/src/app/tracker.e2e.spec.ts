@@ -435,6 +435,17 @@ describeDb('Application Tracker Service (e2e)', () => {
       });
     });
 
+    it('um cartão movido por engano e posto de volta não conta como resposta', async () => {
+      const a = await create({ companyName: 'Engano' });
+      await create({ companyName: 'Outra' });
+      for (const status of ['TECHNICAL_TEST', 'APPLIED'])
+        await ana
+          .patch(`/api/applications/${a.id}/move`, { status, position: 0 })
+          .expect(200);
+      const { body } = await ana.get('/api/applications/stats').expect(200);
+      expect(body).toMatchObject({ total: 2, active: 2, responseRate: 0 });
+    });
+
     it('sem candidaturas, a taxa de resposta é null e não 0%', async () => {
       const { body } = await ana.get('/api/applications/stats').expect(200);
       expect(body).toMatchObject({ total: 0, responseRate: null });

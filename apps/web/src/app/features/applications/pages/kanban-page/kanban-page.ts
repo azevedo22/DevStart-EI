@@ -7,7 +7,7 @@ import {
   CdkDropList,
   CdkDropListGroup,
 } from '@angular/cdk/drag-drop';
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   ACCESSIBILITIES,
@@ -29,7 +29,28 @@ import { ApplicationCard } from '../../components/application-card/application-c
 import { ApplicationDetail } from '../../components/application-detail/application-detail';
 import { ApplicationFormModal } from '../../components/application-form-modal/application-form-modal';
 import { BoardStats } from '../../components/board-stats/board-stats';
+import { StatListModal } from '../../components/stat-list-modal/stat-list-modal';
 import { ApplicationsStore } from '../../data/applications-store';
+import { StatList, realPosition, splitByWeek } from '../../data/board-view';
+
+const COMPACT_KEY = 'devstart.board.compact';
+
+/** Preferências deste browser: sem armazenamento (ex.: janela privada), valem só nesta visita. */
+function readFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeFlag(key: string, on: boolean): void {
+  try {
+    localStorage.setItem(key, on ? '1' : '0');
+  } catch {
+    // Sem armazenamento: vale só nesta visita.
+  }
+}
 
 const COLUMN_STYLE: Record<ApplicationStatus, string> = {
   SAVED: 'border-warning',
@@ -42,7 +63,7 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
   NO_RESPONSE: 'border-secondary-subtle',
 };
 
-/** Módulo 3 — quadro Kanban das candidaturas. */
+/** Módulo 3: quadro Kanban das candidaturas. */
 @Component({
   selector: 'ds-kanban-page',
   imports: [
@@ -105,7 +126,11 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
       <ds-daily-goal class="d-block mb-3" />
 
       @if (store.stats(); as stats) {
-        <ds-board-stats [stats]="stats" class="d-block mb-3" />
+        <ds-board-stats
+          [stats]="stats"
+          class="d-block mb-3"
+          (show)="showList($event)"
+        />
       }
 
       @if (store.loaded() && store.total()) {
@@ -156,6 +181,19 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
               arrastar fica desligado.</span
             >
           }
+          <div class="form-check form-switch ms-auto mb-0 small">
+            <input
+              id="compactCards"
+              class="form-check-input"
+              type="checkbox"
+              role="switch"
+              [checked]="compact()"
+              (change)="setCompact($any($event.target).checked)"
+            />
+            <label for="compactCards" class="form-check-label"
+              >Cartões compactos</label
+            >
+          </div>
         </div>
       }
 
@@ -189,7 +227,8 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
       } @else {
         <div class="board d-flex gap-3 overflow-auto pb-3" cdkDropListGroup>
           @for (status of statuses; track status) {
-            @let cards = store.visibleBoard()[status];
+            @let all = store.visibleBoard()[status];
+            @let cards = shown(status);
             <section
               class="column card border-0 shadow-sm flex-shrink-0 border-top border-3 {{
                 columnStyle[status]
@@ -202,7 +241,7 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
                   {{ statusLabels[status] }}
                 </h2>
                 <span class="badge rounded-pill text-bg-light">{{
-                  cards.length
+                  all.length
                 }}</span>
               </header>
               <div
@@ -222,19 +261,39 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
                   >
                     <ds-application-card
                       [application]="card"
+                      [compact]="compact()"
                       (open)="openDetail($event)"
                     />
                     <div
                       *cdkDragPlaceholder
                       class="card kanban-placeholder"
+                      [class.compact]="compact()"
                     ></div>
                   </div>
                 } @empty {
-                  <p class="small text-body-secondary text-center my-3">
-                    Sem candidaturas
-                  </p>
+                  @if (!all.length) {
+                    <p class="small text-body-secondary text-center my-3">
+                      Sem candidaturas
+                    </p>
+                  }
                 }
               </div>
+              @if (olderCount(status); as n) {
+                <button
+                  type="button"
+                  class="btn btn-sm btn-link text-body-secondary text-decoration-none border-top rounded-0"
+                  [attr.aria-expanded]="showOlder()"
+                  (click)="showOlder.set(!showOlder())"
+                >
+                  <i
+                    class="bi me-1"
+                    [class.bi-chevron-down]="!showOlder()"
+                    [class.bi-chevron-up]="showOlder()"
+                  ></i
+                  >{{ showOlder() ? 'Esconder' : 'Mostrar' }} semanas anteriores
+                  ({{ n }})
+                </button>
+              }
             </section>
           }
         </div>
@@ -260,6 +319,9 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
     }
     .kanban-card.cdk-drag-disabled {
       cursor: pointer;
+    }
+    .kanban-placeholder.compact {
+      min-height: 2.5rem;
     }
     .kanban-placeholder {
       min-height: 5rem;
@@ -288,6 +350,37 @@ export class KanbanPage {
   protected readonly accessibilities = ACCESSIBILITIES;
   protected readonly accessibilityLabels = ACCESSIBILITY_LABELS;
 
+  /** Uma linha por cartão. Lembrado neste browser. */
+  protected readonly compact = signal(readFlag(COMPACT_KEY));
+  /** Em "Candidatado", as candidaturas de semanas anteriores vêm recolhidas. */
+  protected readonly showOlder = signal(false);
+
+  /** Os cartões à vista numa coluna. */
+  protected shown(status: ApplicationStatus): JobApplication[] {
+    const cards = this.store.visibleBoard()[status];
+    if (!this.collapses(status)) return cards;
+    return splitByWeek(cards, this.store.today()).recent;
+  }
+
+  /** Quantas candidaturas de semanas anteriores há para mostrar (ou esconder). */
+  protected olderCount(status: ApplicationStatus): number {
+    if (status !== 'APPLIED' || this.store.filtersActive()) return 0;
+    return splitByWeek(this.store.visibleBoard()[status], this.store.today())
+      .older.length;
+  }
+
+  /** Com pesquisa ou filtros, mostra-se tudo o que corresponde. */
+  private collapses(status: ApplicationStatus): boolean {
+    return (
+      status === 'APPLIED' && !this.showOlder() && !this.store.filtersActive()
+    );
+  }
+
+  protected setCompact(on: boolean): void {
+    this.compact.set(on);
+    writeFlag(COMPACT_KEY, on);
+  }
+
   constructor() {
     this.store.load();
     this.profile.load(); // para a comparação com o perfil em cada cartão
@@ -295,8 +388,15 @@ export class KanbanPage {
 
   drop(event: CdkDragDrop<JobApplication[]>, status: ApplicationStatus): void {
     const card = event.item.data as JobApplication;
-    // Sem filtros, o índice visível é a posição real na coluna.
-    this.store.move(card.id, status, event.currentIndex).catch(() => undefined);
+    // Sem filtros, o índice visível é a posição real na coluna, exceto quando
+    // há cartões recolhidos ("semanas anteriores"): aí conta o vizinho visível.
+    const position = realPosition(
+      this.store.visibleBoard()[status],
+      this.shown(status),
+      card.id,
+      event.currentIndex,
+    );
+    this.store.move(card.id, status, position).catch(() => undefined);
   }
 
   toggleFilter(a: Accessibility): void {
@@ -324,6 +424,15 @@ export class KanbanPage {
     // Depois de aplicar, abre a candidatura para se ver o que mudou.
     ref.result.then(
       (r: ReplyApplied) => this.openDetail(r.applicationId),
+      () => undefined,
+    );
+  }
+
+  showList(kind: StatList): void {
+    const ref = this.modals.open(StatListModal, { scrollable: true });
+    (ref.componentInstance as StatListModal).init(kind);
+    ref.result.then(
+      (id: string) => this.openDetail(id),
       () => undefined,
     );
   }

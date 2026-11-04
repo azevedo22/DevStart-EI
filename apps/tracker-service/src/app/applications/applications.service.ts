@@ -8,6 +8,7 @@ import {
   ApplicationStatus,
   CLOSED_STATUSES,
   NOT_APPLIED_STATUSES,
+  RESPONSE_STATUSES,
   isApplied,
   Interview,
   JobApplication,
@@ -157,17 +158,10 @@ export class ApplicationsService {
     const saved = NOT_APPLIED_STATUSES.reduce((n, s) => n + byStatus[s], 0);
     const total = rows.reduce((sum, r) => sum + r.count, 0) - saved;
 
-    // "Responderam" = alguma vez saiu de APPLIED (incluindo rejeições depois de
-    // entrevista). Sair de "Por candidatar" é candidatar-se, não uma resposta;
-    // passar a "Sem resposta" é o contrário de uma resposta.
-    const [{ responded }] = await this.db.query(
-      `SELECT count(DISTINCT h.application_id)::int AS responded
-         FROM application_status_history h JOIN applications a ON a.id = h.application_id
-        WHERE a.user_id = $1 AND h.from_status IS NOT NULL
-          AND h.from_status NOT IN ('SAVED') AND a.status NOT IN ('SAVED')
-          AND h.to_status NOT IN ('NO_RESPONSE', 'APPLIED')`,
-      [userId],
-    );
+    // Responderam: estão agora numa coluna de resposta (teste, entrevista,
+    // proposta ou rejeição). Pela coluna atual e não pelo histórico: um cartão
+    // movido por engano e posto de volta em "Candidatado" não é uma resposta.
+    const responded = RESPONSE_STATUSES.reduce((n, s) => n + byStatus[s], 0);
     const [{ interviews }] = await this.db.query(
       `SELECT count(*)::int AS interviews FROM interviews i JOIN applications a ON a.id = i.application_id WHERE a.user_id = $1`,
       [userId],

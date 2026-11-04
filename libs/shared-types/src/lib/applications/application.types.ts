@@ -48,6 +48,23 @@ export const CLOSED_STATUSES: readonly ApplicationStatus[] = [
   'NO_RESPONSE',
 ];
 
+/**
+ * Colunas que são uma resposta da empresa: um teste, uma entrevista, uma
+ * proposta ou uma rejeição. Conta a coluna onde a candidatura está agora, e não
+ * o histórico: um cartão movido por engano e posto de volta não é uma resposta.
+ */
+export const RESPONSE_STATUSES: readonly ApplicationStatus[] = [
+  'TECHNICAL_TEST',
+  'HR_INTERVIEW',
+  'TECHNICAL_INTERVIEW',
+  'OFFER',
+  'REJECTED',
+];
+
+export function hasResponse(status: ApplicationStatus): boolean {
+  return RESPONSE_STATUSES.includes(status);
+}
+
 export type WorkMode = 'ONSITE' | 'HYBRID' | 'REMOTE';
 
 export const WORK_MODES: readonly WorkMode[] = ['ONSITE', 'HYBRID', 'REMOTE'];

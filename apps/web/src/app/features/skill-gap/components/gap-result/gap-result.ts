@@ -87,7 +87,7 @@ export class GapResult {
     {
       key: 'belowLevel',
       title: 'Abaixo do nível pedido',
-      hint: 'Já começaste — falta aprofundar.',
+      hint: 'Já começaste, falta aprofundar.',
       icon: 'bi-arrow-up-circle',
       tone: 'warning',
     },
