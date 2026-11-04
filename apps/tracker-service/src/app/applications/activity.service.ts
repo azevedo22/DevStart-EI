@@ -29,9 +29,10 @@ interface Row {
  * Respostas: só os movimentos que contam como notícia. Sair de "Candidatado"
  * para uma fase de entrevista, ou passar de uma fase para outra, é positivo;
  * entrar em "Proposta" ou "Rejeitado" é proposta ou rejeição. Voltar a
- * "Candidatado" (correção de um engano) não conta, e o movimento desfeito
- * também não: ir para uma coluna e voltar logo a seguir para onde estava é um
- * engano, não uma notícia. As vagas em "Por candidatar"
+ * "Candidatado" (correção de um engano) não conta, e o movimento corrigido
+ * também não: uma resposta seguida, mais cedo ou mais tarde, de um regresso a
+ * "Candidatado" foi um engano (quem teve resposta não volta a esperar por
+ * ela), tal como ir para uma coluna e voltar logo para onde estava. As vagas em "Por candidatar"
  * ainda não são candidaturas: não contam, e sair dessa coluna também não.
  */
 const ACTIVITY_SQL = `
@@ -48,12 +49,15 @@ const ACTIVITY_SQL = `
      WHERE a.user_id = $1
   ),
   hist AS (
-    SELECT h.*, lead(h.to_status) OVER (
-             PARTITION BY h.application_id ORDER BY h.changed_at, h.id
-           ) AS next_to
+    SELECT h.*,
+           lead(h.to_status) OVER w AS next_to,
+           coalesce(bool_or(h.to_status = 'APPLIED') OVER (
+             w ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING
+           ), false) AS back_to_applied
       FROM application_status_history h
       JOIN applications a ON a.id = h.application_id
      WHERE a.user_id = $1 AND h.from_status IS NOT NULL -- só movimentos, não a criação
+    WINDOW w AS (PARTITION BY h.application_id ORDER BY h.changed_at, h.id)
   )
   SELECT a.applied_at::text AS date, 'APPLIED' AS kind, a.company_name AS subject,
          a.job_title, NULL AS status, NULL AS interview_type, NULL::int AS round,
@@ -73,6 +77,9 @@ const ACTIVITY_SQL = `
    WHERE h.from_status IS NOT NULL
      -- Desfeito no movimento seguinte (voltou para onde estava): não conta.
      AND h.next_to IS DISTINCT FROM h.from_status
+     -- Voltou depois a "Candidatado", por qualquer caminho: foi um engano.
+     -- Quem tem uma resposta não volta a estar à espera dela.
+     AND NOT h.back_to_applied
      AND h.from_status <> h.to_status
      AND h.from_status <> 'SAVED' AND h.to_status <> 'SAVED'
      AND (

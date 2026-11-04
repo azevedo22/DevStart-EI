@@ -747,12 +747,31 @@ describeDb('Application Tracker Service (e2e)', () => {
       expect(body.map((e: { kind: string }) => e.kind)).toEqual(['APPLIED']);
     });
 
+    it('rejeição corrigida por outro caminho até "Candidatado" não conta', async () => {
+      const a = await create({ appliedAt: '2026-10-26' });
+      for (const status of ['REJECTED', 'TECHNICAL_TEST', 'APPLIED'])
+        await move(a.id, status);
+      await db().query(
+        // Leva tudo para a semana do teste, mantendo a ordem dos movimentos.
+        `UPDATE application_status_history
+            SET changed_at = changed_at - (now() - '2026-10-28T10:00:00Z')
+          WHERE application_id = $1`,
+        [a.id],
+      );
+      const { body } = await ana
+        .get(`/api/applications/activity${WEEK}`)
+        .expect(200);
+      expect(body.map((e: { kind: string }) => e.kind)).toEqual(['APPLIED']);
+    });
+
     it('desfeito e feito outra vez: conta uma vez', async () => {
       const a = await create({ appliedAt: '2026-10-26' });
       for (const status of ['HR_INTERVIEW', 'APPLIED', 'HR_INTERVIEW'])
         await move(a.id, status);
       await db().query(
-        `UPDATE application_status_history SET changed_at = '2026-10-28T10:00:00Z'
+        // Leva tudo para a semana do teste, mantendo a ordem dos movimentos.
+        `UPDATE application_status_history
+            SET changed_at = changed_at - (now() - '2026-10-28T10:00:00Z')
           WHERE application_id = $1`,
         [a.id],
       );
