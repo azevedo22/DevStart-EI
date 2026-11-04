@@ -106,7 +106,8 @@ export class ProjectsService {
       await em.update(
         ProjectEntity,
         { id, userId },
-        { ...columns, updatedAt: new Date() },
+        // Editado pela pessoa: um CV importado depois já não o substitui.
+        { ...columns, source: 'manual', updatedAt: new Date() },
       );
       await em.delete(ProjectCompetencyEntity, { projectId: id });
       if (competencies?.length) {
@@ -152,6 +153,7 @@ export class ProjectsService {
 function toProject(p: ProjectEntity): Project {
   return {
     id: p.id,
+    source: p.source,
     title: p.title,
     description: p.description,
     repositoryUrl: p.repositoryUrl,

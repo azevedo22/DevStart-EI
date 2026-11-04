@@ -1,4 +1,8 @@
-import type { ExperienceKind, LanguageLevel } from '@devstart/shared-types';
+import type {
+  EntrySource,
+  ExperienceKind,
+  LanguageLevel,
+} from '@devstart/shared-types';
 import {
   Column,
   CreateDateColumn,
@@ -35,6 +39,10 @@ export class EducationEntity {
   @Column({ name: 'end_year', type: 'smallint', nullable: true })
   endYear!: number | null;
 
+  /** 'cv' se veio de uma importação do CV e ainda não foi editada. */
+  @Column({ type: 'varchar', length: 8, default: 'manual' })
+  source!: EntrySource;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }
@@ -64,6 +72,10 @@ export class ExperienceEntity {
 
   @Column({ type: 'varchar', length: 1500, nullable: true })
   description!: string | null;
+
+  /** 'cv' se veio de uma importação do CV e ainda não foi editada. */
+  @Column({ type: 'varchar', length: 8, default: 'manual' })
+  source!: EntrySource;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

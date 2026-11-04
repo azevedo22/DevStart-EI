@@ -89,6 +89,40 @@ describe('importRequest', () => {
   });
 });
 
+describe('CV anterior (substituir o que veio dele)', () => {
+  // A mesma formação do rascunho, mas vinda de uma importação anterior.
+  const fromCv = {
+    ...PROFILE,
+    education: [{ ...PROFILE.education[0], source: 'cv' }],
+  } as typeof PROFILE;
+  const projects = [
+    { id: 'p1', title: 'EducaAssistAI', source: 'cv' },
+    { id: 'p2', title: 'DevStart EI', source: 'manual' },
+  ] as never;
+
+  it('mostra o que veio do CV anterior e liga a substituição', () => {
+    const r = buildReview(DRAFT, fromCv, projects);
+    expect(r.replacePrevious).toBe(true);
+    expect(r.previous.education.map((e) => e.id)).toEqual(['1']);
+    expect(r.previous.projects.map((p) => p.title)).toEqual(['EducaAssistAI']);
+    // Vai ser substituída: não conta como "já no perfil" e vem marcada.
+    expect(r.education[0]).toMatchObject({ existing: false, selected: true });
+    expect(importRequest(r).replacePrevious).toBe(true);
+  });
+
+  it('desligada, segue no pedido como false', () => {
+    const r = buildReview(DRAFT, fromCv, projects);
+    r.replacePrevious = false;
+    expect(importRequest(r).replacePrevious).toBe(false);
+  });
+
+  it('sem nada do CV anterior, não há substituição nem campo no pedido', () => {
+    const r = buildReview(DRAFT, PROFILE, []);
+    expect(r.replacePrevious).toBe(false);
+    expect('replacePrevious' in importRequest(r)).toBe(false);
+  });
+});
+
 describe('years e period', () => {
   it('formatam datas que podem faltar', () => {
     expect(years({ startYear: 2022, endYear: null } as never)).toBe(

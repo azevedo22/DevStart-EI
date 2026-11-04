@@ -8,6 +8,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsOptional,
   IsString,
@@ -74,4 +75,8 @@ export class ImportCvDto implements ImportCvRequest {
   @ValidateNested({ each: true })
   @Type(() => SaveProjectDto)
   projects?: SaveProjectDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  replacePrevious?: boolean;
 }

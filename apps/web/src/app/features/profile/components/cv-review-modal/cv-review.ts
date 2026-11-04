@@ -1,6 +1,8 @@
 import {
   CvDraft,
   CvProfileFields,
+  Education,
+  Experience,
   ImportCvRequest,
   LanguageLevel,
   Level,
@@ -13,8 +15,12 @@ import {
 
 /**
  * A revisão do que a IA leu do CV: cada item com "marcado" e "já no perfil".
- * Por omissão vem tudo marcado, exceto o que já está no perfil: a importação
- * nunca substitui dados do utilizador sem ele escolher.
+ * Por omissão vem tudo marcado, exceto o que já está no perfil.
+ *
+ * O CV novo substitui o que veio do anterior (formação, experiência e projetos
+ * com origem 'cv' que a pessoa não editou): a revisão mostra-os e deixa
+ * desligar a substituição. O que a pessoa criou ou editou nunca sai, e conta
+ * como "já no perfil".
  *
  * As linhas são objetos mutáveis de propósito: os ecrãs da revisão ligam-se a
  * elas com ngModel e o pedido final lê-as no fim.
@@ -56,7 +62,17 @@ export type CompetencyRow = Row<{
 }>;
 export type LanguageRow = Row<{ language: string; level: LanguageLevel }>;
 
+/** O que veio do CV anterior e sai se a substituição ficar ligada. */
+export interface PreviousImport {
+  education: Education[];
+  experience: Experience[];
+  projects: Project[];
+}
+
 export interface CvReview {
+  previous: PreviousImport;
+  /** Substituir o que veio do CV anterior (ligado por omissão, se houver). */
+  replacePrevious: boolean;
   fields: FieldRow[];
   competencies: CompetencyRow[];
   education: Row<SaveEducationRequest>[];
@@ -108,8 +124,17 @@ export function buildReview(
     };
   });
 
+  // "Já no perfil" é só o que fica: o que veio do CV anterior vai ser substituído.
+  const manual = <T extends { source: string }>(rows: T[]) =>
+    rows.filter((r) => r.source !== 'cv');
+  const previous: PreviousImport = {
+    education: (profile?.education ?? []).filter((e) => e.source === 'cv'),
+    experience: (profile?.experience ?? []).filter((e) => e.source === 'cv'),
+    projects: projects.filter((p) => p.source === 'cv'),
+  };
+
   const eduKeys = new Set(
-    (profile?.education ?? []).map(
+    manual(profile?.education ?? []).map(
       (e) => `${norm(e.institution)}|${norm(e.degree)}`,
     ),
   );
@@ -123,7 +148,7 @@ export function buildReview(
     role: string;
     startDate: string | null;
   }) => `${norm(e.organization)}|${norm(e.role)}|${e.startDate ?? ''}`;
-  const expKeys = new Set((profile?.experience ?? []).map(expKey));
+  const expKeys = new Set(manual(profile?.experience ?? []).map(expKey));
   const experience = draft.experience.map((e) => {
     const existing = expKeys.has(expKey(e));
     return { value: e, existing, selected: !existing };
@@ -141,13 +166,15 @@ export function buildReview(
     };
   });
 
-  const titles = new Set(projects.map((p) => norm(p.title)));
+  const titles = new Set(manual(projects).map((p) => norm(p.title)));
   const projectRows = draft.projects.map((p) => {
     const existing = titles.has(norm(p.title));
     return { value: p, existing, selected: !existing };
   });
 
   return {
+    previous,
+    replacePrevious: previousCount(previous) > 0,
     fields,
     competencies,
     education,
@@ -165,6 +192,9 @@ const allRows = (r: CvReview): { selected: boolean }[] => [
   ...r.languages,
   ...r.projects,
 ];
+
+export const previousCount = (p: PreviousImport): number =>
+  p.education.length + p.experience.length + p.projects.length;
 
 export const isEmpty = (r: CvReview): boolean => allRows(r).length === 0;
 
@@ -193,6 +223,9 @@ export function importRequest(r: CvReview): ImportCvRequest {
     experience: picked(r.experience),
     languages: picked(r.languages),
     projects: picked(r.projects),
+    ...(previousCount(r.previous) > 0 && {
+      replacePrevious: r.replacePrevious,
+    }),
   };
 }
 

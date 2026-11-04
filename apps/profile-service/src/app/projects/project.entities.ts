@@ -1,4 +1,8 @@
-import type { IndustryPractice, ProjectOrigin } from '@devstart/shared-types';
+import type {
+  EntrySource,
+  IndustryPractice,
+  ProjectOrigin,
+} from '@devstart/shared-types';
 import {
   Column,
   CreateDateColumn,
@@ -60,6 +64,10 @@ export class ProjectEntity {
     eager: true,
   })
   competencies!: ProjectCompetencyEntity[];
+
+  /** 'cv' se veio de uma importação do CV e ainda não foi editada. */
+  @Column({ type: 'varchar', length: 8, default: 'manual' })
+  source!: EntrySource;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

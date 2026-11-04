@@ -3,8 +3,15 @@
  * Normalmente vem do CV (importação com IA), mas também se edita à mão.
  */
 
+/**
+ * De onde veio uma entrada do perfil: de uma importação do CV ou criada (ou
+ * editada) pela pessoa. Importar um CV novo substitui só as que vieram do CV.
+ */
+export type EntrySource = 'cv' | 'manual';
+
 export interface Education {
   id: string;
+  source: EntrySource;
   institution: string;
   degree: string; // ex.: "Licenciatura em Engenharia Informática"
   fieldOfStudy: string | null;
@@ -30,6 +37,7 @@ export const EXPERIENCE_KIND_LABELS: Record<ExperienceKind, string> = {
 
 export interface Experience {
   id: string;
+  source: EntrySource;
   organization: string;
   role: string;
   kind: ExperienceKind;
@@ -67,8 +75,9 @@ export interface LanguageSkill {
   level: LanguageLevel;
 }
 
-export type SaveEducationRequest = Omit<Education, 'id'>;
-export type SaveExperienceRequest = Omit<Experience, 'id'>;
+/** A origem não se envia: decide-a o servidor (importação = 'cv'; o resto = 'manual'). */
+export type SaveEducationRequest = Omit<Education, 'id' | 'source'>;
+export type SaveExperienceRequest = Omit<Experience, 'id' | 'source'>;
 
 /** Mês AAAA-MM (01 a 12). */
 export const YEAR_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;

@@ -509,7 +509,7 @@ describeDb('Profile & Skill Service (e2e)', () => {
         .expect(200);
       const { body: profile } = await ana.get('/api/profile').expect(200);
       expect(profile.education).toEqual([
-        { ...EDUCATION, id: created.id, endYear: null },
+        { ...EDUCATION, id: created.id, source: 'manual', endYear: null },
       ]);
       await ana.delete(`/api/profile/education/${created.id}`).expect(204);
       await ana.delete(`/api/profile/education/${created.id}`).expect(404);

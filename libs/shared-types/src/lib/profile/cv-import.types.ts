@@ -61,6 +61,12 @@ export interface ImportCvRequest {
   languages?: LanguageSkill[];
   competencies?: { competencyId: string; level: Level }[];
   projects?: SaveProjectRequest[];
+  /**
+   * Substituir o que veio do CV anterior: apaga a formação, a experiência e os
+   * projetos importados antes (e não editados desde então) e grava os novos.
+   * O que a pessoa criou ou editou à mão nunca é tocado.
+   */
+  replacePrevious?: boolean;
 }
 
 /**

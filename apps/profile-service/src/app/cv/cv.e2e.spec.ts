@@ -290,6 +290,73 @@ describeDb('Importação do CV (e2e)', () => {
       expect(profile.languages).toHaveLength(2);
     });
 
+    it('um CV novo substitui o que veio do anterior, mas não o que é da pessoa', async () => {
+      const { body: draft } = await analyze(PDF).expect(200);
+      const first = await importCv({
+        education: draft.education,
+        experience: draft.experience,
+        projects: draft.projects,
+      }).expect(200);
+      // O que vem da importação fica marcado como vindo do CV.
+      expect(first.body.education[0].source).toBe('cv');
+      expect(first.body.experience[0].source).toBe('cv');
+
+      // A pessoa edita a experiência importada e cria um projeto à mão.
+      const exp = first.body.experience[0];
+      const { id: _id, source: _s, ...expFields } = exp;
+      const edited = await http
+        .put(`/api/profile/experience/${exp.id}`)
+        .set('x-user-id', ANA)
+        .send({ ...expFields, description: 'Escrito por mim.' })
+        .expect(200);
+      expect(edited.body.source).toBe('manual');
+      await http
+        .post('/api/projects')
+        .set('x-user-id', ANA)
+        .send({ ...draft.projects[0], title: 'Projeto criado à mão' })
+        .expect(201);
+
+      // CV novo: a formação e o projeto mudaram de nome.
+      const newer = {
+        education: [
+          { ...draft.education[0], degree: 'BSc in Computer Science' },
+        ],
+        projects: [{ ...draft.projects[0], title: 'Gestor de Tarefas (v2)' }],
+      };
+      const { body: profile } = await importCv({
+        ...newer,
+        replacePrevious: true,
+      }).expect(200);
+
+      expect(
+        profile.education.map((e: { degree: string }) => e.degree),
+      ).toEqual(['BSc in Computer Science']);
+      // A experiência editada não veio no CV novo, mas é da pessoa: fica.
+      expect(profile.experience).toHaveLength(1);
+      expect(profile.experience[0].description).toBe('Escrito por mim.');
+      const { body: projects } = await http
+        .get('/api/projects')
+        .set('x-user-id', ANA)
+        .expect(200);
+      expect(
+        projects
+          .map((p: { title: string; source: string }) => [p.title, p.source])
+          .sort(),
+      ).toEqual([
+        ['Gestor de Tarefas (v2)', 'cv'],
+        ['Projeto criado à mão', 'manual'],
+      ]);
+    });
+
+    it('sem replacePrevious, nada do CV anterior é apagado', async () => {
+      const { body: draft } = await analyze(PDF).expect(200);
+      await importCv({ education: draft.education }).expect(200);
+      const { body: profile } = await importCv({
+        education: [{ ...draft.education[0], degree: 'Outro grau' }],
+      }).expect(200);
+      expect(profile.education).toHaveLength(2);
+    });
+
     it('só mexe no que vem no pedido', async () => {
       await http
         .put('/api/profile')

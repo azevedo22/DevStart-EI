@@ -1,4 +1,9 @@
-import { Education, Experience, LanguageSkill } from './background.types';
+import {
+  Education,
+  EntrySource,
+  Experience,
+  LanguageSkill,
+} from './background.types';
 
 /** Contratos do Profile & Skill Service: competências, projetos e stacks alvo. */
 
@@ -83,6 +88,8 @@ export const PRACTICE_LABELS: Record<IndustryPractice, string> = {
 
 export interface Project {
   id: string;
+  /** 'cv' se veio de uma importação do CV e ainda não foi editado. */
+  source: EntrySource;
   title: string;
   description: string;
   repositoryUrl: string | null;

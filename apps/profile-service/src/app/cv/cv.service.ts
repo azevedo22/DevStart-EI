@@ -41,8 +41,10 @@ import { LlmUnavailableError, STRUCTURED_LLM, StructuredLlm } from '../ai/llm';
  * analyze(): lê o ficheiro, pede ao modelo os dados estruturados e devolve um
  * rascunho. Não grava nada e não guarda o ficheiro.
  *
- * import(): grava o que o utilizador escolheu, numa transação. Itens que já
- * existem no perfil (mesma formação, experiência ou projeto) não são duplicados,
+ * import(): grava o que o utilizador escolheu, numa transação. Com
+ * replacePrevious, o CV novo substitui o que veio do anterior: apaga a formação,
+ * a experiência e os projetos marcados 'cv' (os editados à mão passaram a
+ * 'manual' e ficam). Itens iguais aos que ficam no perfil não são duplicados,
  * para importar o mesmo CV duas vezes não estragar nada.
  */
 @Injectable()
@@ -129,6 +131,13 @@ export class CvService {
         await em.upsert(ProfileEntity, { userId, ...fields }, ['userId']);
       }
 
+      if (req.replacePrevious) {
+        const fromCv = { userId, source: 'cv' as const };
+        await em.delete(EducationEntity, fromCv);
+        await em.delete(ExperienceEntity, fromCv);
+        await em.delete(ProjectEntity, fromCv); // as ligações às competências vão em cascata
+      }
+
       const existingEducation = await em.findBy(EducationEntity, { userId });
       const educationKey = (i: { institution: string; degree: string }) =>
         `${norm(i.institution)}|${norm(i.degree)}`;
@@ -136,7 +145,7 @@ export class CvService {
       for (const e of req.education ?? []) {
         if (seenEducation.has(educationKey(e))) continue;
         seenEducation.add(educationKey(e));
-        await this.background.addEducation(userId, e, em);
+        await this.background.addEducation(userId, e, em, 'cv');
       }
 
       const existingExperience = await em.findBy(ExperienceEntity, { userId });
@@ -149,7 +158,7 @@ export class CvService {
       for (const e of req.experience ?? []) {
         if (seenExperience.has(experienceKey(e))) continue;
         seenExperience.add(experienceKey(e));
-        await this.background.addExperience(userId, e, em);
+        await this.background.addExperience(userId, e, em, 'cv');
       }
 
       if (req.languages?.length) {
@@ -182,7 +191,11 @@ export class CvService {
       }
       for (const p of newProjects) {
         await em.save(
-          em.create(ProjectEntity, { userId, ...toProjectFields(p) }),
+          em.create(ProjectEntity, {
+            userId,
+            source: 'cv',
+            ...toProjectFields(p),
+          }),
         );
       }
     });

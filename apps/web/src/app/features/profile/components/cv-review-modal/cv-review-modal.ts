@@ -7,11 +7,13 @@ import { ProfileStore } from '../../../../core/profile/profile-store';
 import { CvCompetenciesReview } from './cv-competencies-review';
 import { CvFieldsReview } from './cv-fields-review';
 import { CvItemsReview } from './cv-items-review';
+import { CvPreviousReview } from './cv-previous-review';
 import {
   CvReview,
   buildReview,
   importRequest,
   isEmpty,
+  previousCount,
   selectedCount,
 } from './cv-review';
 
@@ -23,7 +25,12 @@ import {
  */
 @Component({
   selector: 'ds-cv-review-modal',
-  imports: [CvFieldsReview, CvCompetenciesReview, CvItemsReview],
+  imports: [
+    CvFieldsReview,
+    CvCompetenciesReview,
+    CvItemsReview,
+    CvPreviousReview,
+  ],
   template: `
     <div class="modal-header">
       <div>
@@ -61,6 +68,9 @@ import {
         </div>
       }
 
+      @if (previousCount(review.previous)) {
+        <ds-cv-previous-review [review]="review" />
+      }
       @if (review.fields.length) {
         <ds-cv-fields-review [rows]="review.fields" />
       }
@@ -118,6 +128,7 @@ export class CvReviewModal {
   protected readonly error = signal<string | null>(null);
   protected readonly isEmpty = isEmpty;
   protected readonly selectedCount = selectedCount;
+  protected readonly previousCount = previousCount;
 
   protected draft!: CvDraft;
   protected review!: CvReview;

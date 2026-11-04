@@ -1,6 +1,7 @@
 import {
   BACKGROUND_LIMITS,
   Education,
+  EntrySource,
   Experience,
   LanguageSkill,
   SaveEducationRequest,
@@ -72,6 +73,7 @@ export class BackgroundService {
     userId: string,
     dto: SaveEducationRequest,
     em: EntityManager = this.db.manager,
+    source: EntrySource = 'manual',
   ): Promise<Education> {
     checkYears(dto);
     if (
@@ -83,7 +85,7 @@ export class BackgroundService {
       );
     }
     const saved = await em.save(
-      em.create(EducationEntity, { userId, ...educationFields(dto) }),
+      em.create(EducationEntity, { userId, source, ...educationFields(dto) }),
     );
     return toEducation(saved);
   }
@@ -95,7 +97,8 @@ export class BackgroundService {
   ): Promise<Education> {
     checkYears(dto);
     const row = await this.ownedEducation(userId, id);
-    Object.assign(row, educationFields(dto));
+    // Editada pela pessoa: um CV importado depois já não a substitui.
+    Object.assign(row, educationFields(dto), { source: 'manual' });
     return toEducation(await this.db.manager.save(row));
   }
 
@@ -112,6 +115,7 @@ export class BackgroundService {
     userId: string,
     dto: SaveExperienceRequest,
     em: EntityManager = this.db.manager,
+    source: EntrySource = 'manual',
   ): Promise<Experience> {
     checkDates(dto);
     if (
@@ -123,7 +127,7 @@ export class BackgroundService {
       );
     }
     const saved = await em.save(
-      em.create(ExperienceEntity, { userId, ...experienceFields(dto) }),
+      em.create(ExperienceEntity, { userId, source, ...experienceFields(dto) }),
     );
     return toExperience(saved);
   }
@@ -135,7 +139,8 @@ export class BackgroundService {
   ): Promise<Experience> {
     checkDates(dto);
     const row = await this.ownedExperience(userId, id);
-    Object.assign(row, experienceFields(dto));
+    // Editada pela pessoa: um CV importado depois já não a substitui.
+    Object.assign(row, experienceFields(dto), { source: 'manual' });
     return toExperience(await this.db.manager.save(row));
   }
 
@@ -259,6 +264,7 @@ function experienceFields(dto: SaveExperienceRequest) {
 function toEducation(e: EducationEntity): Education {
   return {
     id: e.id,
+    source: e.source,
     institution: e.institution,
     degree: e.degree,
     fieldOfStudy: e.fieldOfStudy,
@@ -270,6 +276,7 @@ function toEducation(e: EducationEntity): Education {
 function toExperience(e: ExperienceEntity): Experience {
   return {
     id: e.id,
+    source: e.source,
     organization: e.organization,
     role: e.role,
     kind: e.kind,
