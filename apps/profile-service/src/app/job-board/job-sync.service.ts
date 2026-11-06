@@ -282,8 +282,8 @@ export class JobSyncService
         `UPDATE job_listings SET
            seniority = $2, years_required = $3, accessibility = $4,
            mislabeled_junior = $5, competency_ids = $6,
-           experience_requirements = $7, analysis_source = 'ai',
-           analyzed_at = now()
+           experience_requirements = $7, other_skills = $8,
+           analysis_source = 'ai', analyzed_at = now()
          WHERE id = $1`,
         [
           p.id,
@@ -293,6 +293,7 @@ export class JobSyncService
           verdict.mislabeledJunior,
           d.competencyIds,
           d.experienceRequirements,
+          d.otherSkills,
         ],
       );
       done++;

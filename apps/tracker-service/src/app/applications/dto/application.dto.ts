@@ -75,6 +75,30 @@ export class SaveApplicationDto implements SaveApplicationRequest {
   @Matches(SLUG, { each: true, message: 'Id de competência inválido.' })
   requiredCompetencyIds!: string[];
 
+  /** Competências fora do catálogo. Vazias e repetidas (sem contar maiúsculas) saem. */
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (!Array.isArray(value)) return value;
+    const seen = new Set<string>();
+    return value
+      .map((v) => (typeof v === 'string' ? v.trim() : v))
+      .filter((v) => {
+        if (v === '') return false;
+        const key = typeof v === 'string' ? v.toLowerCase() : v;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  })
+  @IsArray()
+  @ArrayMaxSize(APPLICATION_LIMITS.otherSkills)
+  @IsString({ each: true })
+  @MaxLength(APPLICATION_LIMITS.otherSkill, {
+    each: true,
+    message: `Cada competência tem até ${APPLICATION_LIMITS.otherSkill} caracteres.`,
+  })
+  otherSkills?: string[];
+
   @IsOptional()
   @ValidateIf((_, v) => v !== null)
   @Type(() => Number)

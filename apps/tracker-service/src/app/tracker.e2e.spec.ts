@@ -571,6 +571,30 @@ describeDb('Application Tracker Service (e2e)', () => {
     });
   });
 
+  describe('competências fora do catálogo', () => {
+    it('guarda sem vazias nem repetidas (sem contar maiúsculas)', async () => {
+      const a = await create({
+        otherSkills: [' C/C++ ', '', 'c/c++', 'Microcontroladores'],
+      });
+      expect(a.otherSkills).toEqual(['C/C++', 'Microcontroladores']);
+      const { body } = await ana.get(`/api/applications/${a.id}`).expect(200);
+      expect(body.otherSkills).toEqual(['C/C++', 'Microcontroladores']);
+      expect((await create()).otherSkills).toEqual([]);
+    });
+
+    it('recusa itens demasiado longos ou demasiados itens', async () => {
+      await ana
+        .post('/api/applications', { ...JOB, otherSkills: ['x'.repeat(61)] })
+        .expect(400);
+      await ana
+        .post('/api/applications', {
+          ...JOB,
+          otherSkills: Array.from({ length: 16 }, (_, i) => `s${i}`),
+        })
+        .expect(400);
+    });
+  });
+
   describe('experiência pedida', () => {
     it('guarda a lista sem linhas vazias e devolve-a', async () => {
       const a = await create({

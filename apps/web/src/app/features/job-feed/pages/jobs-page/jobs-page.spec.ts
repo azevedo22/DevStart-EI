@@ -45,6 +45,7 @@ describe('toApplication', () => {
       location: 'Porto, Braga',
       workMode: 'ONSITE', // não indicado no anúncio
       requiredCompetencyIds: ['angular', 'typescript'],
+      otherSkills: [],
       yearsRequired: 0,
       experienceRequirements: ['Interfaces com Angular'],
       seniority: 'JUNIOR',

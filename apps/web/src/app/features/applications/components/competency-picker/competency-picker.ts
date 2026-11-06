@@ -65,11 +65,52 @@ import { ProfileStore } from '../../../../core/profile/profile-store';
         </span>
       }
     </div>
+    <div class="mt-3">
+      <label for="otherSkill" class="form-label small mb-1"
+        >Também pede (fora do catálogo)</label
+      >
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        @for (o of others(); track o) {
+          <span
+            class="badge rounded-pill fw-normal text-bg-light border d-inline-flex align-items-center gap-1"
+            style="border-style: dashed !important"
+            title="Não existe no catálogo: conta como em falta"
+          >
+            {{ o }}
+            <button
+              type="button"
+              class="btn-close ms-1"
+              style="font-size: 0.55rem"
+              [attr.aria-label]="'Remover ' + o"
+              (click)="removeOther(o)"
+            ></button>
+          </span>
+        }
+      </div>
+      @if (others().length < limits.otherSkills) {
+        <input
+          #otherSkill
+          id="otherSkill"
+          type="text"
+          class="form-control form-control-sm"
+          placeholder="Ex.: C/C++, microcontroladores… (Enter para acrescentar)"
+          [maxLength]="limits.otherSkill"
+          (keydown.enter)="
+            addOther(otherSkill.value);
+            otherSkill.value = '';
+            $event.preventDefault()
+          "
+        />
+      }
+    </div>
     @if (match().percentage !== null) {
       <div class="form-text">
-        Tens {{ match().matched.length }} de {{ ids().length }} no perfil ({{
+        Tens {{ match().matched.length }} de {{ total() }} no perfil ({{
           match().percentage
         }}%).
+        @if (others().length) {
+          As de fora do catálogo contam como em falta.
+        }
       </div>
     }
   `,
@@ -80,13 +121,32 @@ export class CompetencyPicker {
 
   readonly ids = input.required<string[]>();
   readonly idsChange = output<string[]>();
+  /** O que a vaga pede e não existe no catálogo. */
+  readonly others = input<string[]>([]);
+  readonly othersChange = output<string[]>();
+  protected readonly limits = APPLICATION_LIMITS;
 
   private readonly searchInput =
     viewChild.required<ElementRef<HTMLInputElement>>('competencySearch');
 
   protected readonly match = computed(() =>
-    matchWithProfile(this.ids(), this.profile.declaredIds()),
+    matchWithProfile(this.ids(), this.profile.declaredIds(), this.others()),
   );
+  protected readonly total = computed(
+    () => this.ids().length + this.others().length,
+  );
+
+  protected addOther(raw: string): void {
+    const v = raw.trim();
+    if (!v) return;
+    const lower = v.toLowerCase();
+    if (this.others().some((o) => o.toLowerCase() === lower)) return;
+    this.othersChange.emit([...this.others(), v]);
+  }
+
+  protected removeOther(v: string): void {
+    this.othersChange.emit(this.others().filter((o) => o !== v));
+  }
 
   protected readonly suggest = (text$: Observable<string>) =>
     text$.pipe(

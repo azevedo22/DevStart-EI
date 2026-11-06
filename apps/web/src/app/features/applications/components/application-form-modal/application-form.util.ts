@@ -13,6 +13,7 @@ export interface DraftPatch {
   yearsRequired?: number;
   experienceRequirements?: string[];
   requiredCompetencyIds?: string[];
+  otherSkills?: string[];
   workMode?: WorkMode;
   location?: string;
 }
@@ -24,7 +25,11 @@ export interface DraftPatch {
  */
 export function draftPatch(
   d: JobPostingDraft,
-  current: { experience: string[]; competencyIds: string[] },
+  current: {
+    experience: string[];
+    competencyIds: string[];
+    otherSkills?: string[];
+  },
 ): DraftPatch {
   const patch: DraftPatch = {};
   if (d.companyName) patch.companyName = d.companyName;
@@ -40,6 +45,11 @@ export function draftPatch(
     patch.requiredCompetencyIds = [
       ...new Set([...current.competencyIds, ...d.competencyIds]),
     ].slice(0, APPLICATION_LIMITS.competencies);
+  if (d.otherSkills.length)
+    patch.otherSkills = mergeUnique(
+      current.otherSkills ?? [],
+      d.otherSkills,
+    ).slice(0, APPLICATION_LIMITS.otherSkills);
   if (d.workMode) patch.workMode = d.workMode;
   if (d.location) patch.location = d.location;
   return patch;

@@ -85,6 +85,12 @@ export interface JobApplication {
   status: ApplicationStatus;
   position: number; // ordem dentro da coluna (0 = topo)
   requiredCompetencyIds: string[]; // ids do catálogo do Profile Service
+  /**
+   * Competências que a vaga pede e não existem no catálogo (ex.: C/C++,
+   * microcontroladores). Não se podem declarar no perfil, por isso contam como
+   * em falta na compatibilidade: sem elas, uma vaga pareceria 100% compatível.
+   */
+  otherSkills: string[];
   yearsRequired: number | null;
   /** Que experiência a vaga pede, por palavras do anúncio. */
   experienceRequirements: string[];
@@ -117,6 +123,7 @@ export interface SaveApplicationRequest {
   location?: string | null;
   workMode: WorkMode;
   requiredCompetencyIds: string[];
+  otherSkills?: string[];
   yearsRequired?: number | null;
   experienceRequirements?: string[];
   seniority: Seniority;
@@ -212,6 +219,9 @@ export const APPLICATION_LIMITS = {
   /** Tipos de experiência pedidos ("2 anos com APIs REST", "trabalho em equipas Agile"). */
   experienceItems: 10,
   experienceItem: 200,
+  /** Competências fora do catálogo ("C/C++", "microcontroladores"). */
+  otherSkills: 15,
+  otherSkill: 60,
   applicationsPerUser: 500,
   interviewsPerApplication: 20,
   questions: 30,

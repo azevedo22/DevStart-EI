@@ -253,6 +253,12 @@ export function analyzeJobPosting(
 export interface ProfileMatch {
   matched: string[];
   missing: string[];
+  /**
+   * O que a vaga pede fora do catálogo (ex.: "C/C++"). Não se pode declarar no
+   * perfil, por isso conta como em falta: sem isto, uma vaga que pede Python e
+   * microcontroladores pareceria 100% compatível com quem só sabe Python.
+   */
+  outside: string[];
   /** null quando a vaga não tem competências registadas. */
   percentage: number | null;
 }
@@ -260,14 +266,15 @@ export interface ProfileMatch {
 export function matchWithProfile(
   requiredIds: string[],
   declared: ReadonlySet<string>,
+  otherSkills: readonly string[] = [],
 ): ProfileMatch {
   const matched = requiredIds.filter((id) => declared.has(id));
   const missing = requiredIds.filter((id) => !declared.has(id));
+  const total = requiredIds.length + otherSkills.length;
   return {
     matched,
     missing,
-    percentage: requiredIds.length
-      ? Math.round((matched.length / requiredIds.length) * 100)
-      : null,
+    outside: [...otherSkills],
+    percentage: total ? Math.round((matched.length / total) * 100) : null,
   };
 }

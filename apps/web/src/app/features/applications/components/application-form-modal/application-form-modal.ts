@@ -150,6 +150,8 @@ const today = () => new Date().toISOString().slice(0, 10);
           <ds-competency-picker
             [ids]="competencyIds()"
             (idsChange)="form.controls.requiredCompetencyIds.setValue($event)"
+            [others]="otherSkills()"
+            (othersChange)="form.controls.otherSkills.setValue($event)"
           />
         </div>
 
@@ -272,6 +274,7 @@ export class ApplicationFormModal {
       [Validators.min(0), Validators.max(30)],
     ],
     requiredCompetencyIds: [[] as string[]],
+    otherSkills: [[] as string[]],
     experienceRequirements: [[] as string[]],
     workMode: ['REMOTE' as WorkMode],
     location: ['', Validators.maxLength(APPLICATION_LIMITS.location)],
@@ -295,6 +298,9 @@ export class ApplicationFormModal {
   protected readonly experience = computed(
     () => this.value().experienceRequirements ?? [],
   );
+  protected readonly otherSkills = computed(
+    () => this.value().otherSkills ?? [],
+  );
   /** Mesma função que o servidor usa: o que aqui se vê é o que fica guardado. */
   protected readonly verdict = computed(() =>
     classifyAccessibility({
@@ -312,6 +318,7 @@ export class ApplicationFormModal {
         seniority: application.seniority,
         yearsRequired: application.yearsRequired,
         requiredCompetencyIds: [...application.requiredCompetencyIds],
+        otherSkills: [...(application.otherSkills ?? [])],
         experienceRequirements: [...(application.experienceRequirements ?? [])],
         workMode: application.workMode,
         location: application.location ?? '',
@@ -331,6 +338,7 @@ export class ApplicationFormModal {
       draftPatch(d, {
         experience: this.experience(),
         competencyIds: this.competencyIds(),
+        otherSkills: this.otherSkills(),
       }),
     );
   }

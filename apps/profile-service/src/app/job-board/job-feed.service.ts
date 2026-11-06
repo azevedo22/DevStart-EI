@@ -34,6 +34,7 @@ interface Row {
   mislabeled_junior: boolean;
   competency_ids: string[];
   experience_requirements: string[];
+  other_skills: string[];
   analysis_source: 'ai' | 'keywords';
 }
 
@@ -61,11 +62,12 @@ export class JobFeedService {
     const declared = await this.declared(userId);
 
     const items = rows.map((r): JobFeedItem & { stackOverlap: number } => {
-      const m = matchWithProfile(r.competency_ids, declared);
+      const m = matchWithProfile(r.competency_ids, declared, r.other_skills);
       return {
         ...toListing(r),
         matched: m.matched,
         missing: m.missing,
+        outside: m.outside,
         matchPercentage: m.percentage,
         isNew: !!visit && r.first_seen_at > visit.lastVisitAt,
         stackOverlap: r.competency_ids.filter((id) => stackIds.has(id)).length,
@@ -209,6 +211,7 @@ function toListing(r: Row): JobListing {
     mislabeledJunior: r.mislabeled_junior,
     competencyIds: r.competency_ids,
     experienceRequirements: r.experience_requirements,
+    otherSkills: r.other_skills ?? [],
     analyzedBy: r.analysis_source,
   };
 }

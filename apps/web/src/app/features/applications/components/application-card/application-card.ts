@@ -137,6 +137,7 @@ export class ApplicationCard {
     matchWithProfile(
       this.application().requiredCompetencyIds,
       this.profile.declaredIds(),
+      this.application().otherSkills ?? [],
     ),
   );
 

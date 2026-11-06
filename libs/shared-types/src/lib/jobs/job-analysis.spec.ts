@@ -197,11 +197,29 @@ describe('matchWithProfile', () => {
     ).toEqual({
       matched: ['angular', 'git'],
       missing: ['docker', 'rxjs'],
+      outside: [],
       percentage: 50,
     });
   });
 
   it('sem competências na vaga, não inventa uma percentagem', () => {
     expect(matchWithProfile([], new Set(['angular'])).percentage).toBeNull();
+  });
+
+  it('o que está fora do catálogo conta como em falta (sem 100% falsos)', () => {
+    // Python e ML no perfil; a vaga pede também C/C++ e microcontroladores.
+    const m = matchWithProfile(
+      ['python', 'machine-learning'],
+      new Set(['python', 'machine-learning']),
+      ['C/C++', 'Microcontroladores'],
+    );
+    expect(m).toMatchObject({
+      matched: ['python', 'machine-learning'],
+      missing: [],
+      outside: ['C/C++', 'Microcontroladores'],
+      percentage: 50,
+    });
+    // Só fora do catálogo: 0%, e não "sem competências".
+    expect(matchWithProfile([], new Set(), ['COBOL']).percentage).toBe(0);
   });
 });

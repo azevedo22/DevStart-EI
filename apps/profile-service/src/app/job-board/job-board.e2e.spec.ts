@@ -69,7 +69,7 @@ const AI_ANSWERS: Record<string, object> = {
     seniority: 'JUNIOR',
     yearsRequired: 0,
     experience: ['Desenvolvimento de interfaces com Angular'],
-    skills: ['Angular', 'TypeScript'],
+    skills: ['Angular', 'TypeScript', 'Microcontroladores'],
     workMode: 'HYBRID',
     location: 'Porto',
   },
@@ -303,14 +303,15 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
       const body = await feed();
       expect(body).toMatchObject({ totalOpen: 3, enabled: true });
       expect(body.lastSyncAt).toEqual(expect.any(String));
-      // Ordenadas pela compatibilidade: 1 de 2 no Angular, 0 de 3 no estágio.
+      // Ordenadas pela compatibilidade: 1 de 3 no Angular (os microcontroladores,
+      // fora do catálogo, contam como em falta), 0 de 3 no estágio.
       expect(
         body.items.map((i: { title: string; matchPercentage: number }) => [
           i.title,
           i.matchPercentage,
         ]),
       ).toEqual([
-        ['Junior Frontend Developer', 50],
+        ['Junior Frontend Developer', 33],
         ['Estágio Profissional Backend', 0],
       ]);
       expect(body.items[0]).toMatchObject({
@@ -319,6 +320,8 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
         workMode: 'HYBRID',
         matched: ['angular'],
         missing: ['typescript'],
+        outside: ['Microcontroladores'],
+        otherSkills: ['Microcontroladores'],
         experienceRequirements: ['Desenvolvimento de interfaces com Angular'],
         analyzedBy: 'ai',
         isNew: false,

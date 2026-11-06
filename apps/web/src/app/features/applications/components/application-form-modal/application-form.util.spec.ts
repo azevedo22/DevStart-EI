@@ -50,6 +50,14 @@ describe('draftPatch', () => {
     expect(patch.requiredCompetencyIds).toEqual(['angular', 'git']);
   });
 
+  it('junta as competências fora do catálogo, sem repetir', () => {
+    const patch = draftPatch(draft({ otherSkills: ['c/c++', 'Jetson'] }), {
+      ...empty,
+      otherSkills: ['C/C++'],
+    });
+    expect(patch.otherSkills).toEqual(['C/C++', 'Jetson']);
+  });
+
   it('respeita o limite de competências', () => {
     const many = Array.from(
       { length: APPLICATION_LIMITS.competencies + 5 },

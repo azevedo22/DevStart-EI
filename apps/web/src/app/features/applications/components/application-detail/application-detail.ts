@@ -124,7 +124,7 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
           </button>
         }
 
-        <section class="vstack gap-2">
+        <section class="vstack gap-2 flex-grow-0">
           <ds-accessibility-badge
             [value]="d.accessibility"
             [mislabeled]="d.mislabeledJunior"
@@ -180,7 +180,7 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
           }
         </section>
 
-        @if (d.requiredCompetencyIds.length) {
+        @if (match().percentage !== null) {
           <section>
             <h3 class="h6">
               Comparação com o teu perfil
@@ -201,6 +201,14 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
                   >{{ catalog.nameOf(id) }}</span
                 >
               }
+              @for (o of match().outside; track o) {
+                <span
+                  class="badge rounded-pill text-bg-light border fw-normal"
+                  style="border-style: dashed !important"
+                  title="Fora do catálogo: conta como em falta"
+                  >{{ o }}</span
+                >
+              }
             </div>
             @if (match().missing.length) {
               <p class="small text-body-secondary mt-2 mb-0">
@@ -208,6 +216,12 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
                 <a routerLink="/profile" (click)="offcanvas.dismiss()"
                   >Atualizar perfil</a
                 >
+              </p>
+            }
+            @if (match().outside.length) {
+              <p class="small text-body-secondary mt-2 mb-0">
+                As tracejadas não existem no catálogo, por isso não as podes
+                declarar no perfil: contam como em falta.
               </p>
             }
           </section>
@@ -377,6 +391,7 @@ export class ApplicationDetail {
     matchWithProfile(
       this.detail()?.requiredCompetencyIds ?? [],
       this.profile.declaredIds(),
+      this.detail()?.otherSkills ?? [],
     ),
   );
 

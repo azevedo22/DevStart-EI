@@ -59,6 +59,14 @@ export class ApplicationEntity {
   })
   requiredCompetencyIds!: string[];
 
+  @Column({
+    name: 'other_skills',
+    type: 'text',
+    array: true,
+    default: () => "'{}'",
+  })
+  otherSkills!: string[];
+
   @Column({ name: 'years_required', type: 'smallint', nullable: true })
   yearsRequired!: number | null;
 

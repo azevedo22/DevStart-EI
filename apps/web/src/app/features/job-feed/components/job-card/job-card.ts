@@ -78,7 +78,7 @@ import { ago, levelText } from '../../job-feed.util';
           {{ j.summary }}
         </p>
 
-        @if (j.competencyIds.length) {
+        @if (j.competencyIds.length || j.outside.length) {
           <div class="d-flex flex-wrap gap-1 mb-2">
             @for (id of j.matched; track id) {
               <span class="badge rounded-pill text-bg-success fw-normal"
@@ -89,6 +89,14 @@ import { ago, levelText } from '../../job-feed.util';
               <span class="badge rounded-pill text-bg-light border fw-normal">{{
                 catalog.nameOf(id)
               }}</span>
+            }
+            @for (o of j.outside; track o) {
+              <span
+                class="badge rounded-pill text-bg-light border fw-normal"
+                style="border-style: dashed !important"
+                title="Fora do catálogo: conta como em falta"
+                >{{ o }}</span
+              >
             }
           </div>
         }

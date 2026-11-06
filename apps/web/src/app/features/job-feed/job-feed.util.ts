@@ -47,6 +47,10 @@ export function toApplication(
       0,
       APPLICATION_LIMITS.competencies,
     ),
+    otherSkills: (job.otherSkills ?? []).slice(
+      0,
+      APPLICATION_LIMITS.otherSkills,
+    ),
     yearsRequired: job.yearsRequired,
     experienceRequirements: job.experienceRequirements.slice(
       0,

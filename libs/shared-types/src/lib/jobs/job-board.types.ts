@@ -66,6 +66,8 @@ export interface JobListing {
   mislabeledJunior: boolean;
   competencyIds: string[];
   experienceRequirements: string[];
+  /** O que pede fora do catálogo (ex.: "C/C++"); conta como em falta. */
+  otherSkills: string[];
   /** 'ai' se a IA leu o anúncio; 'keywords' se só passou a triagem. */
   analyzedBy: 'ai' | 'keywords';
 }
@@ -74,6 +76,8 @@ export interface JobListing {
 export interface JobFeedItem extends JobListing {
   matched: string[];
   missing: string[];
+  /** Pedidas fora do catálogo: contam como em falta. */
+  outside: string[];
   /** % das competências pedidas que o utilizador já tem; null se a vaga não indica nenhuma. */
   matchPercentage: number | null;
   /** Apareceu depois da última visita do utilizador à secção. */
