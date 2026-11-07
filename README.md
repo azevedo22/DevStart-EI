@@ -440,6 +440,14 @@ tools/smoke-test.sh                          # opcional: verifica a stack de pon
 Se já tinhas corrido o modo de desenvolvimento, o volume do PostgreSQL é reaproveitado (com as migrações
 aplicadas por cima). Para começar do zero: `docker compose --profile app down -v`.
 
+Se o arranque parar com "container … is unhealthy", o motivo está no registo do serviço:
+
+```bash
+docker compose --profile app logs auth-service --tail 20
+```
+
+O caso mais comum é faltar o `JWT_ACCESS_SECRET` no `.env` (a mensagem diz isso mesmo).
+
 Para publicar num servidor com domínio e HTTPS, ver [docs/deploy.md](docs/deploy.md).
 
 ## API (implementada até agora)

@@ -82,7 +82,7 @@ services:
       AUTH_SERVICE_PORT: 3001
       AUTH_DATABASE_URL: postgres://devstart:${POSTGRES_PASSWORD:-devstart}@db:5432/devstart_auth
       # Sem valor: vem do .env ou da shell. Se faltar, o serviço recusa arrancar
-      # ("Define JWT_ACCESS_SECRET em produção.") em vez de usar o segredo de desenvolvimento.
+      # ("Falta JWT_ACCESS_SECRET no .env…") em vez de usar o segredo de desenvolvimento.
       JWT_ACCESS_SECRET:
       REDIS_URL: redis://redis:6379
       # nginx + gateway à frente: o IP real do cliente está 2 entradas antes do fim.
@@ -176,7 +176,7 @@ services:
       GATEWAY_PORT: 3000
       WEB_ORIGIN: ${PUBLIC_URL:-http://localhost:8080}
       # Sem valor: vem do .env ou da shell. Se faltar, o serviço recusa arrancar
-      # ("Define JWT_ACCESS_SECRET em produção.") em vez de usar o segredo de desenvolvimento.
+      # ("Falta JWT_ACCESS_SECRET no .env…") em vez de usar o segredo de desenvolvimento.
       JWT_ACCESS_SECRET:
       AUTH_SERVICE_URL: http://auth-service:3001
       PROFILE_SERVICE_URL: http://profile-service:3002

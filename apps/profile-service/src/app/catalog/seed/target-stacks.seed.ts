@@ -8,7 +8,7 @@ import { TargetStack } from '@devstart/shared-types';
 export const TARGET_STACKS: TargetStack[] = [
   {
     id: 'junior-fullstack-angular-node',
-    title: 'Junior Fullstack Developer — Angular / Node',
+    title: 'Junior Fullstack Developer (Angular / Node)',
     description:
       'SPA em Angular com backend Node.js/NestJS e base de dados relacional.',
     requirements: [
@@ -29,7 +29,7 @@ export const TARGET_STACKS: TargetStack[] = [
   },
   {
     id: 'junior-backend-java-spring',
-    title: 'Junior Backend Developer — Java / Spring',
+    title: 'Junior Backend Developer (Java / Spring)',
     description:
       'APIs REST em Spring Boot com persistência JPA, comum em consultoras e banca.',
     requirements: [
@@ -49,7 +49,7 @@ export const TARGET_STACKS: TargetStack[] = [
   },
   {
     id: 'junior-frontend-react',
-    title: 'Junior Frontend Developer — React',
+    title: 'Junior Frontend Developer (React)',
     description:
       'Interfaces web em React com TypeScript, consumo de APIs e foco em UX.',
     requirements: [
@@ -72,7 +72,7 @@ export const TARGET_STACKS: TargetStack[] = [
   },
   {
     id: 'junior-ai-engineer',
-    title: 'Junior AI Engineer — Python / LLMs',
+    title: 'Junior AI Engineer (Python / LLMs)',
     description: 'Aplicações com LLMs e RAG servidas por APIs Python.',
     requirements: [
       { competencyId: 'python', minLevel: 'INTERMEDIATE', weight: 5 },

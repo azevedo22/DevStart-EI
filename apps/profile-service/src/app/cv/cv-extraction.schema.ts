@@ -112,7 +112,7 @@ Regras:
 - headline: uma linha curta com o título profissional (ex.: "Desenvolvedor Full-Stack Júnior"). summary: o resumo/perfil do CV, se existir.
 - Datas de experiência no formato AAAA-MM (ex.: "fev. 2025" → "2025-02"; só o ano "2024" → "2024-01"). Experiência atual → endDate null.
 - kind: JOB (emprego), INTERNSHIP (estágio), VOLUNTEER (voluntariado), OTHER.
-- Línguas no nível do Quadro Europeu (A1–C2) ou NATIVE para língua materna. "Fluente" → C1; "básico" → A2; "intermédio" → B1.
+- Línguas no nível do Quadro Europeu (A1 a C2) ou NATIVE para língua materna. "Fluente" → C1; "básico" → A2; "intermédio" → B1.
 - skills: cada tecnologia, linguagem, framework ou ferramenta técnica em separado (não incluas soft skills).
   level: ADVANCED só se o CV indicar domínio claro ou experiência profissional prolongada; INTERMEDIATE se usada em projetos ou estágio; BASIC se só listada ou marcada como básica.
 - projects: projetos pessoais ou académicos descritos no CV, com as tecnologias usadas em cada um. academic = true se for de uma unidade curricular ou do curso.

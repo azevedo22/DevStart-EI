@@ -70,7 +70,9 @@ export function validateGatewayEnv(raw: Record<string, unknown>): GatewayEnv {
     env.NODE_ENV === 'production' &&
     env.JWT_ACCESS_SECRET === DEV_JWT_SECRET
   ) {
-    throw new Error('Define JWT_ACCESS_SECRET em produção.');
+    throw new Error(
+      'Falta JWT_ACCESS_SECRET no .env. É obrigatória fora do desenvolvimento local (ver .env.example).',
+    );
   }
   return env;
 }

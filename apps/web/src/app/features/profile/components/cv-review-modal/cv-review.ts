@@ -229,17 +229,20 @@ export function importRequest(r: CvReview): ImportCvRequest {
   };
 }
 
-/** " · 2021 – 2024", " · 2023 – atual" ou nada. */
+/** " · 2021 a 2024", " · desde 2023" ou nada. */
 export function years(e: SaveEducationRequest): string {
   if (!e.startYear && !e.endYear) return '';
-  return ` · ${e.startYear ?? '?'} – ${e.endYear ?? 'atual'}`;
+  return e.endYear
+    ? ` · ${e.startYear ?? '?'} a ${e.endYear}`
+    : ` · desde ${e.startYear ?? '?'}`;
 }
 
-/** "09/2023 – 06/2024", "09/2023 – atual" ou nada. */
+/** "09/2023 a 06/2024", "desde 09/2023" ou nada. */
 export function period(e: SaveExperienceRequest): string {
   const fmt = (d: string | null) =>
     d ? `${d.slice(5, 7)}/${d.slice(0, 4)}` : null;
   const start = fmt(e.startDate);
-  const end = fmt(e.endDate) ?? 'atual';
-  return start ? `${start} – ${end}` : '';
+  const end = fmt(e.endDate);
+  if (!start) return '';
+  return end ? `${start} a ${end}` : `desde ${start}`;
 }

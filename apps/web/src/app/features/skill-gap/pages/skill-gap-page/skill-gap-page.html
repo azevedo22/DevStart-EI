@@ -198,7 +198,7 @@
     <div class="col-lg-7">
       @if (result(); as r) { @if (selectedStack(); as stack) {
       <p class="small text-body-secondary mb-2">
-        {{ stack.title }} — {{ stack.description }}
+        {{ stack.title }}: {{ stack.description }}
       </p>
       }
       <ds-gap-result [result]="r" [linkToProfile]="mode() === 'profile'" />

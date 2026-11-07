@@ -126,12 +126,15 @@ describe('CV anterior (substituir o que veio dele)', () => {
 describe('years e period', () => {
   it('formatam datas que podem faltar', () => {
     expect(years({ startYear: 2022, endYear: null } as never)).toBe(
-      ' · 2022 – atual',
+      ' · desde 2022',
     );
     expect(years({ startYear: null, endYear: null } as never)).toBe('');
     expect(
       period({ startDate: '2023-09-01', endDate: '2024-06-30' } as never),
-    ).toBe('09/2023 – 06/2024');
+    ).toBe('09/2023 a 06/2024');
+    expect(period({ startDate: '2025-02-01', endDate: null } as never)).toBe(
+      'desde 02/2025',
+    );
     expect(period({ startDate: null, endDate: null } as never)).toBe('');
   });
 });

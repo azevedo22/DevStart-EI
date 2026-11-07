@@ -77,7 +77,7 @@ export const DEMO_APPLICATIONS: DemoApplication[] = [
     daysAgo: 12,
     application: {
       companyName: 'Serra Labs',
-      jobTitle: 'Estágio Profissional — Backend Java',
+      jobTitle: 'Estágio Profissional (Backend Java)',
       location: 'Braga',
       workMode: 'ONSITE',
       requiredCompetencyIds: ['java', 'sql', 'rest-api', 'git', 'spring-boot'],

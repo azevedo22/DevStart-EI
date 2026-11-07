@@ -292,15 +292,17 @@ export class BackgroundPanel {
 
   protected years(e: Education): string {
     if (!e.startYear && !e.endYear) return '';
-    if (!e.endYear) return `${e.startYear} – em curso`;
-    return e.startYear ? `${e.startYear} – ${e.endYear}` : `${e.endYear}`;
+    if (!e.endYear) return `desde ${e.startYear}`;
+    return e.startYear ? `${e.startYear} a ${e.endYear}` : `${e.endYear}`;
   }
 
   protected period(e: Experience): string {
     const fmt = (d: string) =>
       `${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
     if (!e.startDate) return e.endDate ? `até ${fmt(e.endDate)}` : 'atual';
-    return `${fmt(e.startDate)} – ${e.endDate ? fmt(e.endDate) : 'atual'}`;
+    return e.endDate
+      ? `${fmt(e.startDate)} a ${fmt(e.endDate)}`
+      : `desde ${fmt(e.startDate)}`;
   }
 
   protected shortLevel(level: LanguageLevel): string {
