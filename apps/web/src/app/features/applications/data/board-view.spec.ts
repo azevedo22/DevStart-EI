@@ -4,7 +4,12 @@ import {
   ApplicationStatus,
   JobApplication,
 } from '@devstart/shared-types';
-import { realPosition, splitByWeek, statList } from './board-view';
+import {
+  columnForInterview,
+  realPosition,
+  splitByWeek,
+  statList,
+} from './board-view';
 
 const card = (
   id: string,
@@ -92,5 +97,32 @@ describe('realPosition', () => {
 
   it('coluna com tudo escondido: vai para o topo', () => {
     expect(realPosition(full, [], 'novo', 0)).toBe(0);
+  });
+});
+
+describe('columnForInterview', () => {
+  it('cada tipo vai para a sua coluna', () => {
+    expect(columnForInterview('APPLIED', 'HR')).toBe('HR_INTERVIEW');
+    expect(columnForInterview('APPLIED', 'TECHNICAL')).toBe(
+      'TECHNICAL_INTERVIEW',
+    );
+    expect(columnForInterview('APPLIED', 'TEST')).toBe('TECHNICAL_TEST');
+  });
+
+  it('também sai de "Por candidatar" e de "Sem resposta"', () => {
+    expect(columnForInterview('SAVED', 'HR')).toBe('HR_INTERVIEW');
+    expect(columnForInterview('NO_RESPONSE', 'HR')).toBe('HR_INTERVIEW');
+  });
+
+  it('segue a fase atual, mesmo que seja uma coluna mais atrás', () => {
+    expect(columnForInterview('TECHNICAL_INTERVIEW', 'TEST')).toBe(
+      'TECHNICAL_TEST',
+    );
+  });
+
+  it('não mexe se já está na coluna certa ou se o processo fechou', () => {
+    expect(columnForInterview('HR_INTERVIEW', 'HR')).toBeNull();
+    expect(columnForInterview('OFFER', 'TECHNICAL')).toBeNull();
+    expect(columnForInterview('REJECTED', 'HR')).toBeNull();
   });
 });

@@ -1,7 +1,9 @@
 import {
   APPLICATION_STATUSES,
   ApplicationBoard,
+  ApplicationStatus,
   CLOSED_STATUSES,
+  InterviewType,
   JobApplication,
   hasResponse,
   isApplied,
@@ -92,4 +94,29 @@ export function realPosition(
   if (neighbour) return fullWithout.findIndex((c) => c.id === neighbour.id);
   const last = shownWithout[shownWithout.length - 1];
   return last ? fullWithout.findIndex((c) => c.id === last.id) + 1 : 0;
+}
+
+// ── Registar uma entrevista muda a coluna ──────────────────────
+
+const INTERVIEW_COLUMN: Record<InterviewType, ApplicationStatus> = {
+  TEST: 'TECHNICAL_TEST',
+  HR: 'HR_INTERVIEW',
+  TECHNICAL: 'TECHNICAL_INTERVIEW',
+};
+
+/** Com proposta ou rejeição o processo fechou: uma entrevista registada depois é histórico. */
+const KEEP_COLUMN: readonly ApplicationStatus[] = ['OFFER', 'REJECTED'];
+
+/**
+ * Para onde vai o cartão quando se regista uma entrevista nova: a coluna
+ * desse tipo de entrevista, que é a fase em que a pessoa está agora (os
+ * processos nem sempre seguem a ordem das colunas). Null se fica onde está.
+ */
+export function columnForInterview(
+  current: ApplicationStatus,
+  type: InterviewType,
+): ApplicationStatus | null {
+  if (KEEP_COLUMN.includes(current)) return null;
+  const target = INTERVIEW_COLUMN[type];
+  return target === current ? null : target;
 }

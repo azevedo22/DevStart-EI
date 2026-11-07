@@ -28,6 +28,7 @@ import { InterviewFormModal } from '../interview-form-modal/interview-form-modal
 import { SilenceNotice } from '../silence-notice/silence-notice';
 import { ReplyModal } from '../reply-modal/reply-modal';
 import { awaitsReply } from '../reply-modal/reply-modal.util';
+import { columnForInterview } from '../../data/board-view';
 
 /** Colunas que sugerem registar uma entrevista desse tipo ao entrar nelas. */
 const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
@@ -103,6 +104,30 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
             }
           </select>
         </section>
+
+        @if (autoMoved(); as m) {
+          <div
+            class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2"
+            role="status"
+          >
+            <i class="bi bi-arrow-right-circle"></i>
+            <span class="me-auto">Movido para "{{ statusLabels[m.to] }}".</span>
+            <button
+              type="button"
+              class="btn btn-sm btn-link p-0"
+              [disabled]="busy()"
+              (click)="undoAutoMove()"
+            >
+              Desfazer
+            </button>
+            <button
+              type="button"
+              class="btn-close btn-sm"
+              aria-label="Fechar o aviso"
+              (click)="autoMoved.set(null)"
+            ></button>
+          </div>
+        }
 
         @if (silence(); as s) {
           <ds-silence-notice
@@ -379,6 +404,12 @@ export class ApplicationDetail {
   protected readonly detail = signal<JobApplicationDetail | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly busy = signal(false);
+  /** A mudança de coluna feita ao registar uma entrevista, para poder desfazer. */
+  protected readonly autoMoved = signal<{
+    from: ApplicationStatus;
+    position: number;
+    to: ApplicationStatus;
+  } | null>(null);
   private id!: string;
 
   /** À espera de resposta há tempo demais (14 dias: follow-up; 30: arquivar). */
@@ -407,6 +438,7 @@ export class ApplicationDetail {
   async changeStatus(status: ApplicationStatus): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
+    this.autoMoved.set(null);
     try {
       await this.store.move(this.id, status, 0); // entra no topo da nova coluna
       this.reload();
@@ -449,9 +481,52 @@ export class ApplicationDetail {
       defaultType,
     );
     ref.result.then(
-      () => this.reload(),
+      (saved: Interview) =>
+        interview ? this.reload() : this.moveForInterview(saved.type),
       () => undefined,
     );
+  }
+
+  /**
+   * Uma entrevista nova põe o cartão na coluna dessa fase, como arrastá-lo.
+   * Fica um aviso com "Desfazer" para quando não era isso que se queria.
+   */
+  private async moveForInterview(type: InterviewType): Promise<void> {
+    const d = this.detail();
+    const to = d ? columnForInterview(d.status, type) : null;
+    if (!d || !to) return this.reload();
+    const position =
+      this.store.board()?.[d.status].findIndex((a) => a.id === d.id) ?? 0;
+    this.busy.set(true);
+    try {
+      await this.store.move(this.id, to, 0);
+      this.autoMoved.set({
+        from: d.status,
+        position: Math.max(0, position),
+        to,
+      });
+    } catch (e) {
+      this.error.set((e as ApiError).message);
+    } finally {
+      this.busy.set(false);
+      this.reload();
+    }
+  }
+
+  protected async undoAutoMove(): Promise<void> {
+    const m = this.autoMoved();
+    if (!m) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await this.store.move(this.id, m.from, m.position);
+      this.autoMoved.set(null);
+    } catch (e) {
+      this.error.set((e as ApiError).message);
+    } finally {
+      this.busy.set(false);
+      this.reload();
+    }
   }
 
   async deleteInterview(interview: Interview): Promise<void> {
