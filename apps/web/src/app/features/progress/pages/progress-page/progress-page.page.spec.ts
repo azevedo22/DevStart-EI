@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ActivityEvent } from '@devstart/shared-types';
 import { of, throwError } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { ApplicationsStore } from '../../../applications/data/applications-store';
 import { ProgressApi } from '../../data/progress-api';
 import { ProgressPage } from './progress-page';
@@ -26,7 +27,15 @@ describe('ProgressPage', () => {
       providers: [
         provideRouter([]),
         { provide: ProgressApi, useValue: { activity: jest.fn(activity) } },
-        { provide: ApplicationsStore, useValue: { today: signal(TODAY) } },
+        {
+          provide: ApplicationsStore,
+          useValue: {
+            today: signal(TODAY),
+            load: jest.fn(),
+            dailyGoal: () => null,
+          },
+        },
+        { provide: AuthService, useValue: { user: () => null } },
       ],
     });
     const fixture = TestBed.createComponent(ProgressPage);

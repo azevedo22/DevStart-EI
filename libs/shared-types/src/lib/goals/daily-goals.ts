@@ -73,6 +73,12 @@ export interface DailyGoalProgress {
   /** A semana de hoje, de segunda a domingo. */
   week: DayProgress[];
   /**
+   * Objetivo da semana: o patamar máximo vezes os dias úteis (o mesmo do
+   * relatório semanal). Contam todas as candidaturas da semana, também as
+   * feitas ao fim de semana.
+   */
+  weekGoal: { count: number; target: number; done: boolean };
+  /**
    * Dias úteis seguidos com pelo menos o primeiro patamar; o fim de semana
    * não parte nem soma. Se hoje ainda não chegou lá, a sequência conta até ao
    * dia útil anterior: ainda dá para a manter hoje.
@@ -122,6 +128,10 @@ export function dailyGoalProgress(
 
   const monday = weekStart(today);
   const week = Array.from({ length: 7 }, (_, i) => day(addDays(monday, i)));
+  const weekCount = week.reduce((n, d) => n + d.count, 0);
+  const weekTarget =
+    goal.tiers[goal.tiers.length - 1].target *
+    week.filter((d) => d.active).length;
 
   // Sequência: só os dias úteis contam; os outros saltam-se.
   const streakIncludesToday = todayProgress.tier !== null;
@@ -146,6 +156,11 @@ export function dailyGoalProgress(
       : null,
     restDay: !todayProgress.active,
     week,
+    weekGoal: {
+      count: weekCount,
+      target: weekTarget,
+      done: weekTarget > 0 && weekCount >= weekTarget,
+    },
     streak,
     streakIncludesToday,
   };

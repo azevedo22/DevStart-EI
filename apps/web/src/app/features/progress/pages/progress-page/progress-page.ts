@@ -17,6 +17,7 @@ import {
   switchMap,
 } from 'rxjs';
 import { ApiError } from '../../../../core/http/error.interceptor';
+import { WeekCelebration } from '../../../applications/components/week-celebration/week-celebration';
 import { ApplicationsStore } from '../../../applications/data/applications-store';
 import { DayList } from '../../components/day-list/day-list';
 import { WeekChart } from '../../components/week-chart/week-chart';
@@ -45,6 +46,7 @@ type LoadState =
     DayList,
     WeekGoals,
     WeekReflections,
+    WeekCelebration,
   ],
   template: `
     <div class="container py-4">
@@ -88,6 +90,10 @@ type LoadState =
           </button>
         </nav>
       </div>
+
+      @if (isCurrent()) {
+        <ds-week-celebration class="d-block mb-3" />
+      }
 
       @if (weekend() && isCurrent()) {
         <div class="alert alert-primary d-flex gap-2 align-items-start">

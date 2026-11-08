@@ -144,6 +144,26 @@ describe('dailyGoalProgress', () => {
   });
 });
 
+describe('objetivo da semana', () => {
+  // A semana de TODAY começa na segunda, 26 de outubro.
+  it('3 por dia útil: 15 numa semana normal', () => {
+    const p = dailyGoalProgress(
+      [...times('2026-10-26', 10), ...times('2026-10-29', 4)],
+      TODAY,
+    );
+    expect(p.weekGoal).toEqual({ count: 14, target: 15, done: false });
+  });
+
+  it('cumpre-se mesmo com tudo num só dia, e conta o fim de semana', () => {
+    const p = dailyGoalProgress(
+      [...times('2026-10-27', 14), SATURDAY, '2026-10-25'],
+      SATURDAY,
+    );
+    // O domingo 25 é da semana anterior.
+    expect(p.weekGoal).toEqual({ count: 15, target: 15, done: true });
+  });
+});
+
 describe('datas', () => {
   it('addDays atravessa a mudança de hora sem saltar dias', () => {
     // Em Portugal, a hora muda a 25 de outubro de 2026.

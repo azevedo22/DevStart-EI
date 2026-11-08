@@ -1,5 +1,6 @@
 import { DailyGoal } from '../../components/daily-goal/daily-goal';
 import { DailyQuote } from '../../components/daily-quote/daily-quote';
+import { WeekCelebration } from '../../components/week-celebration/week-celebration';
 import {
   CdkDrag,
   CdkDragDrop,
@@ -77,6 +78,7 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
     EmptyState,
     DailyGoal,
     DailyQuote,
+    WeekCelebration,
   ],
   template: `
     <div class="container-fluid py-4 px-3 px-md-4">
@@ -122,6 +124,7 @@ const COLUMN_STYLE: Record<ApplicationStatus, string> = {
         </div>
       }
 
+      <ds-week-celebration [showLink]="true" class="d-block mb-3" />
       <ds-daily-quote class="d-block mb-3" />
       <ds-daily-goal class="d-block mb-3" />
 
