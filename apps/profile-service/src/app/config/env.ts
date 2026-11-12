@@ -95,6 +95,16 @@ export class Env {
   @Max(50)
   JOB_SYNC_AI_PER_RUN = 10;
 
+  /**
+   * Vagas antigas relidas pela IA em cada recolha, quando a leitura muda de
+   * versão (JOB_ANALYSIS_VERSION). Usa o mesmo limite diário de IA. 0 desliga.
+   */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(50)
+  JOB_SYNC_REANALYZE_PER_RUN = 0;
+
   // ── Limites da IA (custo) ──────────────────────────────────
   /** Leituras com IA (CV e anúncios) por utilizador, por hora. 0 desliga. */
   @Type(() => Number)

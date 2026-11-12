@@ -121,6 +121,8 @@ services:
       ITJOBS_API_KEY: ${ITJOBS_API_KEY:-}
       JOB_SYNC_INTERVAL_MINUTES: ${JOB_SYNC_INTERVAL_MINUTES:-180}
       JOB_SYNC_AI_PER_RUN: ${JOB_SYNC_AI_PER_RUN:-10}
+      # Vagas antigas relidas por recolha quando a leitura da IA muda. 0 desliga.
+      JOB_SYNC_REANALYZE_PER_RUN: ${JOB_SYNC_REANALYZE_PER_RUN:-0}
       # Ferramentas de desenvolvimento (exportar candidaturas). Desligado por omissão.
       DEV_TOOLS: ${DEV_TOOLS:-false}
     extra_hosts:

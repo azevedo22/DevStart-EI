@@ -51,11 +51,27 @@ const MAX_AI_TEXT = 6_000;
  */
 const AI_RATE_LIMIT = { maxWaitMs: 65_000, maxRetries: 3 };
 
+/**
+ * Versão atual da leitura da IA. Sobe quando as instruções ou as regras mudam,
+ * para as vagas antigas serem relidas aos poucos (JOB_SYNC_REANALYZE_PER_RUN).
+ * 1: até 12 nov. 2026 (sem "fora do catálogo" fiável, línguas como competências).
+ * 2: competências fora do catálogo e línguas excluídas.
+ */
+export const JOB_ANALYSIS_VERSION = 2;
+
+interface Pending {
+  id: string;
+  title: string;
+  body: string;
+}
+
 export interface SyncResult {
   fetched: number;
   added: number;
   closed: number;
   analyzedByAi: number;
+  /** Vagas antigas relidas porque a leitura mudou de versão. */
+  reanalyzed: number;
 }
 
 /**
@@ -192,11 +208,18 @@ export class JobSyncService
     }
 
     const analyzedByAi = await this.analyzePending();
-    const result = { fetched: jobs.size, added, closed, analyzedByAi };
+    const reanalyzed = await this.reanalyzeOutdated();
+    const result = {
+      fetched: jobs.size,
+      added,
+      closed,
+      analyzedByAi,
+      reanalyzed,
+    };
     this.logger.log(
       `Recolha concluída em ${((Date.now() - started) / 1000).toFixed(1)} s: ` +
         `${result.fetched} vagas no ITJobs, ${added} novas, ${closed} fechadas, ` +
-        `${analyzedByAi} lidas pela IA.`,
+        `${analyzedByAi} lidas pela IA, ${reanalyzed} relidas.`,
     );
     return result;
   }
@@ -258,16 +281,39 @@ export class JobSyncService
   private async analyzePending(): Promise<number> {
     const limit = this.config.get('JOB_SYNC_AI_PER_RUN', { infer: true });
     if (!limit) return 0;
-    const pending: { id: string; title: string; body: string }[] =
-      await this.db.query(
-        `SELECT id, title, body FROM job_listings
-          WHERE analysis_source = 'keywords' AND closed_at IS NULL
-            AND accessibility <> 'UNREALISTIC'
-          ORDER BY published_at DESC
-          LIMIT $1`,
-        [limit],
-      );
+    const pending: Pending[] = await this.db.query(
+      `SELECT id, title, body FROM job_listings
+        WHERE analysis_source = 'keywords' AND closed_at IS NULL
+          AND accessibility <> 'UNREALISTIC'
+        ORDER BY published_at DESC
+        LIMIT $1`,
+      [limit],
+    );
+    return this.readWithAi(pending);
+  }
 
+  /**
+   * Vagas abertas que a IA leu com uma versão antiga da leitura: relê algumas
+   * por recolha (JOB_SYNC_REANALYZE_PER_RUN), as mais recentes primeiro, até
+   * ficarem todas na versão atual.
+   */
+  private async reanalyzeOutdated(): Promise<number> {
+    const limit = this.config.get('JOB_SYNC_REANALYZE_PER_RUN', {
+      infer: true,
+    });
+    if (!limit) return 0;
+    const outdated: Pending[] = await this.db.query(
+      `SELECT id, title, body FROM job_listings
+        WHERE analysis_source = 'ai' AND analysis_version < $2
+          AND closed_at IS NULL
+        ORDER BY published_at DESC
+        LIMIT $1`,
+      [limit, JOB_ANALYSIS_VERSION],
+    );
+    return this.readWithAi(outdated);
+  }
+
+  private async readWithAi(pending: Pending[]): Promise<number> {
     let done = 0;
     for (const p of pending) {
       const text = `${p.title}\n\n${p.body}`.slice(0, MAX_AI_TEXT);
@@ -283,7 +329,7 @@ export class JobSyncService
            seniority = $2, years_required = $3, accessibility = $4,
            mislabeled_junior = $5, competency_ids = $6,
            experience_requirements = $7, other_skills = $8,
-           analysis_source = 'ai', analyzed_at = now()
+           analysis_source = 'ai', analyzed_at = now(), analysis_version = $9
          WHERE id = $1`,
         [
           p.id,
@@ -294,6 +340,7 @@ export class JobSyncService
           d.competencyIds,
           d.experienceRequirements,
           d.otherSkills,
+          JOB_ANALYSIS_VERSION,
         ],
       );
       done++;

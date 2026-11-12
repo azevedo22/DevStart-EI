@@ -91,6 +91,7 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
   let itjobs: Server;
   let groq: Server;
   let sync: JobSyncService;
+  let JOB_ANALYSIS_VERSION: number;
   let db: DataSource;
 
   /** O que o ITJobs falso devolve (para o termo "junior"; os outros repetem ou vêm vazios). */
@@ -169,9 +170,12 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
       ITJOBS_BASE_URL: `http://127.0.0.1:${(itjobs.address() as AddressInfo).port}`,
       JOB_SYNC_AI_PER_RUN: '10',
       DEV_TOOLS: 'true',
+      JOB_SYNC_REANALYZE_PER_RUN: '1',
     });
     const { AppModule } = await import('../app.module');
-    const { JobSyncService } = await import('./job-sync.service');
+    const syncModule = await import('./job-sync.service');
+    const { JobSyncService } = syncModule;
+    JOB_ANALYSIS_VERSION = syncModule.JOB_ANALYSIS_VERSION;
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -211,7 +215,13 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
   describe('recolha', () => {
     it('guarda as vagas, junta repetidas e só a IA lê as que não são pouco realistas', async () => {
       const r = await sync.sync();
-      expect(r).toEqual({ fetched: 3, added: 3, closed: 0, analyzedByAi: 2 });
+      expect(r).toEqual({
+        fetched: 3,
+        added: 3,
+        closed: 0,
+        analyzedByAi: 2,
+        reanalyzed: 0,
+      });
       // A sénior (5 anos) ficou pela triagem: não gasta IA.
       expect(aiCalls.sort()).toEqual([
         'Estágio Profissional Backend',
@@ -261,6 +271,35 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
       rateLimited = 0;
       aiCalls = [];
       expect(await sync.sync()).toMatchObject({ added: 0, analyzedByAi: 2 });
+    });
+
+    it('vagas lidas com uma versão antiga são relidas aos poucos, as mais recentes primeiro', async () => {
+      await sync.sync();
+      const read = await db.query(
+        `SELECT source_id, analysis_version FROM job_listings
+          WHERE analysis_source = 'ai' ORDER BY source_id`,
+      );
+      expect(
+        read.map((r: { analysis_version: number }) => r.analysis_version),
+      ).toEqual([JOB_ANALYSIS_VERSION, JOB_ANALYSIS_VERSION]);
+      // Como se tivessem sido lidas antes da mudança das regras.
+      await db.query(
+        `UPDATE job_listings SET analysis_version = 1, other_skills = '{}'
+          WHERE analysis_source = 'ai'`,
+      );
+      aiCalls = [];
+      // Limite de 1 por recolha (JOB_SYNC_REANALYZE_PER_RUN).
+      expect(await sync.sync()).toMatchObject({
+        analyzedByAi: 0,
+        reanalyzed: 1,
+      });
+      expect(await sync.sync()).toMatchObject({ reanalyzed: 1 });
+      expect(await sync.sync()).toMatchObject({ reanalyzed: 0 });
+      expect(aiCalls).toHaveLength(2);
+      const after = await db.query(
+        `SELECT DISTINCT analysis_version FROM job_listings WHERE analysis_source = 'ai'`,
+      );
+      expect(after).toEqual([{ analysis_version: JOB_ANALYSIS_VERSION }]);
     });
 
     it('na recolha seguinte, só as vagas novas são analisadas', async () => {
