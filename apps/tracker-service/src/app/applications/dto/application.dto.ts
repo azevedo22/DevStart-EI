@@ -140,6 +140,13 @@ export class SaveApplicationDto implements SaveApplicationRequest {
   notes?: string | null;
 
   @IsOptional()
+  @TrimToNull()
+  @ValidateIf((_, v) => v !== null)
+  @IsString()
+  @MaxLength(APPLICATION_LIMITS.postingText)
+  postingText?: string | null;
+
+  @IsOptional()
   @IsIn(APPLICATION_STATUSES, { message: 'Estado inválido.' })
   status?: ApplicationStatus;
 }

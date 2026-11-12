@@ -107,6 +107,10 @@ export class Env {
   @IsInt()
   @Min(0)
   AI_DAILY_LIMIT = 300;
+
+  /** Ferramentas de desenvolvimento (textos das vagas para a exportação de avaliação). Desligado por omissão. */
+  @IsIn(['true', 'false'])
+  DEV_TOOLS: 'true' | 'false' = 'false';
 }
 
 export const validateEnv = createEnvValidator(Env, 'profile-service');

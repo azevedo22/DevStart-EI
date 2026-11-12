@@ -3,7 +3,9 @@ import {
   Accessibility,
   ActivityEvent,
   ApplicationBoard,
+  ApplicationExportItem,
   ApplicationStats,
+  DevToolsStatus,
   Interview,
   JobApplication,
   JobApplicationDetail,
@@ -17,6 +19,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -25,6 +28,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Env } from '../config/env';
 import { SaveInterviewDto } from '../interviews/dto/interview.dto';
 import { InterviewsService } from '../interviews/interviews.service';
 import { ActivityService } from './activity.service';
@@ -42,7 +47,12 @@ export class ApplicationsController {
     private readonly applications: ApplicationsService,
     private readonly interviews: InterviewsService,
     private readonly activityService: ActivityService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
+
+  private get devTools(): boolean {
+    return this.config.get('DEV_TOOLS', { infer: true }) === 'true';
+  }
 
   // Rotas fixas antes de ':id'.
   @Get('board')
@@ -57,6 +67,22 @@ export class ApplicationsController {
   @Get('stats')
   stats(@CurrentUserId() userId: string): Promise<ApplicationStats> {
     return this.applications.stats(userId);
+  }
+
+  /** Que ferramentas de desenvolvimento estão ligadas (para a web mostrar ou esconder o botão). */
+  @Get('dev-tools')
+  devToolsStatus(): DevToolsStatus {
+    return { export: this.devTools };
+  }
+
+  /**
+   * Ferramenta de desenvolvimento: as candidaturas feitas com o texto do
+   * anúncio, para casos de avaliação. Sem DEV_TOOLS=true, a rota não existe (404).
+   */
+  @Get('export')
+  export(@CurrentUserId() userId: string): Promise<ApplicationExportItem[]> {
+    if (!this.devTools) throw new NotFoundException();
+    return this.applications.exportApplied(userId);
   }
 
   /** Eventos por dia, para o relatório semanal (?from=&to=&tz=). */

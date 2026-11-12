@@ -56,6 +56,7 @@ describeDb('Application Tracker Service (e2e)', () => {
       NODE_ENV: 'test',
       TRACKER_DATABASE_URL: TEST_DATABASE_URL,
       REDIS_URL: '',
+      DEV_TOOLS: 'true',
     });
     const { AppModule } = await import('./app.module');
     const moduleRef = await Test.createTestingModule({
@@ -592,6 +593,62 @@ describeDb('Application Tracker Service (e2e)', () => {
           otherSkills: Array.from({ length: 16 }, (_, i) => `s${i}`),
         })
         .expect(400);
+    });
+  });
+
+  describe('texto do anúncio e exportação (ferramentas de desenvolvimento)', () => {
+    const AD = 'Procuramos Junior Frontend Developer com Angular e TypeScript.';
+
+    it('guarda o texto analisado, sem o mostrar no quadro, e mantém-no ao editar sem ele', async () => {
+      const a = await create({ postingText: `  ${AD}  ` });
+      expect(a).not.toHaveProperty('postingText');
+      await ana
+        .put(`/api/applications/${a.id}`, { ...JOB, jobTitle: 'Outro título' })
+        .expect(200);
+      const [item] = (await ana.get('/api/applications/export').expect(200))
+        .body;
+      expect(item).toMatchObject({ jobTitle: 'Outro título', postingText: AD });
+    });
+
+    it('uma nova análise substitui o texto; null apaga-o', async () => {
+      const a = await create({ postingText: AD });
+      await ana
+        .put(`/api/applications/${a.id}`, {
+          ...JOB,
+          postingText: 'Novo texto do anúncio.',
+        })
+        .expect(200);
+      let [item] = (await ana.get('/api/applications/export')).body;
+      expect(item.postingText).toBe('Novo texto do anúncio.');
+      await ana
+        .put(`/api/applications/${a.id}`, { ...JOB, postingText: null })
+        .expect(200);
+      [item] = (await ana.get('/api/applications/export')).body;
+      expect(item.postingText).toBeNull();
+    });
+
+    it('recusa textos acima do limite', async () => {
+      await ana
+        .post('/api/applications', { ...JOB, postingText: 'x'.repeat(20_001) })
+        .expect(400);
+    });
+
+    it('exporta só as candidaturas feitas, as mais recentes primeiro, e só as da própria pessoa', async () => {
+      await create({ companyName: 'Antiga', appliedAt: '2026-10-01' });
+      await create({ companyName: 'Recente', appliedAt: '2026-11-01' });
+      await create({ companyName: 'Guardada', status: 'SAVED' });
+      await rui.post('/api/applications', { ...JOB, companyName: 'Do Rui' });
+      const { body } = await ana.get('/api/applications/export').expect(200);
+      expect(body.map((a: JobApplication) => a.companyName)).toEqual([
+        'Recente',
+        'Antiga',
+      ]);
+      expect(body[0].postingText).toBeNull();
+    });
+
+    it('diz à web que a exportação está ligada', async () => {
+      const { body } = await ana.get('/api/applications/dev-tools').expect(200);
+      expect(body).toEqual({ export: true });
     });
   });
 

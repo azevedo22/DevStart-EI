@@ -94,6 +94,13 @@ export class ApplicationEntity {
   @Column({ type: 'varchar', length: 4000, nullable: true })
   notes!: string | null;
 
+  /**
+   * Texto do anúncio analisado com IA. Não é lido nas consultas normais
+   * (select: false), para o quadro não carregar textos longos; só a exportação o pede.
+   */
+  @Column({ name: 'posting_text', type: 'text', nullable: true, select: false })
+  postingText?: string | null;
+
   @OneToMany(() => InterviewEntity, (i) => i.application)
   interviews?: InterviewEntity[];
 

@@ -168,6 +168,7 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
       ITJOBS_API_KEY: KEY,
       ITJOBS_BASE_URL: `http://127.0.0.1:${(itjobs.address() as AddressInfo).port}`,
       JOB_SYNC_AI_PER_RUN: '10',
+      DEV_TOOLS: 'true',
     });
     const { AppModule } = await import('../app.module');
     const { JobSyncService } = await import('./job-sync.service');
@@ -418,6 +419,39 @@ describeDb('Vagas do ITJobs.pt (e2e)', () => {
 
     it('exige sessão', async () => {
       await http.get('/api/jobs/feed').expect(401);
+    });
+  });
+
+  describe('textos das vagas (exportação de avaliação)', () => {
+    beforeEach(async () => {
+      await sync.sync();
+    });
+
+    it('devolve o texto das vagas com esses links e ignora links desconhecidos', async () => {
+      const [{ url }] = await db.query(
+        `SELECT url FROM job_listings WHERE source_id = '101'`,
+      );
+      const { body } = await http
+        .post('/api/jobs/feed/texts')
+        .set('x-user-id', ANA)
+        .send({ urls: [url, url, 'https://outra.pt/vaga/1'] })
+        .expect(200);
+      expect(body).toHaveLength(1);
+      expect(body[0]).toMatchObject({
+        url,
+        title: 'Junior Frontend Developer',
+        companyName: 'Lumen Cloud',
+        analysisSource: 'ai',
+      });
+      expect(body[0].body).toContain('Angular');
+    });
+
+    it('recusa pedidos sem lista de links', async () => {
+      await http
+        .post('/api/jobs/feed/texts')
+        .set('x-user-id', ANA)
+        .send({ urls: 'x' })
+        .expect(400);
     });
   });
 });

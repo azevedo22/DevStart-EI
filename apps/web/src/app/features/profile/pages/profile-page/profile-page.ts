@@ -5,6 +5,7 @@ import { ProfileStore } from '../../../../core/profile/profile-store';
 import { BackgroundPanel } from '../../components/background-panel/background-panel';
 import { CompetenciesPanel } from '../../components/competencies-panel/competencies-panel';
 import { CvImport } from '../../components/cv-import/cv-import';
+import { ExportApplications } from '../../components/export-applications/export-applications';
 import { ProfileInfo } from '../../components/profile-info/profile-info';
 import { ProjectsPanel } from '../../components/projects-panel/projects-panel';
 
@@ -18,6 +19,7 @@ import { ProjectsPanel } from '../../components/projects-panel/projects-panel';
     ProjectsPanel,
     BackgroundPanel,
     CvImport,
+    ExportApplications,
   ],
   template: `
     <div class="container py-4">
@@ -86,6 +88,8 @@ import { ProjectsPanel } from '../../components/projects-panel/projects-panel';
             <ds-projects-panel />
           </div>
         </div>
+
+        <ds-export-applications class="d-block mt-4" />
       } @else if (store.loading()) {
         <div class="text-center py-5 text-body-secondary">
           <span

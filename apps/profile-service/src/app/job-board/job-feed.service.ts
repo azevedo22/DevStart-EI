@@ -5,6 +5,7 @@ import {
   JobFeedQuery,
   JobFeedResponse,
   JobListing,
+  JobListingText,
   Seniority,
   WorkMode,
   matchWithProfile,
@@ -50,6 +51,32 @@ export class JobFeedService {
     private readonly catalog: CatalogService,
     private readonly sync: JobSyncService,
   ) {}
+
+  /** Os textos das vagas com estes links (para a exportação de avaliação). */
+  async textsByUrl(urls: string[]): Promise<JobListingText[]> {
+    const unique = [...new Set(urls)];
+    if (!unique.length) return [];
+    const rows: {
+      url: string;
+      title: string;
+      company_name: string;
+      body: string;
+      analysis_source: string;
+      analyzed_at: Date | null;
+    }[] = await this.db.query(
+      `SELECT url, title, company_name, body, analysis_source, analyzed_at
+         FROM job_listings WHERE url = ANY($1)`,
+      [unique],
+    );
+    return rows.map((r) => ({
+      url: r.url,
+      title: r.title,
+      companyName: r.company_name,
+      body: r.body,
+      analysisSource: r.analysis_source,
+      analyzedAt: r.analyzed_at ? new Date(r.analyzed_at).toISOString() : null,
+    }));
+  }
 
   async feed(userId: string, q: JobFeedQuery): Promise<JobFeedResponse> {
     const visit = await this.visit(userId);

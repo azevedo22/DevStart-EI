@@ -4,6 +4,7 @@ import {
   APPLICATION_STATUSES,
   Accessibility,
   ApplicationBoard,
+  ApplicationExportItem,
   ApplicationStats,
   ApplicationStatus,
   CLOSED_STATUSES,
@@ -177,6 +178,24 @@ export class ApplicationsService {
       interviews,
       offers: byStatus.OFFER,
     };
+  }
+
+  /**
+   * As candidaturas feitas (sem as guardadas em "Por candidatar"), com o texto
+   * do anúncio, para os casos de avaliação da leitura da IA.
+   */
+  async exportApplied(userId: string): Promise<ApplicationExportItem[]> {
+    const rows = await this.applications
+      .createQueryBuilder('a')
+      .addSelect('a.postingText')
+      .where('a.userId = :userId', { userId })
+      .andWhere('a.status NOT IN (:...notApplied)', {
+        notApplied: [...NOT_APPLIED_STATUSES],
+      })
+      .orderBy('a.appliedAt', 'DESC')
+      .addOrderBy('a.createdAt', 'DESC')
+      .getMany();
+    return rows.map(toExportItem);
   }
 
   // ── Escrita ─────────────────────────────────────────────────
@@ -471,5 +490,29 @@ export function toApplicationFields(
     mislabeledJunior: verdict.mislabeledJunior,
     appliedAt: dto.appliedAt,
     notes: dto.notes ?? null,
+    // Omitido na edição: mantém o texto que já estava guardado.
+    ...(dto.postingText !== undefined && { postingText: dto.postingText }),
+  };
+}
+
+/** Uma candidatura para a exportação de avaliação (inclui o texto do anúncio). */
+export function toExportItem(a: ApplicationEntity): ApplicationExportItem {
+  return {
+    id: a.id,
+    companyName: a.companyName,
+    jobTitle: a.jobTitle,
+    jobUrl: a.jobUrl,
+    status: a.status,
+    appliedAt: a.appliedAt,
+    createdAt: a.createdAt.toISOString(),
+    workMode: a.workMode,
+    location: a.location,
+    seniority: a.seniority,
+    yearsRequired: a.yearsRequired,
+    accessibility: a.accessibility,
+    requiredCompetencyIds: a.requiredCompetencyIds,
+    otherSkills: a.otherSkills ?? [],
+    experienceRequirements: a.experienceRequirements ?? [],
+    postingText: a.postingText ?? null,
   };
 }

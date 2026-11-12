@@ -121,6 +121,8 @@ services:
       ITJOBS_API_KEY: ${ITJOBS_API_KEY:-}
       JOB_SYNC_INTERVAL_MINUTES: ${JOB_SYNC_INTERVAL_MINUTES:-180}
       JOB_SYNC_AI_PER_RUN: ${JOB_SYNC_AI_PER_RUN:-10}
+      # Ferramentas de desenvolvimento (exportar candidaturas). Desligado por omissão.
+      DEV_TOOLS: ${DEV_TOOLS:-false}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     healthcheck:
@@ -145,6 +147,7 @@ services:
       TRACKER_SERVICE_PORT: 3003
       TRACKER_DATABASE_URL: postgres://devstart:${POSTGRES_PASSWORD:-devstart}@db:5432/devstart_tracker
       REDIS_URL: redis://redis:6379
+      DEV_TOOLS: ${DEV_TOOLS:-false}
     healthcheck:
       <<: *healthcheck
       test:

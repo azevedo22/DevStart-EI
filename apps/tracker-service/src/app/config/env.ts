@@ -17,6 +17,10 @@ export class Env {
   /** Redis partilhado, para ouvir eventos de outros serviços. Vazio desliga o consumidor. */
   @IsString()
   REDIS_URL = 'redis://localhost:6379';
+
+  /** Ferramentas de desenvolvimento (exportar candidaturas para avaliação). Desligado por omissão. */
+  @IsIn(['true', 'false'])
+  DEV_TOOLS: 'true' | 'false' = 'false';
 }
 
 export const validateEnv = createEnvValidator(Env, 'tracker-service');

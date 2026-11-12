@@ -91,6 +91,8 @@ export class JobPostingAnalyzer {
   /** Aberto por omissão numa candidatura nova; fechado ao editar. */
   readonly open = input(true);
   readonly analyzed = output<JobPostingDraft>();
+  /** O texto que a IA leu, para ficar guardado com a candidatura. */
+  readonly analyzedText = output<string>();
 
   protected readonly limits = JOB_POSTING_LIMITS;
   protected readonly text = signal('');
@@ -122,6 +124,7 @@ export class JobPostingAnalyzer {
       .subscribe({
         next: (draft) => {
           this.analyzed.emit(draft);
+          this.analyzedText.emit(text);
           this.otherSkills.set(draft.otherSkills);
           this.result.set(describeDraft(draft));
         },

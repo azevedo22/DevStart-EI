@@ -66,6 +66,7 @@ const today = () => new Date().toISOString().slice(0, 10);
         <ds-job-posting-analyzer
           [open]="!application"
           (analyzed)="applyDraft($event)"
+          (analyzedText)="postingText = $event"
         />
 
         <div class="row g-3">
@@ -343,6 +344,12 @@ export class ApplicationFormModal {
     );
   }
 
+  /**
+   * O texto do último anúncio analisado. Vai com a candidatura para se poder
+   * voltar a medir a leitura da IA; sem nova análise, o que estava fica.
+   */
+  protected postingText: string | undefined;
+
   save(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -352,6 +359,9 @@ export class ApplicationFormModal {
     const body: SaveApplicationRequest = {
       ...v,
       yearsRequired: numberOrNull(v.yearsRequired),
+      ...(this.postingText !== undefined && {
+        postingText: this.postingText.slice(0, APPLICATION_LIMITS.postingText),
+      }),
     };
     this.saving.set(true);
     this.error.set(null);

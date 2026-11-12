@@ -13,6 +13,7 @@ import { AddExperienceRequirements1730200000000 } from './migrations/17302000000
 import { AddSavedStatus1730210000000 } from './migrations/1730210000000-add-saved-status';
 import { AddNoResponseStatus1730240000000 } from './migrations/1730240000000-add-no-response-status';
 import { AddOtherSkills1730270000000 } from './migrations/1730270000000-add-other-skills';
+import { AddPostingText1730280000000 } from './migrations/1730280000000-add-posting-text';
 
 /** Entidades e migrações listadas explicitamente: globs não funcionam com o bundle do webpack. */
 export const ENTITIES = [
@@ -26,6 +27,7 @@ export const MIGRATIONS = [
   AddSavedStatus1730210000000,
   AddNoResponseStatus1730240000000,
   AddOtherSkills1730270000000,
+  AddPostingText1730280000000,
 ];
 
 @Module({

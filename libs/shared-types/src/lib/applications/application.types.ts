@@ -129,6 +129,11 @@ export interface SaveApplicationRequest {
   seniority: Seniority;
   appliedAt: string;
   notes?: string | null;
+  /**
+   * Texto do anúncio que foi analisado com IA. Guarda-se para se poder voltar a
+   * medir a leitura da IA (casos de avaliação). Na edição, omitir mantém o atual.
+   */
+  postingText?: string | null;
   /** Só na criação: coluna onde começa (por omissão, APPLIED; SAVED para guardar para depois). */
   status?: ApplicationStatus;
 }
@@ -227,4 +232,49 @@ export const APPLICATION_LIMITS = {
   questions: 30,
   questionLength: 300,
   feedbackText: 2000,
+  /** Igual ao máximo que a análise de anúncios aceita. */
+  postingText: 20_000,
 } as const;
+
+// ── Exportação para avaliação (ferramentas de desenvolvimento) ──
+
+/** Uma candidatura com a leitura da IA e o texto do anúncio, quando existe. */
+export interface ApplicationExportItem {
+  id: string;
+  companyName: string;
+  jobTitle: string;
+  jobUrl: string | null;
+  status: ApplicationStatus;
+  appliedAt: string;
+  createdAt: string;
+  workMode: WorkMode;
+  location: string | null;
+  seniority: Seniority;
+  yearsRequired: number | null;
+  accessibility: Accessibility;
+  requiredCompetencyIds: string[];
+  otherSkills: string[];
+  experienceRequirements: string[];
+  /** Texto guardado ao analisar o anúncio (null nas candidaturas antigas). */
+  postingText: string | null;
+}
+
+/** Texto de uma vaga da página Vagas, procurado pelo link (exportação de avaliação). */
+export interface JobListingText {
+  url: string;
+  title: string;
+  companyName: string;
+  body: string;
+  /** 'ai' se a IA já leu a vaga; 'keywords' se só passou a triagem. */
+  analysisSource: string;
+  analyzedAt: string | null;
+}
+
+export interface JobListingTextsRequest {
+  urls: string[];
+}
+
+export interface DevToolsStatus {
+  /** Exportação de candidaturas ligada (DEV_TOOLS=true no servidor). */
+  export: boolean;
+}
