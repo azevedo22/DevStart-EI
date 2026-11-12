@@ -10,6 +10,7 @@ import {
   detectCompetencies,
   detectSeniority,
   detectYearsRequired,
+  isLanguageSkill,
 } from '@devstart/shared-types';
 import { asArray, asObject, dedupeBy, oneOf, text } from '../ai/ai-output';
 
@@ -57,7 +58,8 @@ export function normalizeJobExtraction(
   const other: string[] = [];
   for (const item of asArray(r['skills'])) {
     const name = text(item, 60, ELLIPSIS);
-    if (!name) continue;
+    // Línguas não são competências técnicas: ficam só na experiência pedida.
+    if (!name || isLanguageSkill(name)) continue;
     const found = detectCompetencies(name, catalog);
     if (!found.length) other.push(name);
     ids.push(...found);

@@ -32,7 +32,15 @@ const ANSWER = {
     'Testes automatizados com Jest (valorizado)',
     'trabalho em equipas ágeis (scrum)',
   ],
-  skills: ['Angular', 'TypeScript', 'Git', 'Docker', 'Jest', 'Figma Wizardry'],
+  skills: [
+    'Angular',
+    'TypeScript',
+    'Git',
+    'Docker',
+    'Jest',
+    'Figma Wizardry',
+    'Inglês fluente',
+  ],
   workMode: 'HYBRID',
   location: 'Braga',
 };
@@ -139,6 +147,7 @@ describeDb('Análise de anúncios com IA (e2e)', () => {
     expect(body.competencyIds).toEqual(
       expect.arrayContaining(['angular', 'typescript', 'git', 'docker']),
     );
+    // As línguas não são competências técnicas: "Inglês fluente" fica de fora.
     expect(body.otherSkills).toEqual(['Figma Wizardry']);
     // "Lumen Cloud" é o nome da empresa, não a competência Cloud.
     expect(body.competencyIds).not.toContain('cloud');

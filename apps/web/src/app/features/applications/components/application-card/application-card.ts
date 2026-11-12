@@ -29,6 +29,12 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
             <span class="fw-semibold flex-shrink-0" [class]="matchClass()"
               >{{ match().percentage }}%</span
             >
+          } @else if (noTechRequirements()) {
+            <i
+              class="bi bi-info-circle text-body-secondary flex-shrink-0"
+              title="Sem requisitos técnicos"
+              aria-label="Sem requisitos técnicos"
+            ></i>
           }
         </div>
         <div
@@ -73,6 +79,11 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
           [mislabeled]="a.mislabeledJunior"
           [years]="a.yearsRequired"
         />
+        @if (noTechRequirements()) {
+          <span class="badge text-bg-light border fw-normal ms-1"
+            >Sem requisitos técnicos</span
+          >
+        }
         <div class="d-flex flex-wrap gap-2 small text-body-secondary mt-2">
           <span
             ><i class="bi bi-geo-alt me-1"></i
@@ -139,6 +150,16 @@ export class ApplicationCard {
       this.profile.declaredIds(),
       this.application().otherSkills ?? [],
     ),
+  );
+
+  /**
+   * A vaga foi lida (tem experiência pedida) mas não pede tecnologias: diz-se
+   * isso em vez de deixar o canto vazio. Candidaturas sem leitura ficam como estão.
+   */
+  protected readonly noTechRequirements = computed(
+    () =>
+      this.match().percentage === null &&
+      (this.application().experienceRequirements?.length ?? 0) > 0,
   );
 
   protected readonly matchClass = computed(() =>

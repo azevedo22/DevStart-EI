@@ -5,6 +5,7 @@ import {
   detectCompetencies,
   detectSeniority,
   detectYearsRequired,
+  isLanguageSkill,
   matchWithProfile,
 } from './job-analysis';
 
@@ -187,7 +188,49 @@ describe('analyzeJobPosting', () => {
   });
 });
 
+describe('isLanguageSkill', () => {
+  it.each([
+    'English',
+    'Inglês',
+    'Portuguese',
+    'inglês fluente',
+    'Fluent English (C1)',
+    'Portuguese and English',
+    'Bom conhecimento de Inglês',
+    'Francês',
+    'Idiomas',
+  ])('"%s" é uma língua', (s) => expect(isLanguageSkill(s)).toBe(true));
+
+  it.each([
+    'Java',
+    'C',
+    'English Customer Support',
+    'Spring',
+    'ASP.NET',
+    'Swift',
+    'R',
+    '',
+  ])('"%s" não é uma língua', (s) => expect(isLanguageSkill(s)).toBe(false));
+});
+
 describe('matchWithProfile', () => {
+  it('as línguas não contam para a compatibilidade (nem nas leituras antigas)', () => {
+    expect(
+      matchWithProfile(['java'], new Set(['java']), [
+        'English',
+        'Inglês',
+        'Jira',
+      ]),
+    ).toEqual({
+      matched: ['java'],
+      missing: [],
+      outside: ['Jira'],
+      percentage: 50,
+    });
+    // Só línguas: sem competências técnicas, sem percentagem.
+    expect(matchWithProfile([], new Set(), ['English']).percentage).toBeNull();
+  });
+
   it('calcula o que já tens e o que falta', () => {
     expect(
       matchWithProfile(

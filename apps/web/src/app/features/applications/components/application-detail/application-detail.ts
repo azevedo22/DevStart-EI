@@ -205,6 +205,14 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
           }
         </section>
 
+        @if (match().percentage === null && d.experienceRequirements.length) {
+          <p class="small text-body-secondary mb-0">
+            <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Sem
+            requisitos técnicos: o anúncio não pede tecnologias concretas, por
+            isso não há percentagem de compatibilidade.
+          </p>
+        }
+
         @if (match().percentage !== null) {
           <section>
             <h3 class="h6">

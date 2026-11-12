@@ -263,6 +263,116 @@ export interface ProfileMatch {
   percentage: number | null;
 }
 
+// ── Línguas: não são competências técnicas ─────────────────────
+
+const LANGUAGES = new Set([
+  'english',
+  'ingles',
+  'portuguese',
+  'portugues',
+  'spanish',
+  'espanhol',
+  'castelhano',
+  'french',
+  'frances',
+  'german',
+  'alemao',
+  'italian',
+  'italiano',
+  'dutch',
+  'holandes',
+  'neerlandes',
+  'danish',
+  'dinamarques',
+  'swedish',
+  'sueco',
+  'norwegian',
+  'noruegues',
+  'finnish',
+  'finlandes',
+  'polish',
+  'polaco',
+  'chinese',
+  'chines',
+  'mandarin',
+  'mandarim',
+  'japanese',
+  'japones',
+  'arabic',
+  'arabe',
+  'russian',
+  'russo',
+  'languages',
+  'language',
+  'idiomas',
+  'idioma',
+  'linguas',
+  'lingua',
+]);
+
+/** Palavras que acompanham uma língua num anúncio ("inglês fluente", "English C1"). */
+const LANGUAGE_FILLERS = new Set([
+  'fluent',
+  'fluency',
+  'fluente',
+  'fluencia',
+  'native',
+  'nativo',
+  'nativa',
+  'written',
+  'spoken',
+  'escrito',
+  'falado',
+  'oral',
+  'good',
+  'strong',
+  'bom',
+  'boa',
+  'bons',
+  'excellent',
+  'excelente',
+  'business',
+  'professional',
+  'profissional',
+  'level',
+  'nivel',
+  'proficiency',
+  'proficiencia',
+  'knowledge',
+  'conhecimentos',
+  'conhecimento',
+  'of',
+  'in',
+  'de',
+  'em',
+  'e',
+  'and',
+  'or',
+  'ou',
+  'a1',
+  'a2',
+  'b1',
+  'b2',
+  'c1',
+  'c2',
+  'skills',
+]);
+
+/**
+ * "English", "Inglês fluente", "Portuguese and English (C1)": línguas pedidas
+ * pela vaga. Não contam para a compatibilidade, porque quase todas as vagas
+ * pedem inglês e isso não diz nada sobre a parte técnica.
+ */
+export function isLanguageSkill(name: string): boolean {
+  const words = name
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w && !LANGUAGE_FILLERS.has(w));
+  return words.length > 0 && words.every((w) => LANGUAGES.has(w));
+}
+
 export function matchWithProfile(
   requiredIds: string[],
   declared: ReadonlySet<string>,
@@ -270,11 +380,13 @@ export function matchWithProfile(
 ): ProfileMatch {
   const matched = requiredIds.filter((id) => declared.has(id));
   const missing = requiredIds.filter((id) => !declared.has(id));
-  const total = requiredIds.length + otherSkills.length;
+  // As línguas ficam de fora (também nas leituras já guardadas antes desta regra).
+  const outside = otherSkills.filter((s) => !isLanguageSkill(s));
+  const total = requiredIds.length + outside.length;
   return {
     matched,
     missing,
-    outside: [...otherSkills],
+    outside,
     percentage: total ? Math.round((matched.length / total) * 100) : null,
   };
 }

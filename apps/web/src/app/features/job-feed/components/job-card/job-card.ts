@@ -60,6 +60,10 @@ import { ago, levelText } from '../../job-feed.util';
               </div>
               <div class="tiny text-body-secondary">do teu perfil</div>
             </div>
+          } @else {
+            <div class="small text-body-secondary text-end flex-shrink-0">
+              Sem requisitos técnicos
+            </div>
           }
         </div>
 
