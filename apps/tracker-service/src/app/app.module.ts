@@ -16,6 +16,7 @@ import { UserEventsSubscriber } from './events/user-events.subscriber';
 import { HealthController } from './health.controller';
 import { InterviewsController } from './interviews/interviews.controller';
 import { InterviewsService } from './interviews/interviews.service';
+import { JourneyService } from './applications/journey.service';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { InterviewsService } from './interviews/interviews.service';
     ApplicationsService,
     ActivityService,
     InterviewsService,
+    JourneyService,
     DemoApplicationsSeeder,
     UserEventsSubscriber,
   ],

@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ApiError } from '../../../../core/http/error.interceptor';
+import { JourneyCard } from '../../components/journey-card/journey-card';
 
 /**
  * A minha conta: dados de acesso e eliminação da conta (direito ao apagamento).
@@ -12,7 +13,7 @@ import { ApiError } from '../../../../core/http/error.interceptor';
  */
 @Component({
   selector: 'ds-account-page',
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, FormsModule, JourneyCard],
   template: `
     <div class="container py-4" style="max-width: 46rem">
       <h1 class="h3 mb-4">A minha conta</h1>
@@ -34,6 +35,8 @@ import { ApiError } from '../../../../core/http/error.interceptor';
           </dl>
         </div>
       </section>
+
+      <ds-journey-card />
 
       @if (auth.isDemo()) {
         <section class="card border-warning-subtle shadow-sm">

@@ -72,7 +72,7 @@ describeDb('Application Tracker Service (e2e)', () => {
     await app
       .get(DataSource)
       .query(
-        'TRUNCATE "interviews", "application_status_history", "applications" CASCADE',
+        'TRUNCATE "interviews", "application_status_history", "applications", "user_journey" CASCADE',
       );
   });
 
@@ -593,6 +593,95 @@ describeDb('Application Tracker Service (e2e)', () => {
           otherSkills: Array.from({ length: 16 }, (_, i) => `s${i}`),
         })
         .expect(400);
+    });
+  });
+
+  describe('caminho até ao primeiro sim (A minha conta)', () => {
+    const journey = async () =>
+      (await ana.get('/api/applications/journey').expect(200)).body;
+    const moveTo = (id: string, status: string) =>
+      ana
+        .patch(`/api/applications/${id}/move`, { status, position: 0 })
+        .expect(200);
+    const today = () => new Date().toISOString().slice(0, 10);
+
+    it('começa a zeros e conta só as enviadas (as guardadas não)', async () => {
+      expect(await journey()).toEqual({
+        applicationsSent: 0,
+        interviews: 0,
+        firstAppliedOn: null,
+        firstYes: null,
+      });
+      await create({ appliedAt: '2026-10-05' });
+      const saved = await create({ status: 'SAVED' });
+      await ana.post('/api/applications', {
+        kind: 'SPONTANEOUS',
+        companyName: 'Espontânea Lda',
+        appliedAt: '2026-10-01',
+      });
+      expect(await journey()).toMatchObject({
+        applicationsSent: 2,
+        firstAppliedOn: '2026-10-01',
+      });
+      // Sair de "Por candidatar" é enviar.
+      await moveTo(saved.id, 'APPLIED');
+      expect((await journey()).applicationsSent).toBe(3);
+    });
+
+    it('só aumenta: apagar uma candidatura não baixa os números', async () => {
+      const a = await create();
+      await ana
+        .post(`/api/applications/${a.id}/interviews`, INTERVIEW)
+        .expect(201);
+      await ana.delete(`/api/applications/${a.id}`).expect(204);
+      expect(await journey()).toMatchObject({
+        applicationsSent: 1,
+        interviews: 1,
+      });
+    });
+
+    it('grava o primeiro sim uma vez, com os números desse dia', async () => {
+      await create({ appliedAt: '2026-10-01' });
+      const a = await create({ companyName: 'Primeira Proposta' });
+      await moveTo(a.id, 'OFFER');
+      const b = await create({ companyName: 'Segunda Proposta' });
+      await moveTo(b.id, 'OFFER');
+      const j = await journey();
+      expect(j.firstYes).toMatchObject({
+        on: today(),
+        companyName: 'Primeira Proposta',
+        applications: 2,
+        interviews: 0,
+      });
+      expect(j.firstYes.days).toBeGreaterThan(0);
+      expect(j.applicationsSent).toBe(3);
+    });
+
+    it('sair de "Proposta" no mesmo dia anula o primeiro sim (engano)', async () => {
+      const a = await create();
+      await moveTo(a.id, 'OFFER');
+      await moveTo(a.id, 'HR_INTERVIEW');
+      expect((await journey()).firstYes).toBeNull();
+    });
+
+    it('quem já usava a app começa com o que tem no quadro', async () => {
+      const a = await create({ appliedAt: '2026-09-15' });
+      await ana
+        .post(`/api/applications/${a.id}/interviews`, INTERVIEW)
+        .expect(201);
+      // Como se a linha ainda não existisse (antes desta funcionalidade).
+      await app.get(DataSource).query(`DELETE FROM user_journey`);
+      expect(await journey()).toMatchObject({
+        applicationsSent: 1,
+        interviews: 1,
+        firstAppliedOn: '2026-09-15',
+      });
+    });
+
+    it('cada pessoa vê só o seu caminho', async () => {
+      await create();
+      const { body } = await rui.get('/api/applications/journey').expect(200);
+      expect(body.applicationsSent).toBe(0);
     });
   });
 

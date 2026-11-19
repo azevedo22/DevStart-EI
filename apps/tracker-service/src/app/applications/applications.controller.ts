@@ -6,6 +6,7 @@ import {
   ApplicationExportItem,
   ApplicationStats,
   DevToolsStatus,
+  JourneyStats,
   Interview,
   JobApplication,
   JobApplicationDetail,
@@ -33,6 +34,7 @@ import { Env } from '../config/env';
 import { SaveInterviewDto } from '../interviews/dto/interview.dto';
 import { InterviewsService } from '../interviews/interviews.service';
 import { ActivityService } from './activity.service';
+import { JourneyService } from './journey.service';
 import { ApplicationsService } from './applications.service';
 import {
   MoveApplicationDto,
@@ -52,6 +54,7 @@ export class ApplicationsController {
     private readonly interviews: InterviewsService,
     private readonly activityService: ActivityService,
     private readonly config: ConfigService<Env, true>,
+    private readonly journeyService: JourneyService,
   ) {}
 
   private get devTools(): boolean {
@@ -71,6 +74,12 @@ export class ApplicationsController {
   @Get('stats')
   stats(@CurrentUserId() userId: string): Promise<ApplicationStats> {
     return this.applications.stats(userId);
+  }
+
+  /** "O teu caminho até ao primeiro sim", para "A minha conta". */
+  @Get('journey')
+  journeyStats(@CurrentUserId() userId: string): Promise<JourneyStats> {
+    return this.journeyService.get(userId);
   }
 
   /** Que ferramentas de desenvolvimento estão ligadas (para a web mostrar ou esconder o botão). */

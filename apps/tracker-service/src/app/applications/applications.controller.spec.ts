@@ -16,6 +16,7 @@ describe('ApplicationsController: ferramentas de desenvolvimento', () => {
       {} as never,
       {} as never,
       config,
+      {} as never,
     );
     return { controller, service };
   };

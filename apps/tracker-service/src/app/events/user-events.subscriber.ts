@@ -46,6 +46,9 @@ export class UserEventsSubscriber extends EventSubscriber {
       `DELETE FROM applications WHERE user_id = $1`,
       [userId],
     );
+    await this.db.query(`DELETE FROM user_journey WHERE user_id = $1`, [
+      userId,
+    ]);
     this.log.log(`user.deleted ${userId}: ${count} candidaturas apagadas.`);
   }
 }

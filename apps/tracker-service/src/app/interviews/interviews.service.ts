@@ -15,6 +15,7 @@ import {
   ApplicationsService,
   toInterview,
 } from '../applications/applications.service';
+import { JourneyService } from '../applications/journey.service';
 import { SaveInterviewDto } from './dto/interview.dto';
 
 const NOT_FOUND = 'Entrevista não encontrada.';
@@ -25,6 +26,7 @@ export class InterviewsService {
     @InjectRepository(InterviewEntity)
     private readonly interviews: Repository<InterviewEntity>,
     private readonly applications: ApplicationsService,
+    private readonly journey: JourneyService,
   ) {}
 
   async create(
@@ -44,6 +46,7 @@ export class InterviewsService {
     const saved = await this.interviews.save(
       this.interviews.create({ applicationId, ...toInterviewFields(dto) }),
     );
+    await this.journey.interviewRegistered(userId);
     return toInterview(saved);
   }
 

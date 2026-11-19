@@ -324,3 +324,23 @@ export interface DevToolsStatus {
 export interface ResendApplicationRequest {
   date?: string;
 }
+
+// ── "O teu caminho até ao primeiro sim" (A minha conta) ─────────
+
+/** Contadores que só aumentam e o marco do primeiro sim (a primeira proposta). */
+export interface JourneyStats {
+  /** Candidaturas enviadas desde o início (apagar não baixa). */
+  applicationsSent: number;
+  /** Entrevistas e testes registados desde o início. */
+  interviews: number;
+  /** Dia da primeira candidatura (AAAA-MM-DD). */
+  firstAppliedOn: string | null;
+  firstYes: {
+    on: string;
+    companyName: string;
+    /** Os números no dia do primeiro sim. */
+    applications: number;
+    interviews: number;
+    days: number;
+  } | null;
+}

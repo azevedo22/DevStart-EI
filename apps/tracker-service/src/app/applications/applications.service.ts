@@ -34,6 +34,7 @@ import {
   SelectQueryBuilder,
 } from 'typeorm';
 import { MoveApplicationDto, SaveApplicationDto } from './dto/application.dto';
+import { JourneyService } from './journey.service';
 import {
   ApplicationEntity,
   InterviewEntity,
@@ -57,6 +58,7 @@ export class ApplicationsService {
     @InjectRepository(InterviewEntity)
     private readonly interviews: Repository<InterviewEntity>,
     @InjectDataSource() private readonly db: DataSource,
+    private readonly journey: JourneyService,
   ) {}
 
   // ── Leitura ─────────────────────────────────────────────────
@@ -208,6 +210,7 @@ export class ApplicationsService {
   ): Promise<JobApplication> {
     const status = dto.status ?? 'APPLIED';
     const id = await this.inUserTransaction(userId, async (em) => {
+      await this.journey.ensure(em, userId);
       if (
         (await em.countBy(ApplicationEntity, { userId })) >=
         APPLICATION_LIMITS.applicationsPerUser
@@ -232,6 +235,12 @@ export class ApplicationsService {
         fromStatus: null,
         toStatus: status,
       });
+      if (isApplied(status)) {
+        await this.journey.applied(em, userId, saved.appliedAt);
+      }
+      if (status === 'OFFER') {
+        await this.journey.offer(em, userId, saved.id, saved.companyName);
+      }
       return saved.id;
     });
     return this.get(userId, id);
@@ -299,6 +308,7 @@ export class ApplicationsService {
     await this.inUserTransaction(userId, async (em) => {
       const app = await em.findOneBy(ApplicationEntity, { id, userId });
       if (!app) throw new NotFoundException(NOT_FOUND);
+      await this.journey.ensure(em, userId);
 
       const from = { status: app.status, position: app.position };
       const sameColumn = from.status === dto.status;
@@ -342,17 +352,25 @@ export class ApplicationsService {
       }
       // Sair de "Por candidatar" é candidatar-se: a data passa a ser esse dia.
       const applying = !isApplied(from.status) && isApplied(dto.status);
+      const appliedAt = applying
+        ? (dto.appliedAt ?? new Date().toISOString().slice(0, 10))
+        : app.appliedAt;
       await em.update(
         ApplicationEntity,
         { id },
         {
           status: dto.status,
           position: to,
-          ...(applying && {
-            appliedAt: dto.appliedAt ?? new Date().toISOString().slice(0, 10),
-          }),
+          ...(applying && { appliedAt }),
         },
       );
+      if (applying) await this.journey.applied(em, userId, appliedAt);
+      if (!sameColumn && dto.status === 'OFFER') {
+        await this.journey.offer(em, userId, id, app.companyName);
+      }
+      if (!sameColumn && from.status === 'OFFER') {
+        await this.journey.leftOffer(em, userId, id);
+      }
     });
     return this.get(userId, id);
   }
