@@ -27,7 +27,11 @@ test('candidaturas: criar, mudar de coluna e continua lá depois de recarregar',
   // Mudar de coluna pelo detalhe (a alternativa ao arrastar, acessível por teclado).
   await card.click();
   await page.getByLabel('Coluna').selectOption({ label: 'Teste Técnico' });
-  await page.keyboard.press('Escape');
+  // Ao chegar a "Teste Técnico", a app propõe registar o teste: recusa-se.
+  const proposal = page.getByRole('dialog', { name: 'Nova entrevista' });
+  await expect(proposal).toBeVisible();
+  await proposal.getByRole('button', { name: 'Fechar' }).click();
+  await expect(proposal).toBeHidden();
 
   await expect(
     column('Teste Técnico').getByRole('button', { name: /Lumen Cloud/ }),

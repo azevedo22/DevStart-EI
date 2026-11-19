@@ -31,6 +31,12 @@ export class JourneyService {
 
   /** Cria a linha a partir do quadro atual, se ainda não existir. Chamar antes de mudar o quadro. */
   async ensure(em: EntityManager, userId: string): Promise<void> {
+    // Quase sempre a linha já existe: a consulta de arranque (pesada) só corre uma vez.
+    const exists: unknown[] = await em.query(
+      `SELECT 1 FROM user_journey WHERE user_id = $1`,
+      [userId],
+    );
+    if (exists.length) return;
     await em.query(
       `INSERT INTO user_journey (user_id, applications_sent, interviews, first_applied_on,
                                  first_yes_on, first_yes_company, first_yes_application_id,

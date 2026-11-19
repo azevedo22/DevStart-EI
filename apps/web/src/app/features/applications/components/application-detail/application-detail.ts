@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -442,6 +442,12 @@ export class ApplicationDetail {
   private readonly profile = inject(ProfileStore);
   private readonly store = inject(ApplicationsStore);
   private readonly modals = inject(NgbModal);
+  /** O painel pode ser fechado enquanto um pedido ainda está a meio. */
+  private closed = false;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => (this.closed = true));
+  }
 
   protected readonly statuses = APPLICATION_STATUSES;
   protected readonly awaitsReply = awaitsReply;
@@ -505,6 +511,8 @@ export class ApplicationDetail {
     this.autoMoved.set(null);
     try {
       await this.store.move(this.id, status, 0); // entra no topo da nova coluna
+      // Painel fechado entretanto: nada de janelas a aparecer por cima do quadro.
+      if (this.closed) return;
       this.reload();
       // Ao chegar a uma fase de entrevista, propõe registá-la.
       const type = STATUS_INTERVIEW[status];
@@ -538,6 +546,7 @@ export class ApplicationDetail {
       size: 'lg',
       scrollable: true,
       backdrop: 'static',
+      ariaLabelledBy: 'interview-modal-title',
     });
     (ref.componentInstance as InterviewFormModal).init(
       this.id,

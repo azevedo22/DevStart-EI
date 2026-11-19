@@ -34,7 +34,7 @@ function toLocalInput(iso: string | null): string {
   template: `
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-header">
-        <h2 class="modal-title h5">
+        <h2 class="modal-title h5" id="interview-modal-title">
           {{ interview ? 'Editar entrevista' : 'Nova entrevista' }}
         </h2>
         <button
