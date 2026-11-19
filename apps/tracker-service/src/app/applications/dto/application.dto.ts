@@ -1,9 +1,14 @@
 import { Trim, TrimToNull } from '@devstart/backend-common';
 import {
+  APPLICATION_KINDS,
   APPLICATION_LIMITS,
   APPLICATION_STATUSES,
+  ApplicationKind,
   ApplicationStatus,
   MoveApplicationRequest,
+  ResendApplicationRequest,
+  SPONTANEOUS_CHANNELS,
+  SpontaneousChannel,
   SENIORITIES,
   SaveApplicationRequest,
   Seniority,
@@ -26,6 +31,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateBy,
   ValidateIf,
 } from 'class-validator';
 
@@ -36,18 +42,45 @@ import {
  */
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** Numa candidatura espontânea não há anúncio: título, modalidade e senioridade são opcionais. */
+const isJob = (o: SaveApplicationDto) => o.kind !== 'SPONTANEOUS';
+
 export class SaveApplicationDto implements SaveApplicationRequest {
+  @IsOptional()
+  @IsIn(APPLICATION_KINDS, { message: 'Tipo de candidatura inválido.' })
+  kind?: ApplicationKind;
+
   @Trim()
   @IsString()
   @Length(1, APPLICATION_LIMITS.companyName, { message: 'Indica a empresa.' })
   companyName!: string;
 
+  /** Vaga: obrigatório (2 a 150). Espontânea: a área ou função, opcional. */
   @Trim()
-  @IsString()
-  @Length(2, APPLICATION_LIMITS.jobTitle, {
-    message: 'Indica o título da vaga.',
+  @ValidateBy({
+    name: 'jobTitle',
+    validator: {
+      validate: (v: unknown, args) => {
+        if (!isJob(args?.object as SaveApplicationDto)) {
+          return (
+            v === undefined ||
+            v === null ||
+            (typeof v === 'string' && v.length <= APPLICATION_LIMITS.jobTitle)
+          );
+        }
+        return (
+          typeof v === 'string' &&
+          v.length >= 2 &&
+          v.length <= APPLICATION_LIMITS.jobTitle
+        );
+      },
+      defaultMessage: (args) =>
+        isJob(args?.object as SaveApplicationDto)
+          ? 'Indica o título da vaga.'
+          : `A área ou função tem até ${APPLICATION_LIMITS.jobTitle} caracteres.`,
+    },
   })
-  jobTitle!: string;
+  jobTitle?: string;
 
   @IsOptional()
   @TrimToNull()
@@ -66,14 +99,16 @@ export class SaveApplicationDto implements SaveApplicationRequest {
   @MaxLength(APPLICATION_LIMITS.location)
   location?: string | null;
 
+  @ValidateIf(isJob)
   @IsIn(WORK_MODES, { message: 'Modalidade inválida.' })
-  workMode!: WorkMode;
+  workMode?: WorkMode;
 
+  @ValidateIf(isJob)
   @IsArray()
   @ArrayMaxSize(APPLICATION_LIMITS.competencies)
   @ArrayUnique()
   @Matches(SLUG, { each: true, message: 'Id de competência inválido.' })
-  requiredCompetencyIds!: string[];
+  requiredCompetencyIds?: string[];
 
   /** Competências fora do catálogo. Vazias e repetidas (sem contar maiúsculas) saem. */
   @IsOptional()
@@ -125,8 +160,21 @@ export class SaveApplicationDto implements SaveApplicationRequest {
   })
   experienceRequirements?: string[];
 
+  @ValidateIf(isJob)
   @IsIn(SENIORITIES, { message: 'Senioridade inválida.' })
-  seniority!: Seniority;
+  seniority?: Seniority;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsIn(SPONTANEOUS_CHANNELS, { message: 'Canal inválido.' })
+  channel?: SpontaneousChannel | null;
+
+  @IsOptional()
+  @TrimToNull()
+  @ValidateIf((_, v) => v !== null)
+  @IsString()
+  @MaxLength(APPLICATION_LIMITS.contact)
+  contact?: string | null;
 
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Data inválida (AAAA-MM-DD).' })
   @IsISO8601({ strict: true }, { message: 'Data inválida (AAAA-MM-DD).' })
@@ -164,4 +212,11 @@ export class MoveApplicationDto implements MoveApplicationRequest {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Data inválida (AAAA-MM-DD).' })
   @IsISO8601({ strict: true }, { message: 'Data inválida (AAAA-MM-DD).' })
   appliedAt?: string;
+}
+
+export class ResendApplicationDto implements ResendApplicationRequest {
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Data inválida (AAAA-MM-DD).' })
+  @IsISO8601({ strict: true }, { message: 'Data inválida (AAAA-MM-DD).' })
+  date?: string;
 }

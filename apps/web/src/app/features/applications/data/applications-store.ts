@@ -169,6 +169,21 @@ export class ApplicationsStore {
     );
   }
 
+  /** "Reenviei hoje" numa candidatura espontânea: recomeça a contagem do silêncio. */
+  resend(id: string, date?: string): Observable<JobApplication> {
+    return this.http
+      .post<JobApplication>(`${this.base}/${id}/resend`, date ? { date } : {})
+      .pipe(
+        tap((saved) =>
+          this.updateBoard((b) => {
+            b[saved.status] = b[saved.status].map((a) =>
+              a.id === saved.id ? saved : a,
+            );
+          }),
+        ),
+      );
+  }
+
   /** Move otimista. Devolve uma promessa que resolve com sucesso ou erro, para a UI avisar. */
   move(id: string, status: ApplicationStatus, position: number): Promise<void> {
     const before = this._board();

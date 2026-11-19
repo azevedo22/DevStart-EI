@@ -1,6 +1,8 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import {
   JobApplication,
+  SPONTANEOUS_CHANNEL_LABELS,
+  SpontaneousChannel,
   WORK_MODE_LABELS,
   matchWithProfile,
   silenceOf,
@@ -21,7 +23,7 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
         type="button"
         class="card-body text-start w-100 border-0 bg-transparent px-2 py-1"
         (click)="open.emit(a.id)"
-        [attr.aria-label]="'Abrir ' + a.jobTitle + ' em ' + a.companyName"
+        [attr.aria-label]="'Abrir ' + subtitle() + ' em ' + a.companyName"
       >
         <div class="d-flex justify-content-between gap-2 small">
           <span class="fw-semibold text-truncate">{{ a.companyName }}</span>
@@ -29,6 +31,12 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
             <span class="fw-semibold flex-shrink-0" [class]="matchClass()"
               >{{ match().percentage }}%</span
             >
+          } @else if (spontaneous()) {
+            <i
+              class="bi bi-send text-info-emphasis flex-shrink-0"
+              title="Candidatura espontânea"
+              aria-label="Candidatura espontânea"
+            ></i>
           } @else if (noTechRequirements()) {
             <i
               class="bi bi-info-circle text-body-secondary flex-shrink-0"
@@ -40,7 +48,7 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
         <div
           class="d-flex justify-content-between gap-2 small text-body-secondary"
         >
-          <span class="text-truncate">{{ a.jobTitle }}</span>
+          <span class="text-truncate">{{ subtitle() }}</span>
           <span class="flex-shrink-0">
             @if (silence(); as s) {
               <i
@@ -57,7 +65,7 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
         type="button"
         class="card-body text-start w-100 border-0 bg-transparent p-3"
         (click)="open.emit(a.id)"
-        [attr.aria-label]="'Abrir ' + a.jobTitle + ' em ' + a.companyName"
+        [attr.aria-label]="'Abrir ' + subtitle() + ' em ' + a.companyName"
       >
         <div class="d-flex justify-content-between gap-2">
           <span class="fw-semibold text-truncate">{{ a.companyName }}</span>
@@ -72,24 +80,42 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
           }
         </div>
         <div class="small text-body-secondary text-truncate mb-2">
-          {{ a.jobTitle }}
+          {{ subtitle() }}
         </div>
-        <ds-accessibility-badge
-          [value]="a.accessibility"
-          [mislabeled]="a.mislabeledJunior"
-          [years]="a.yearsRequired"
-        />
+        @if (spontaneous()) {
+          <span class="badge text-bg-info-subtle text-info-emphasis fw-normal"
+            ><i class="bi bi-send me-1"></i>Espontânea</span
+          >
+        } @else {
+          <ds-accessibility-badge
+            [value]="a.accessibility"
+            [mislabeled]="a.mislabeledJunior"
+            [years]="a.yearsRequired"
+          />
+        }
         @if (noTechRequirements()) {
           <span class="badge text-bg-light border fw-normal ms-1"
             >Sem requisitos técnicos</span
           >
         }
         <div class="d-flex flex-wrap gap-2 small text-body-secondary mt-2">
-          <span
-            ><i class="bi bi-geo-alt me-1"></i
-            >{{ a.location ? a.location + ' · ' : ''
-            }}{{ workModes[a.workMode] }}</span
-          >
+          @if (spontaneous()) {
+            @if (a.location) {
+              <span><i class="bi bi-geo-alt me-1"></i>{{ a.location }}</span>
+            }
+            @if (a.channel) {
+              <span
+                ><i class="bi me-1" [class]="channelIcons[a.channel]"></i
+                >{{ channelLabels[a.channel] }}</span
+              >
+            }
+          } @else {
+            <span
+              ><i class="bi bi-geo-alt me-1"></i
+              >{{ a.location ? a.location + ' · ' : ''
+              }}{{ workModes[a.workMode] }}</span
+            >
+          }
           <span title="Data da candidatura"
             ><i class="bi bi-calendar3 me-1"></i>{{ daysAgo() }}</span
           >
@@ -106,7 +132,9 @@ import { AccessibilityBadge } from '../accessibility-badge/accessibility-badge';
             [title]="
               s.stage === 'GIVE_UP'
                 ? 'Já poucas empresas respondem: podes arquivar em Sem resposta'
-                : 'Altura de um follow-up: abre para ver um rascunho'
+                : s.stage === 'RESEND'
+                  ? 'Altura de reenviar: abre para ver um rascunho'
+                  : 'Altura de um follow-up: abre para ver um rascunho'
             "
           >
             <i class="bi bi-hourglass-split me-1"></i>Sem resposta há
@@ -139,6 +167,23 @@ export class ApplicationCard {
   readonly open = output<string>();
 
   protected readonly workModes = WORK_MODE_LABELS;
+  protected readonly channelLabels = SPONTANEOUS_CHANNEL_LABELS;
+  protected readonly channelIcons: Record<SpontaneousChannel, string> = {
+    EMAIL: 'bi-envelope',
+    LINKEDIN: 'bi-linkedin',
+    WEBSITE: 'bi-globe',
+    IN_PERSON: 'bi-person',
+  };
+
+  protected readonly spontaneous = computed(
+    () => this.application().kind === 'SPONTANEOUS',
+  );
+  /** A área da espontânea pode estar vazia: aí diz-se o que é. */
+  protected readonly subtitle = computed(
+    () =>
+      this.application().jobTitle ||
+      (this.spontaneous() ? 'Candidatura espontânea' : ''),
+  );
 
   protected readonly silence = computed(() =>
     silenceOf(this.application(), this.store.today()),

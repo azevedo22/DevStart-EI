@@ -1,4 +1,4 @@
-import type { ApplicationStatus } from './application.types';
+import type { ApplicationKind, ApplicationStatus } from './application.types';
 
 /**
  * Quando é que o silêncio de uma empresa merece atenção.
@@ -14,10 +14,22 @@ export const SILENCE = {
   giveUpAfterDays: 30,
 } as const;
 
-export type SilenceStage = 'FOLLOW_UP' | 'GIVE_UP';
+/**
+ * Candidaturas espontâneas: as empresas respondem mais devagar (não há processo
+ * aberto) e pedem muitas vezes para voltar a enviar mais tarde. Ao fim de um
+ * mês sem resposta sugere-se reenviar; depois de 2 reenvios sem resposta,
+ * propõe-se arquivar em "Sem resposta".
+ */
+export const SPONTANEOUS_SILENCE = {
+  resendAfterDays: 30,
+  maxResends: 2,
+} as const;
+
+/** FOLLOW_UP e GIVE_UP: vagas. RESEND: espontâneas (e GIVE_UP depois dos reenvios). */
+export type SilenceStage = 'FOLLOW_UP' | 'RESEND' | 'GIVE_UP';
 
 export interface Silence {
-  /** Dias desde a candidatura, sem resposta. */
+  /** Dias sem resposta, desde a candidatura (ou desde o último reenvio). */
   days: number;
   stage: SilenceStage;
 }
@@ -37,10 +49,28 @@ export function daysBetween(a: string, b: string): number {
  * uma entrevista, o ritmo é outro e a pessoa sabe em que ponto está.
  */
 export function silenceOf(
-  app: { status: ApplicationStatus; appliedAt: string },
+  app: {
+    status: ApplicationStatus;
+    appliedAt: string;
+    kind?: ApplicationKind;
+    resentOn?: readonly string[];
+  },
   today: string,
 ): Silence | null {
   if (app.status !== 'APPLIED') return null;
+  if (app.kind === 'SPONTANEOUS') {
+    const resends = app.resentOn ?? [];
+    const lastSent = resends.length
+      ? resends[resends.length - 1]
+      : app.appliedAt;
+    const days = daysBetween(lastSent, today);
+    if (days < SPONTANEOUS_SILENCE.resendAfterDays) return null;
+    return {
+      days,
+      stage:
+        resends.length >= SPONTANEOUS_SILENCE.maxResends ? 'GIVE_UP' : 'RESEND',
+    };
+  }
   const days = daysBetween(app.appliedAt, today);
   if (days >= SILENCE.giveUpAfterDays) return { days, stage: 'GIVE_UP' };
   if (days >= SILENCE.followUpAfterDays) return { days, stage: 'FOLLOW_UP' };
@@ -94,6 +124,54 @@ export function followUpDraft(
       '',
       `Candidatei-me à vaga de ${app.jobTitle} na ${app.companyName} a ${when} e gostaria de saber se há novidades sobre o processo.`,
       'Continuo muito interessado(a) na oportunidade e estou disponível para enviar qualquer informação adicional que seja útil.',
+      '',
+      'Obrigado(a) pela atenção.',
+      '',
+      'Com os melhores cumprimentos,',
+      name || '[o teu nome]',
+    ].join('\n'),
+  };
+}
+
+/**
+ * O reenvio de uma candidatura espontânea, pronto a copiar: lembra o primeiro
+ * envio, reafirma o interesse e volta a juntar o CV. Sem pressão nem desculpas.
+ */
+export function resendDraft(
+  app: { companyName: string; jobTitle: string; appliedAt: string },
+  lang: FollowUpLanguage,
+  senderName?: string | null,
+): { subject: string; body: string } {
+  const name = senderName?.trim();
+  const when = longDate(app.appliedAt, lang);
+  const area = app.jobTitle.trim();
+  if (lang === 'en') {
+    return {
+      subject: area
+        ? `Unsolicited application: ${area}`
+        : `Unsolicited application${name ? `: ${name}` : ''}`,
+      body: [
+        'Hello,',
+        '',
+        `On ${when} I sent ${app.companyName} an unsolicited application${area ? ` for ${area} roles` : ''}, and I would like to reaffirm my interest in joining your team.`,
+        'I am attaching my updated CV and would be glad to talk whenever a suitable opportunity comes up.',
+        '',
+        'Thank you for your time.',
+        '',
+        'Best regards,',
+        name || '[o teu nome]',
+      ].join('\n'),
+    };
+  }
+  return {
+    subject: area
+      ? `Candidatura espontânea: ${area}`
+      : `Candidatura espontânea${name ? `: ${name}` : ''}`,
+    body: [
+      'Bom dia,',
+      '',
+      `A ${when} enviei à ${app.companyName} uma candidatura espontânea${area ? ` para a área de ${area}` : ''} e gostaria de reforçar o meu interesse em integrar a vossa equipa.`,
+      'Junto o meu CV atualizado e fico disponível para conversar quando surgir uma oportunidade adequada.',
       '',
       'Obrigado(a) pela atenção.',
       '',

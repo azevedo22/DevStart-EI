@@ -40,9 +40,17 @@ import { STAT_LISTS, StatList, statList } from '../../data/board-view';
             >
               <span class="text-truncate">
                 <span class="fw-medium">{{ a.companyName }}</span>
-                <span class="d-block small text-body-secondary text-truncate">{{
-                  a.jobTitle
-                }}</span>
+                <span class="d-block small text-body-secondary text-truncate">
+                  @if (a.kind === 'SPONTANEOUS') {
+                    <i
+                      class="bi bi-send text-info-emphasis me-1"
+                      title="Candidatura espontânea"
+                    ></i
+                    >{{ a.jobTitle || 'Candidatura espontânea' }}
+                  } @else {
+                    {{ a.jobTitle }}
+                  }
+                </span>
               </span>
               <span class="text-end flex-shrink-0 small">
                 <span class="badge text-bg-light border">{{

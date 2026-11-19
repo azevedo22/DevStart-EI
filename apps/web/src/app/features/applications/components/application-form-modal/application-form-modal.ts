@@ -3,12 +3,16 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   APPLICATION_LIMITS,
+  ApplicationKind,
   JobPostingDraft,
   JobApplication,
   SENIORITIES,
   SENIORITY_LABELS,
+  SPONTANEOUS_CHANNELS,
+  SPONTANEOUS_CHANNEL_LABELS,
   SaveApplicationRequest,
   Seniority,
+  SpontaneousChannel,
   WORK_MODES,
   WORK_MODE_LABELS,
   WorkMode,
@@ -63,11 +67,50 @@ const today = () => new Date().toISOString().slice(0, 10);
           <div class="alert alert-danger py-2 mb-0">{{ e }}</div>
         }
 
-        <ds-job-posting-analyzer
-          [open]="!application"
-          (analyzed)="applyDraft($event)"
-          (analyzedText)="postingText = $event"
-        />
+        @if (!application) {
+          <div
+            class="btn-group w-100"
+            role="group"
+            aria-label="Tipo de candidatura"
+          >
+            <input
+              type="radio"
+              class="btn-check"
+              id="kind-job"
+              name="kind"
+              [checked]="kind() === 'JOB'"
+              (change)="setKind('JOB')"
+            />
+            <label class="btn btn-outline-primary" for="kind-job"
+              ><i class="bi bi-file-earmark-text me-1"></i>A uma vaga</label
+            >
+            <input
+              type="radio"
+              class="btn-check"
+              id="kind-spontaneous"
+              name="kind"
+              [checked]="kind() === 'SPONTANEOUS'"
+              (change)="setKind('SPONTANEOUS')"
+            />
+            <label class="btn btn-outline-primary" for="kind-spontaneous"
+              ><i class="bi bi-send me-1"></i>Espontânea</label
+            >
+          </div>
+        }
+
+        @if (spontaneous()) {
+          <p class="small text-body-secondary mb-0">
+            Enviaste o CV a uma empresa sem vaga aberta. Sem anúncio, não há
+            competências nem percentagem; se não responderem num mês, a app
+            lembra-te de reenviar.
+          </p>
+        } @else {
+          <ds-job-posting-analyzer
+            [open]="!application"
+            (analyzed)="applyDraft($event)"
+            (analyzedText)="postingText = $event"
+          />
+        }
 
         <div class="row g-3">
           <div class="col-sm-6">
@@ -80,96 +123,136 @@ const today = () => new Date().toISOString().slice(0, 10);
             <ds-field-error [control]="form.controls.companyName" />
           </div>
           <div class="col-sm-6">
-            <label for="jobTitle" class="form-label">Título da vaga</label>
+            <label for="jobTitle" class="form-label">{{
+              spontaneous() ? 'Área ou função (opcional)' : 'Título da vaga'
+            }}</label>
             <input
               id="jobTitle"
               class="form-control"
               formControlName="jobTitle"
-              placeholder="Ex.: Junior Frontend Developer"
+              [placeholder]="
+                spontaneous()
+                  ? 'Ex.: IA e dados'
+                  : 'Ex.: Junior Frontend Developer'
+              "
             />
             <ds-field-error [control]="form.controls.jobTitle" />
           </div>
         </div>
 
-        <div class="row g-3">
-          <div class="col-sm-6">
-            <label for="seniority" class="form-label"
-              >Senioridade indicada</label
-            >
-            <select
-              id="seniority"
-              class="form-select"
-              formControlName="seniority"
-            >
-              @for (s of seniorities; track s) {
-                <option [value]="s">{{ seniorityLabels[s] }}</option>
-              }
-            </select>
+        @if (spontaneous()) {
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label for="channel" class="form-label">Enviada por</label>
+              <select
+                id="channel"
+                class="form-select"
+                formControlName="channel"
+              >
+                <option value="">Não indicado</option>
+                @for (c of channels; track c) {
+                  <option [value]="c">{{ channelLabels[c] }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label for="contact" class="form-label"
+                >Contacto (opcional)</label
+              >
+              <input
+                id="contact"
+                class="form-control"
+                formControlName="contact"
+                placeholder="Nome ou e-mail de quem recebeu"
+              />
+              <ds-field-error [control]="form.controls.contact" />
+            </div>
           </div>
-          <div class="col-sm-6">
-            <label for="yearsRequired" class="form-label"
-              >Anos de experiência pedidos</label
-            >
-            <input
-              id="yearsRequired"
-              type="number"
-              min="0"
-              max="30"
-              class="form-control"
-              formControlName="yearsRequired"
-              placeholder="Não indicado"
+        }
+
+        @if (!spontaneous()) {
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label for="seniority" class="form-label"
+                >Senioridade indicada</label
+              >
+              <select
+                id="seniority"
+                class="form-select"
+                formControlName="seniority"
+              >
+                @for (s of seniorities; track s) {
+                  <option [value]="s">{{ seniorityLabels[s] }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label for="yearsRequired" class="form-label"
+                >Anos de experiência pedidos</label
+              >
+              <input
+                id="yearsRequired"
+                type="number"
+                min="0"
+                max="30"
+                class="form-control"
+                formControlName="yearsRequired"
+                placeholder="Não indicado"
+              />
+              <ds-field-error
+                [control]="form.controls.yearsRequired"
+                [messages]="{ min: 'Valor inválido.', max: 'Valor inválido.' }"
+              />
+            </div>
+          </div>
+
+          <div>
+            <ds-experience-list-editor
+              [items]="experience()"
+              (itemsChange)="
+                form.controls.experienceRequirements.setValue($event)
+              "
             />
-            <ds-field-error
-              [control]="form.controls.yearsRequired"
-              [messages]="{ min: 'Valor inválido.', max: 'Valor inválido.' }"
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center gap-2 small">
+            <span class="text-body-secondary">Para quem tem 0 anos:</span>
+            <ds-accessibility-badge
+              [value]="verdict().accessibility"
+              [mislabeled]="verdict().mislabeledJunior"
+              [years]="value().yearsRequired ?? null"
+            />
+            <span class="text-body-secondary">{{
+              verdict().reasons.join(' ')
+            }}</span>
+          </div>
+
+          <div>
+            <ds-competency-picker
+              [ids]="competencyIds()"
+              (idsChange)="form.controls.requiredCompetencyIds.setValue($event)"
+              [others]="otherSkills()"
+              (othersChange)="form.controls.otherSkills.setValue($event)"
             />
           </div>
-        </div>
-
-        <div>
-          <ds-experience-list-editor
-            [items]="experience()"
-            (itemsChange)="
-              form.controls.experienceRequirements.setValue($event)
-            "
-          />
-        </div>
-
-        <div class="d-flex flex-wrap align-items-center gap-2 small">
-          <span class="text-body-secondary">Para quem tem 0 anos:</span>
-          <ds-accessibility-badge
-            [value]="verdict().accessibility"
-            [mislabeled]="verdict().mislabeledJunior"
-            [years]="value().yearsRequired ?? null"
-          />
-          <span class="text-body-secondary">{{
-            verdict().reasons.join(' ')
-          }}</span>
-        </div>
-
-        <div>
-          <ds-competency-picker
-            [ids]="competencyIds()"
-            (idsChange)="form.controls.requiredCompetencyIds.setValue($event)"
-            [others]="otherSkills()"
-            (othersChange)="form.controls.otherSkills.setValue($event)"
-          />
-        </div>
+        }
 
         <div class="row g-3">
-          <div class="col-sm-4">
-            <label for="workMode" class="form-label">Modalidade</label>
-            <select
-              id="workMode"
-              class="form-select"
-              formControlName="workMode"
-            >
-              @for (w of workModes; track w) {
-                <option [value]="w">{{ workModeLabels[w] }}</option>
-              }
-            </select>
-          </div>
-          <div class="col-sm-4">
+          @if (!spontaneous()) {
+            <div class="col-sm-4">
+              <label for="workMode" class="form-label">Modalidade</label>
+              <select
+                id="workMode"
+                class="form-select"
+                formControlName="workMode"
+              >
+                @for (w of workModes; track w) {
+                  <option [value]="w">{{ workModeLabels[w] }}</option>
+                }
+              </select>
+            </div>
+          }
+          <div [class]="spontaneous() ? 'col-sm-6' : 'col-sm-4'">
             <label for="location" class="form-label">Localização</label>
             <input
               id="location"
@@ -178,10 +261,10 @@ const today = () => new Date().toISOString().slice(0, 10);
               placeholder="Ex.: Porto"
             />
           </div>
-          <div class="col-sm-4">
-            <label for="appliedAt" class="form-label"
-              >Data da candidatura</label
-            >
+          <div [class]="spontaneous() ? 'col-sm-6' : 'col-sm-4'">
+            <label for="appliedAt" class="form-label">{{
+              spontaneous() ? 'Data do envio' : 'Data da candidatura'
+            }}</label>
             <input
               id="appliedAt"
               type="date"
@@ -194,7 +277,11 @@ const today = () => new Date().toISOString().slice(0, 10);
         </div>
 
         <div>
-          <label for="jobUrl" class="form-label">Link do anúncio</label>
+          <label for="jobUrl" class="form-label">{{
+            spontaneous()
+              ? 'Link (página de carreiras, opcional)'
+              : 'Link do anúncio'
+          }}</label>
           <input
             id="jobUrl"
             type="url"
@@ -249,6 +336,14 @@ export class ApplicationFormModal {
   protected readonly seniorityLabels = SENIORITY_LABELS;
   protected readonly workModes = WORK_MODES;
   protected readonly workModeLabels = WORK_MODE_LABELS;
+  protected readonly channels = SPONTANEOUS_CHANNELS;
+  protected readonly channelLabels = SPONTANEOUS_CHANNEL_LABELS;
+
+  /** Vaga ou espontânea: escolhe-se ao criar e não muda depois. */
+  protected readonly kind = signal<ApplicationKind>('JOB');
+  protected readonly spontaneous = computed(
+    () => this.kind() === 'SPONTANEOUS',
+  );
 
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -288,7 +383,25 @@ export class ApplicationFormModal {
       ],
     ],
     notes: ['', Validators.maxLength(APPLICATION_LIMITS.notes)],
+    channel: ['' as SpontaneousChannel | ''],
+    contact: ['', Validators.maxLength(APPLICATION_LIMITS.contact)],
   });
+
+  /** O título só é obrigatório nas vagas; na espontânea é a área, opcional. */
+  protected setKind(kind: ApplicationKind): void {
+    this.kind.set(kind);
+    const title = this.form.controls.jobTitle;
+    title.setValidators(
+      kind === 'JOB'
+        ? [
+            Validators.required,
+            Validators.minLength(2),
+            Validators.maxLength(APPLICATION_LIMITS.jobTitle),
+          ]
+        : [Validators.maxLength(APPLICATION_LIMITS.jobTitle)],
+    );
+    title.updateValueAndValidity();
+  }
 
   protected readonly value = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),
@@ -313,6 +426,7 @@ export class ApplicationFormModal {
   init(application: JobApplication | null): void {
     this.application = application;
     if (application) {
+      this.setKind(application.kind ?? 'JOB');
       this.form.reset({
         companyName: application.companyName,
         jobTitle: application.jobTitle,
@@ -326,6 +440,8 @@ export class ApplicationFormModal {
         appliedAt: application.appliedAt,
         jobUrl: application.jobUrl ?? '',
         notes: application.notes ?? '',
+        channel: application.channel ?? '',
+        contact: application.contact ?? '',
       });
     }
   }
@@ -356,13 +472,30 @@ export class ApplicationFormModal {
       return;
     }
     const v = this.form.getRawValue();
-    const body: SaveApplicationRequest = {
-      ...v,
-      yearsRequired: numberOrNull(v.yearsRequired),
-      ...(this.postingText !== undefined && {
-        postingText: this.postingText.slice(0, APPLICATION_LIMITS.postingText),
-      }),
-    };
+    const { channel, contact, ...job } = v;
+    const body: SaveApplicationRequest = this.spontaneous()
+      ? {
+          kind: 'SPONTANEOUS',
+          companyName: v.companyName,
+          jobTitle: v.jobTitle,
+          location: v.location,
+          appliedAt: v.appliedAt,
+          jobUrl: v.jobUrl,
+          notes: v.notes,
+          channel: channel || null,
+          contact: contact || null,
+        }
+      : {
+          ...job,
+          kind: 'JOB',
+          yearsRequired: numberOrNull(v.yearsRequired),
+          ...(this.postingText !== undefined && {
+            postingText: this.postingText.slice(
+              0,
+              APPLICATION_LIMITS.postingText,
+            ),
+          }),
+        };
     this.saving.set(true);
     this.error.set(null);
     const req = this.application

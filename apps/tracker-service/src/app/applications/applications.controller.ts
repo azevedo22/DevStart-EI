@@ -34,7 +34,11 @@ import { SaveInterviewDto } from '../interviews/dto/interview.dto';
 import { InterviewsService } from '../interviews/interviews.service';
 import { ActivityService } from './activity.service';
 import { ApplicationsService } from './applications.service';
-import { MoveApplicationDto, SaveApplicationDto } from './dto/application.dto';
+import {
+  MoveApplicationDto,
+  ResendApplicationDto,
+  SaveApplicationDto,
+} from './dto/application.dto';
 
 /** Um id malformado dá 404, como um id de outra pessoa. */
 const Id = () =>
@@ -139,6 +143,17 @@ export class ApplicationsController {
     @Body() dto: MoveApplicationDto,
   ): Promise<JobApplication> {
     return this.applications.move(userId, id, dto);
+  }
+
+  /** "Reenviei hoje" numa candidatura espontânea: recomeça a contagem do silêncio. */
+  @Post(':id/resend')
+  @HttpCode(HttpStatus.OK)
+  resend(
+    @CurrentUserId() userId: string,
+    @Id() id: string,
+    @Body() dto: ResendApplicationDto,
+  ): Promise<JobApplication> {
+    return this.applications.resend(userId, id, dto);
   }
 
   @Delete(':id')

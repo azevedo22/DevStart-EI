@@ -11,12 +11,14 @@ import {
   JobApplicationDetail,
   OUTCOME_LABELS,
   SENIORITY_LABELS,
+  SPONTANEOUS_CHANNEL_LABELS,
   STATUS_LABELS,
   WORK_MODE_LABELS,
   matchWithProfile,
   silenceOf,
 } from '@devstart/shared-types';
 import { NgbActiveOffcanvas, NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { finalize } from 'rxjs';
 import { CatalogApiService } from '../../../../core/catalog/catalog-api.service';
 import { ApiError } from '../../../../core/http/error.interceptor';
 import { ProfileStore } from '../../../../core/profile/profile-store';
@@ -58,7 +60,10 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
           {{ detail()?.companyName }}
         </h2>
         <div class="small text-body-secondary text-truncate">
-          {{ detail()?.jobTitle }}
+          {{
+            detail()?.jobTitle ||
+              (detail()?.kind === 'SPONTANEOUS' ? 'Candidatura espontânea' : '')
+          }}
         </div>
       </div>
       <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
@@ -135,6 +140,7 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
             [silence]="s"
             [busy]="busy()"
             (giveUp)="changeStatus('NO_RESPONSE')"
+            (resent)="resend()"
           />
         }
 
@@ -150,32 +156,67 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
         }
 
         <section class="vstack gap-2 flex-grow-0">
-          <ds-accessibility-badge
-            [value]="d.accessibility"
-            [mislabeled]="d.mislabeledJunior"
-            [years]="d.yearsRequired"
-          />
-          <dl class="row small mb-0">
-            <dt class="col-5 text-body-secondary fw-normal">Senioridade</dt>
-            <dd class="col-7 mb-1">{{ seniorityLabels[d.seniority] }}</dd>
-            <dt class="col-5 text-body-secondary fw-normal">Anos pedidos</dt>
-            <dd class="col-7 mb-1">
-              {{
-                d.yearsRequired === null
-                  ? 'Não indicada'
-                  : d.yearsRequired === 0
-                    ? 'Nenhuma'
-                    : d.yearsRequired + '+ anos'
-              }}
-            </dd>
-            <dt class="col-5 text-body-secondary fw-normal">Modalidade</dt>
-            <dd class="col-7 mb-1">
-              {{ workModeLabels[d.workMode]
-              }}{{ d.location ? ' · ' + d.location : '' }}
-            </dd>
-            <dt class="col-5 text-body-secondary fw-normal">Candidatura</dt>
-            <dd class="col-7 mb-1">{{ d.appliedAt | date: 'd MMM y' }}</dd>
-          </dl>
+          @if (d.kind === 'SPONTANEOUS') {
+            <span
+              class="badge text-bg-info-subtle text-info-emphasis fw-normal align-self-start"
+              ><i class="bi bi-send me-1"></i>Candidatura espontânea</span
+            >
+            <dl class="row small mb-0">
+              @if (d.jobTitle) {
+                <dt class="col-5 text-body-secondary fw-normal">Área</dt>
+                <dd class="col-7 mb-1">{{ d.jobTitle }}</dd>
+              }
+              <dt class="col-5 text-body-secondary fw-normal">Enviada por</dt>
+              <dd class="col-7 mb-1">
+                {{ d.channel ? channelLabels[d.channel] : 'Não indicado' }}
+              </dd>
+              @if (d.contact) {
+                <dt class="col-5 text-body-secondary fw-normal">Contacto</dt>
+                <dd class="col-7 mb-1 text-break">{{ d.contact }}</dd>
+              }
+              @if (d.location) {
+                <dt class="col-5 text-body-secondary fw-normal">Local</dt>
+                <dd class="col-7 mb-1">{{ d.location }}</dd>
+              }
+              <dt class="col-5 text-body-secondary fw-normal">Enviada</dt>
+              <dd class="col-7 mb-1">{{ d.appliedAt | date: 'd MMM y' }}</dd>
+              @if (d.resentOn.length) {
+                <dt class="col-5 text-body-secondary fw-normal">Reenviada</dt>
+                <dd class="col-7 mb-1">
+                  @for (r of d.resentOn; track r; let last = $last) {
+                    {{ r | date: 'd MMM y' }}{{ last ? '' : ', ' }}
+                  }
+                </dd>
+              }
+            </dl>
+          } @else {
+            <ds-accessibility-badge
+              [value]="d.accessibility"
+              [mislabeled]="d.mislabeledJunior"
+              [years]="d.yearsRequired"
+            />
+            <dl class="row small mb-0">
+              <dt class="col-5 text-body-secondary fw-normal">Senioridade</dt>
+              <dd class="col-7 mb-1">{{ seniorityLabels[d.seniority] }}</dd>
+              <dt class="col-5 text-body-secondary fw-normal">Anos pedidos</dt>
+              <dd class="col-7 mb-1">
+                {{
+                  d.yearsRequired === null
+                    ? 'Não indicada'
+                    : d.yearsRequired === 0
+                      ? 'Nenhuma'
+                      : d.yearsRequired + '+ anos'
+                }}
+              </dd>
+              <dt class="col-5 text-body-secondary fw-normal">Modalidade</dt>
+              <dd class="col-7 mb-1">
+                {{ workModeLabels[d.workMode]
+                }}{{ d.location ? ' · ' + d.location : '' }}
+              </dd>
+              <dt class="col-5 text-body-secondary fw-normal">Candidatura</dt>
+              <dd class="col-7 mb-1">{{ d.appliedAt | date: 'd MMM y' }}</dd>
+            </dl>
+          }
           @if (d.experienceRequirements.length) {
             <div class="small">
               <div class="text-body-secondary mb-1">Experiência pedida</div>
@@ -192,7 +233,8 @@ const STATUS_INTERVIEW: Partial<Record<ApplicationStatus, InterviewType>> = {
               target="_blank"
               rel="noopener noreferrer"
               class="small"
-              ><i class="bi bi-box-arrow-up-right me-1"></i>Ver anúncio</a
+              ><i class="bi bi-box-arrow-up-right me-1"></i
+              >{{ d.kind === 'SPONTANEOUS' ? 'Abrir link' : 'Ver anúncio' }}</a
             >
           }
           @if (d.notes) {
@@ -406,6 +448,7 @@ export class ApplicationDetail {
   protected readonly statusLabels = STATUS_LABELS;
   protected readonly seniorityLabels = SENIORITY_LABELS;
   protected readonly workModeLabels = WORK_MODE_LABELS;
+  protected readonly channelLabels = SPONTANEOUS_CHANNEL_LABELS;
   protected readonly interviewLabels = INTERVIEW_TYPE_LABELS;
   protected readonly outcomeLabels = OUTCOME_LABELS;
 
@@ -441,6 +484,19 @@ export class ApplicationDetail {
 
   protected stars(n: number): string {
     return '★'.repeat(n) + '☆'.repeat(5 - n);
+  }
+
+  /** "Reenviei hoje" numa candidatura espontânea: regista o reenvio e recomeça a contagem. */
+  protected resend(): void {
+    this.busy.set(true);
+    this.error.set(null);
+    this.store
+      .resend(this.id, this.store.today())
+      .pipe(finalize(() => this.busy.set(false)))
+      .subscribe({
+        next: () => this.reload(),
+        error: (e: ApiError) => this.error.set(e.message),
+      });
   }
 
   async changeStatus(status: ApplicationStatus): Promise<void> {

@@ -596,6 +596,121 @@ describeDb('Application Tracker Service (e2e)', () => {
     });
   });
 
+  describe('candidaturas espontâneas', () => {
+    const SPONT = {
+      kind: 'SPONTANEOUS',
+      companyName: 'Lumen Cloud',
+      channel: 'EMAIL',
+      contact: 'talento@lumen.pt',
+      appliedAt: '2026-10-01',
+    };
+    const createSp = async (patch: object = {}) =>
+      (await ana.post('/api/applications', { ...SPONT, ...patch }).expect(201))
+        .body as JobApplication;
+
+    it('não pede título, modalidade, senioridade nem competências', async () => {
+      const a = await createSp();
+      expect(a).toMatchObject({
+        kind: 'SPONTANEOUS',
+        jobTitle: '',
+        channel: 'EMAIL',
+        contact: 'talento@lumen.pt',
+        requiredCompetencyIds: [],
+        otherSkills: [],
+        seniority: 'UNKNOWN',
+        accessibility: 'UNKNOWN',
+        status: 'APPLIED',
+        resentOn: [],
+      });
+      // Conta como candidatura, como as outras.
+      expect((await ana.get('/api/applications/stats')).body.total).toBe(1);
+    });
+
+    it('ignora competências e senioridade enviadas por engano', async () => {
+      const a = await createSp({
+        jobTitle: 'IA e dados',
+        requiredCompetencyIds: ['angular'],
+        seniority: 'MID',
+        yearsRequired: 5,
+      });
+      expect(a).toMatchObject({
+        jobTitle: 'IA e dados',
+        requiredCompetencyIds: [],
+        seniority: 'UNKNOWN',
+        yearsRequired: null,
+      });
+    });
+
+    it('uma vaga continua a precisar de título; canal inválido é recusado', async () => {
+      await ana
+        .post('/api/applications', { ...JOB, jobTitle: undefined })
+        .expect(400);
+      await ana
+        .post('/api/applications', { ...SPONT, channel: 'FAX' })
+        .expect(400);
+    });
+
+    it('o tipo não muda ao editar; numa vaga, canal e contacto ficam vazios', async () => {
+      const sp = await createSp();
+      const edited = (
+        await ana
+          // Um pedido de vaga completo: mesmo assim, fica espontânea.
+          .put(`/api/applications/${sp.id}`, {
+            ...JOB,
+            ...SPONT,
+            kind: 'JOB',
+            jobTitle: 'Dados',
+            contact: null,
+          })
+          .expect(200)
+      ).body;
+      expect(edited).toMatchObject({
+        kind: 'SPONTANEOUS',
+        jobTitle: 'Dados',
+        contact: null,
+      });
+      const job = await create({ channel: 'EMAIL', contact: 'x@y.pt' });
+      expect(job).toMatchObject({ kind: 'JOB', channel: null, contact: null });
+    });
+
+    it('"Reenviei hoje": guarda as datas por ordem, sem repetir', async () => {
+      const a = await createSp();
+      await ana
+        .post(`/api/applications/${a.id}/resend`, { date: '2026-11-15' })
+        .expect(200);
+      await ana
+        .post(`/api/applications/${a.id}/resend`, { date: '2026-11-01' })
+        .expect(200);
+      const { body } = await ana
+        .post(`/api/applications/${a.id}/resend`, { date: '2026-11-15' })
+        .expect(200);
+      expect(body.resentOn).toEqual(['2026-11-01', '2026-11-15']);
+      // Sem data, conta o dia de hoje.
+      const today = new Date().toISOString().slice(0, 10);
+      const after = (
+        await ana.post(`/api/applications/${a.id}/resend`, {}).expect(200)
+      ).body;
+      expect(after.resentOn).toContain(today);
+    });
+
+    it('só se reenviam espontâneas à espera de resposta, e de quem as criou', async () => {
+      const job = await create();
+      await ana.post(`/api/applications/${job.id}/resend`, {}).expect(400);
+      const sp = await createSp();
+      await rui.post(`/api/applications/${sp.id}/resend`, {}).expect(404);
+      await ana
+        .post(`/api/applications/${sp.id}/resend`, { date: '15/11/2026' })
+        .expect(400);
+      await ana
+        .patch(`/api/applications/${sp.id}/move`, {
+          status: 'HR_INTERVIEW',
+          position: 0,
+        })
+        .expect(200);
+      await ana.post(`/api/applications/${sp.id}/resend`, {}).expect(400);
+    });
+  });
+
   describe('texto do anúncio e exportação (ferramentas de desenvolvimento)', () => {
     const AD = 'Procuramos Junior Frontend Developer com Angular e TypeScript.';
 

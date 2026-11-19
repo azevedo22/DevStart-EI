@@ -75,9 +75,34 @@ export const WORK_MODE_LABELS: Record<WorkMode, string> = {
   REMOTE: 'Remoto',
 };
 
+/**
+ * Vaga: candidatura a um anúncio. Espontânea: o CV enviado a uma empresa sem
+ * vaga aberta; não tem anúncio, por isso não tem competências nem percentagem.
+ */
+export const APPLICATION_KINDS = ['JOB', 'SPONTANEOUS'] as const;
+export type ApplicationKind = (typeof APPLICATION_KINDS)[number];
+
+/** Por onde se enviou uma candidatura espontânea. */
+export const SPONTANEOUS_CHANNELS = [
+  'EMAIL',
+  'LINKEDIN',
+  'WEBSITE',
+  'IN_PERSON',
+] as const;
+export type SpontaneousChannel = (typeof SPONTANEOUS_CHANNELS)[number];
+
+export const SPONTANEOUS_CHANNEL_LABELS: Record<SpontaneousChannel, string> = {
+  EMAIL: 'E-mail',
+  LINKEDIN: 'LinkedIn',
+  WEBSITE: 'Formulário do site',
+  IN_PERSON: 'Presencialmente',
+};
+
 export interface JobApplication {
   id: string;
+  kind: ApplicationKind;
   companyName: string;
+  /** Na espontânea, a área ou função procurada (pode ficar vazia). */
   jobTitle: string;
   jobUrl: string | null;
   location: string | null;
@@ -100,6 +125,12 @@ export interface JobApplication {
   mislabeledJunior: boolean;
   appliedAt: string; // data (AAAA-MM-DD)
   notes: string | null;
+  /** Só nas espontâneas: por onde foi enviada. */
+  channel: SpontaneousChannel | null;
+  /** Só nas espontâneas: a pessoa ou o e-mail a quem se enviou. */
+  contact: string | null;
+  /** Só nas espontâneas: dias em que se voltou a enviar (AAAA-MM-DD, por ordem). */
+  resentOn: string[];
   interviewCount: number;
   createdAt: string;
   updatedAt: string;
@@ -117,16 +148,22 @@ export interface JobApplicationDetail extends JobApplication {
 }
 
 export interface SaveApplicationRequest {
+  /** Só conta na criação (por omissão, JOB); depois o tipo não muda. */
+  kind?: ApplicationKind;
   companyName: string;
-  jobTitle: string;
+  /** Obrigatório nas vagas; opcional nas espontâneas (área ou função). */
+  jobTitle?: string;
   jobUrl?: string | null;
   location?: string | null;
-  workMode: WorkMode;
-  requiredCompetencyIds: string[];
+  /** Obrigatórios nas vagas; ignorados nas espontâneas. */
+  workMode?: WorkMode;
+  requiredCompetencyIds?: string[];
   otherSkills?: string[];
   yearsRequired?: number | null;
   experienceRequirements?: string[];
-  seniority: Seniority;
+  seniority?: Seniority;
+  channel?: SpontaneousChannel | null;
+  contact?: string | null;
   appliedAt: string;
   notes?: string | null;
   /**
@@ -234,6 +271,9 @@ export const APPLICATION_LIMITS = {
   feedbackText: 2000,
   /** Igual ao máximo que a análise de anúncios aceita. */
   postingText: 20_000,
+  contact: 200,
+  /** Reenvios guardados por candidatura espontânea. */
+  resends: 10,
 } as const;
 
 // ── Exportação para avaliação (ferramentas de desenvolvimento) ──
@@ -241,6 +281,7 @@ export const APPLICATION_LIMITS = {
 /** Uma candidatura com a leitura da IA e o texto do anúncio, quando existe. */
 export interface ApplicationExportItem {
   id: string;
+  kind: ApplicationKind;
   companyName: string;
   jobTitle: string;
   jobUrl: string | null;
@@ -277,4 +318,9 @@ export interface JobListingTextsRequest {
 export interface DevToolsStatus {
   /** Exportação de candidaturas ligada (DEV_TOOLS=true no servidor). */
   export: boolean;
+}
+
+/** "Reenviei hoje" numa candidatura espontânea. Sem data, conta o dia de hoje. */
+export interface ResendApplicationRequest {
+  date?: string;
 }

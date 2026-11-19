@@ -1,5 +1,12 @@
 import { replyAction } from './reply.types';
-import { SILENCE, daysBetween, followUpDraft, silenceOf } from './silence';
+import {
+  SILENCE,
+  SPONTANEOUS_SILENCE,
+  daysBetween,
+  followUpDraft,
+  resendDraft,
+  silenceOf,
+} from './silence';
 
 describe('silenceOf', () => {
   const applied = (appliedAt: string) => ({
@@ -77,5 +84,67 @@ describe('replyAction', () => {
     ['OTHER', null, null, null],
   ] as const)('%s (%s) → %s', (kind, type, status, interviewType) => {
     expect(replyAction(kind, type)).toEqual({ status, interviewType });
+  });
+});
+
+describe('candidaturas espontâneas', () => {
+  const sp = (resentOn: string[] = [], status = 'APPLIED' as const) => ({
+    status,
+    appliedAt: '2026-10-01',
+    kind: 'SPONTANEOUS' as const,
+    resentOn,
+  });
+
+  it(`não sugere follow-up aos 14 dias; aos ${SPONTANEOUS_SILENCE.resendAfterDays} sugere reenviar`, () => {
+    expect(silenceOf(sp(), '2026-10-20')).toBeNull();
+    expect(silenceOf(sp(), '2026-10-31')).toEqual({
+      days: 30,
+      stage: 'RESEND',
+    });
+  });
+
+  it('um reenvio recomeça a contagem a partir dessa data', () => {
+    expect(silenceOf(sp(['2026-11-01']), '2026-11-20')).toBeNull();
+    expect(silenceOf(sp(['2026-11-01']), '2026-12-01')).toEqual({
+      days: 30,
+      stage: 'RESEND',
+    });
+  });
+
+  it(`depois de ${SPONTANEOUS_SILENCE.maxResends} reenvios sem resposta, propõe "Sem resposta"`, () => {
+    expect(silenceOf(sp(['2026-11-01', '2026-12-01']), '2026-12-31')).toEqual({
+      days: 30,
+      stage: 'GIVE_UP',
+    });
+  });
+
+  it('com resposta (fora de "Candidatado"), não avisa', () => {
+    expect(
+      silenceOf({ ...sp(), status: 'HR_INTERVIEW' }, '2027-01-01'),
+    ).toBeNull();
+  });
+
+  it('rascunho de reenvio, com e sem área', () => {
+    const pt = resendDraft(
+      {
+        companyName: 'Lumen Cloud',
+        jobTitle: 'IA e dados',
+        appliedAt: '2026-10-01',
+      },
+      'pt',
+      'Cláudio Azevedo',
+    );
+    expect(pt.subject).toBe('Candidatura espontânea: IA e dados');
+    expect(pt.body).toContain(
+      'A 1 de outubro enviei à Lumen Cloud uma candidatura espontânea para a área de IA e dados',
+    );
+    expect(pt.body).toContain('Cláudio Azevedo');
+    const en = resendDraft(
+      { companyName: 'Lumen Cloud', jobTitle: '', appliedAt: '2026-10-01' },
+      'en',
+      'Cláudio Azevedo',
+    );
+    expect(en.subject).toBe('Unsolicited application: Cláudio Azevedo');
+    expect(en.body).toContain('an unsolicited application, and I would like');
   });
 });

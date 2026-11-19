@@ -7,17 +7,21 @@ import {
   signal,
 } from '@angular/core';
 import {
+  ApplicationKind,
   FollowUpLanguage,
   SILENCE,
   Silence,
   followUpDraft,
+  resendDraft,
 } from '@devstart/shared-types';
 import { AuthService } from '../../../../core/auth/auth.service';
 
 /**
- * O silêncio de uma empresa, no detalhe da candidatura. Aos 14 dias propõe um
- * follow-up (um rascunho curto, em português ou inglês, pronto a copiar ou a
- * abrir no email); aos 30, propõe arquivar em "Sem resposta". A pessoa decide.
+ * O silêncio de uma empresa, no detalhe da candidatura. Vagas: aos 14 dias
+ * propõe um follow-up (um rascunho curto, em português ou inglês, pronto a
+ * copiar ou a abrir no email); aos 30, propõe arquivar em "Sem resposta".
+ * Espontâneas: ao fim de um mês propõe reenviar ("Reenviei hoje" recomeça a
+ * contagem); depois de 2 reenvios, propõe arquivar. A pessoa decide.
  */
 @Component({
   selector: 'ds-silence-notice',
@@ -34,7 +38,16 @@ import { AuthService } from '../../../../core/auth/auth.service';
         {{ s.days }} dias
       </h3>
       <p class="small text-body-secondary mb-2">
-        @if (s.stage === 'GIVE_UP') {
+        @if (spontaneous() && s.stage === 'GIVE_UP') {
+          Já reenviaste {{ resends() }}
+          {{ resends() === 1 ? 'vez' : 'vezes' }} sem resposta. Podes arquivar
+          em "Sem resposta": sai do caminho, sem contar como rejeição, e se
+          responderem volta ao sítio.
+        } @else if (s.stage === 'RESEND') {
+          As candidaturas espontâneas demoram mais a ter resposta, e muitas
+          empresas pedem para voltar a enviar mais tarde. Reenvia com o CV
+          atualizado e carrega em "Reenviei hoje": a contagem recomeça.
+        } @else if (s.stage === 'GIVE_UP') {
           Ao fim de {{ giveUpAfter }} dias já poucas empresas respondem. Podes
           arquivar em "Sem resposta": sai do caminho, sem contar como rejeição,
           e se responderem volta ao sítio.
@@ -59,7 +72,9 @@ import { AuthService } from '../../../../core/auth/auth.service';
             </button>
           }
         </div>
-        <span class="small text-body-secondary">Rascunho de follow-up</span>
+        <span class="small text-body-secondary">{{
+          spontaneous() ? 'Rascunho de reenvio' : 'Rascunho de follow-up'
+        }}</span>
       </div>
       <div class="draft small border rounded-2 bg-body p-2 mb-2">
         <div class="fw-semibold mb-1">{{ d.subject }}</div>
@@ -77,6 +92,16 @@ import { AuthService } from '../../../../core/auth/auth.service';
         <a class="btn btn-sm btn-outline-primary" [href]="mailto()">
           <i class="bi bi-envelope me-1"></i>Abrir no email
         </a>
+        @if (s.stage === 'RESEND') {
+          <button
+            type="button"
+            class="btn btn-sm btn-primary ms-auto"
+            [disabled]="busy()"
+            (click)="resent.emit()"
+          >
+            <i class="bi bi-send-check me-1"></i>Reenviei hoje
+          </button>
+        }
         @if (s.stage === 'GIVE_UP') {
           <button
             type="button"
@@ -111,10 +136,22 @@ export class SilenceNotice {
     companyName: string;
     jobTitle: string;
     appliedAt: string;
+    kind?: ApplicationKind;
+    contact?: string | null;
+    resentOn?: string[];
   }>();
   readonly silence = input.required<Silence>();
   readonly busy = input(false);
   readonly giveUp = output<void>();
+  /** Só nas espontâneas: "Reenviei hoje". */
+  readonly resent = output<void>();
+
+  protected readonly spontaneous = computed(
+    () => this.application().kind === 'SPONTANEOUS',
+  );
+  protected readonly resends = computed(
+    () => this.application().resentOn?.length ?? 0,
+  );
 
   protected readonly giveUpAfter = SILENCE.giveUpAfterDays;
   protected readonly languages: { id: FollowUpLanguage; label: string }[] = [
@@ -125,12 +162,21 @@ export class SilenceNotice {
   protected readonly copied = signal(false);
 
   protected readonly draft = computed(() =>
-    followUpDraft(this.application(), this.lang(), this.auth.user()?.fullName),
+    (this.spontaneous() ? resendDraft : followUpDraft)(
+      this.application(),
+      this.lang(),
+      this.auth.user()?.fullName,
+    ),
   );
 
+  /** Se o contacto guardado for um e-mail, o rascunho já vai endereçado. */
   protected readonly mailto = computed(() => {
     const d = this.draft();
-    return `mailto:?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`;
+    const contact = this.application().contact?.trim() ?? '';
+    const to = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)
+      ? encodeURIComponent(contact)
+      : '';
+    return `mailto:${to}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`;
   });
 
   protected async copy(): Promise<void> {

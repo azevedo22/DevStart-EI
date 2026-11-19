@@ -1,9 +1,11 @@
 import type {
   Accessibility,
+  ApplicationKind,
   ApplicationStatus,
   InterviewOutcome,
   InterviewType,
   Seniority,
+  SpontaneousChannel,
   WorkMode,
 } from '@devstart/shared-types';
 import {
@@ -24,6 +26,9 @@ export class ApplicationEntity {
 
   @Column({ name: 'user_id', type: 'uuid' })
   userId!: string;
+
+  @Column({ type: 'varchar', length: 12, default: 'JOB' })
+  kind!: ApplicationKind;
 
   @Column({ name: 'company_name', type: 'varchar', length: 120 })
   companyName!: string;
@@ -93,6 +98,22 @@ export class ApplicationEntity {
 
   @Column({ type: 'varchar', length: 4000, nullable: true })
   notes!: string | null;
+
+  /** Só nas espontâneas: por onde foi enviada. */
+  @Column({ type: 'varchar', length: 12, nullable: true })
+  channel!: SpontaneousChannel | null;
+
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  contact!: string | null;
+
+  /** Dias em que a candidatura espontânea foi reenviada, por ordem. */
+  @Column({
+    name: 'resent_on',
+    type: 'text',
+    array: true,
+    default: () => "'{}'",
+  })
+  resentOn!: string[];
 
   /**
    * Texto do anúncio analisado com IA. Não é lido nas consultas normais

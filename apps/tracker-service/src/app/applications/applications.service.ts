@@ -5,7 +5,9 @@ import {
   Accessibility,
   ApplicationBoard,
   ApplicationExportItem,
+  ApplicationKind,
   ApplicationStats,
+  ResendApplicationRequest,
   ApplicationStatus,
   CLOSED_STATUSES,
   NOT_APPLIED_STATUSES,
@@ -220,6 +222,7 @@ export class ApplicationsService {
         em.create(ApplicationEntity, {
           userId,
           ...toApplicationFields(dto),
+          kind: dto.kind ?? 'JOB',
           status,
           position: 0,
         }),
@@ -246,7 +249,41 @@ export class ApplicationsService {
         'Para mudar de coluna usa PATCH /applications/:id/move.',
       );
     }
-    await this.applications.update({ id, userId }, toApplicationFields(dto));
+    await this.applications.update(
+      { id, userId },
+      toApplicationFields(dto, app.kind),
+    );
+    return this.get(userId, id);
+  }
+
+  /**
+   * "Reenviei hoje": regista um reenvio de uma candidatura espontânea e
+   * recomeça a contagem do silêncio. Só enquanto está à espera de resposta.
+   */
+  async resend(
+    userId: string,
+    id: string,
+    dto: ResendApplicationRequest,
+  ): Promise<JobApplication> {
+    const app = await this.findOwned(userId, id);
+    if (app.kind !== 'SPONTANEOUS') {
+      throw new BadRequestException(
+        'Só as candidaturas espontâneas se reenviam.',
+      );
+    }
+    if (app.status !== 'APPLIED') {
+      throw new BadRequestException(
+        'Só se reenvia uma candidatura que ainda está à espera de resposta.',
+      );
+    }
+    const date = dto.date ?? new Date().toISOString().slice(0, 10);
+    const resentOn = [...new Set([...(app.resentOn ?? []), date])].sort();
+    if (resentOn.length > APPLICATION_LIMITS.resends) {
+      throw new ConflictException(
+        `Chegaste ao limite de ${APPLICATION_LIMITS.resends} reenvios.`,
+      );
+    }
+    await this.applications.update({ id, userId }, { resentOn });
     return this.get(userId, id);
   }
 
@@ -425,6 +462,7 @@ async function withInterviewCount(
 export function toApplication(a: ApplicationEntity): JobApplication {
   return {
     id: a.id,
+    kind: a.kind,
     companyName: a.companyName,
     jobTitle: a.jobTitle,
     jobUrl: a.jobUrl,
@@ -441,6 +479,9 @@ export function toApplication(a: ApplicationEntity): JobApplication {
     mislabeledJunior: a.mislabeledJunior,
     appliedAt: a.appliedAt,
     notes: a.notes,
+    channel: a.channel,
+    contact: a.contact,
+    resentOn: a.resentOn ?? [],
     interviewCount: a.interviewCount ?? 0,
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
@@ -465,31 +506,55 @@ export function toInterview(i: InterviewEntity): Interview {
 
 /**
  * Campos de uma candidatura a partir do pedido. A acessibilidade é sempre
- * calculada aqui, nunca aceite do cliente. Exportado para os dados de demonstração.
+ * calculada aqui, nunca aceite do cliente. O tipo (vaga ou espontânea) decide-se
+ * na criação; na edição, conta o tipo que a candidatura já tem. Exportado para
+ * os dados de demonstração.
  */
 export function toApplicationFields(
   dto: SaveApplicationRequest,
+  kind: ApplicationKind = dto.kind ?? 'JOB',
 ): Partial<ApplicationEntity> {
-  const yearsRequired = dto.yearsRequired ?? null;
-  const verdict = classifyAccessibility({
-    yearsRequired,
-    seniority: dto.seniority,
-  });
-  return {
+  const common = {
     companyName: dto.companyName,
-    jobTitle: dto.jobTitle,
     jobUrl: dto.jobUrl ?? null,
     location: dto.location ?? null,
-    workMode: dto.workMode,
-    requiredCompetencyIds: dto.requiredCompetencyIds,
+    appliedAt: dto.appliedAt,
+    notes: dto.notes ?? null,
+  };
+  if (kind === 'SPONTANEOUS') {
+    // Sem anúncio: sem competências, senioridade nem modalidade. A modalidade
+    // fica com um valor neutro só porque a coluna a exige; a web não a mostra.
+    return {
+      ...common,
+      jobTitle: dto.jobTitle ?? '',
+      workMode: 'ONSITE',
+      requiredCompetencyIds: [],
+      otherSkills: [],
+      yearsRequired: null,
+      experienceRequirements: [],
+      seniority: 'UNKNOWN',
+      accessibility: 'UNKNOWN',
+      mislabeledJunior: false,
+      channel: dto.channel ?? null,
+      contact: dto.contact ?? null,
+    };
+  }
+  const yearsRequired = dto.yearsRequired ?? null;
+  const seniority = dto.seniority ?? 'UNKNOWN';
+  const verdict = classifyAccessibility({ yearsRequired, seniority });
+  return {
+    ...common,
+    jobTitle: dto.jobTitle ?? '',
+    workMode: dto.workMode ?? 'ONSITE',
+    requiredCompetencyIds: dto.requiredCompetencyIds ?? [],
     otherSkills: dto.otherSkills ?? [],
     yearsRequired,
     experienceRequirements: dto.experienceRequirements ?? [],
-    seniority: dto.seniority,
+    seniority,
     accessibility: verdict.accessibility,
     mislabeledJunior: verdict.mislabeledJunior,
-    appliedAt: dto.appliedAt,
-    notes: dto.notes ?? null,
+    channel: null,
+    contact: null,
     // Omitido na edição: mantém o texto que já estava guardado.
     ...(dto.postingText !== undefined && { postingText: dto.postingText }),
   };
@@ -499,6 +564,7 @@ export function toApplicationFields(
 export function toExportItem(a: ApplicationEntity): ApplicationExportItem {
   return {
     id: a.id,
+    kind: a.kind,
     companyName: a.companyName,
     jobTitle: a.jobTitle,
     jobUrl: a.jobUrl,
